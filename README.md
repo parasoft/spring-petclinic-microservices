@@ -67,6 +67,13 @@ You can then access petclinic here: http://localhost:8080/
 
 ![Spring Petclinic Microservices architecture](docs/microservices-architecture-diagram.jpg)
 
+**CTP environment diagram of the Spring Petclinic Microservices**
+
+![Spring Petclinic Microservices environment](docs/ctp-environment.png)
+
+Import `ctp-system.zip` from this Git repo into your CTP to quickly set up the above diagram.
+
+
 
 ## In case you find a bug/suggested improvement for Spring Petclinic Microservices
 
