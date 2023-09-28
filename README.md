@@ -7,6 +7,14 @@ This microservices branch was initially derived from [AngularJS version](https:/
 To achieve that goal, we use Spring Cloud Gateway, Spring Cloud Circuit Breaker, Spring Cloud Config, Micrometer Tracing, Resilience4j, Open Telemetry 
 and the Eureka Service Discovery from the [Spring Cloud Netflix](https://github.com/spring-cloud/spring-cloud-netflix) technology stack.
 
+## Starting services with Parasoft coverage agent for Java
+
+Four microservice projects have been configured with Parasoft coverage agent properties.  All you need to do is copy the agent.jar file into the src/test/resources/coverage/ folder along side the existing agent.properties.  Maven will automatically pick up the Java agent and inject it into the Spring Boot runtime.  Coverage agent port numbers for each microservice are configured in src/test/resources/coverage/agent.properties files.  Follow the instructions below to start each microservice using `..\mvnw spring-boot:run` command in a separate terminal and in the correct order to run them with the coverage agent.  The four microservice projects configured for coverage are:
+* spring-petclinic-api-gateway
+* spring-petclinic-customers-service
+* spring-petclinic-vets-service
+* spring-petclinic-visits-service
+
 ## Starting services locally without Docker
 
 Every microservice is a Spring Boot application and can be started locally using IDE ([Lombok](https://projectlombok.org/) plugin has to be set up) or `../mvnw spring-boot:run` command. Please note that supporting services (Config and Discovery Server) must be started before any other application (Customers, Vets, Visits and API).

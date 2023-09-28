@@ -63,6 +63,27 @@
 
     <profiles>
         <profile>
+            <id>coverage</id>
+            <activation>
+                <file>
+                    <exists>src/test/resources/coverage/agent.jar</exists>
+                </file>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-maven-plugin</artifactId>
+                        <configuration>
+                            <agents>
+				    ${project.build.directory}/test-classes/coverage/agent.jar=settings=${project.build.directory}/test-classes/coverage/agent.properties
+                            </agents>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
             <id>springboot</id>
             <activation>
                 <file>
