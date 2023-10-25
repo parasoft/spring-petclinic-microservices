@@ -20,7 +20,5 @@ target/
 # Branch switching
 generated/
 
-# Parasoft
-agent.jar
 
 /*/*/*/resources/coverage

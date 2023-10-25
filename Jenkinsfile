@@ -19,14 +19,22 @@ pipeline {
     }
         stage('Deploy-CodeCoverage') {
             steps {
+                // downlaod the agent.jar and cov-tool
+                // unzip
+                // copy in to the coverage folder
+                sh '''
+                    cp docker/coverage/agent.jar spring-petclinic-customers-service/src/test/resources/coverage/agent.jar
+                    cp docker/coverage/agent.jar spring-petclinic-vets-service/src/test/resources/coverage/agent.jar
+                    cp docker/coverage/agent.jar spring-petclinic-visits-service/src/test/resources/coverage/agent.jar
+                    '''
                 // check running containers
                 sh '''
-                    docker-compose down || true
+                    docker-compose -f docker-compose-cc.yml down || true
                     '''
                 // deploy the project
                 sh  '''
                     # Run PetClinic with Jtest coverage agent configured
-                    docker-compose up -d
+                    docker-compose -f docker-compose-cc.yml up -d
                     '''
 
                 // Health check coverage agents
