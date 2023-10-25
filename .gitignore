@@ -22,3 +22,5 @@ generated/
 
 # Parasoft
 agent.jar
+
+/*/*/*/resources/coverage
