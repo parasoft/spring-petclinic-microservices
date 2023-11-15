@@ -1,0 +1,55 @@
+name: Local PetClinic
+components:
+- name: Eureka Service Discovery
+  instances:
+  - name: Discovery Server
+- name: Git Repo
+- name: Spring Boot Admin Server
+  instances:
+  - name: Admin Server
+- name: Spring Cloud Config Server
+  instances:
+  - name: Config Server
+- name: UI + API Gateway
+  instances:
+  - name: Local Gateway
+    coverage:
+      agentUrl: http://localhost:8051
+      buildId: spring-petclinic-api-gateway-2023-11-14
+      coverageImages: spring-petclinic-api-gateway
+      dtpFilter: spring-petclinic-api-gateway
+      dtpProject: spring-petclinic-api-gateway
+- name: Web Browser
+- name: Zipkin Distributed Logging Server
+  instances:
+  - name: Tracing Server
+- name: customers-service REST API
+  instances:
+  - name: Customers Microservice
+    coverage:
+      agentUrl: http://localhost:8052
+      buildId: spring-petclinic-customers-service-2023-11-14
+      coverageImages: spring-petclinic-customers-service
+      dtpFilter: spring-petclinic-customers-service
+      dtpProject: spring-petclinic-customers-service
+- name: customers-storage
+- name: vets-service REST API
+  instances:
+  - name: Vets Microservice
+    coverage:
+      agentUrl: http://localhost:8053
+      buildId: spring-petclinic-vets-service-2023-11-14
+      coverageImages: spring-petclinic-vets-service
+      dtpFilter: spring-petclinic-vets-service
+      dtpProject: spring-petclinic-vets-service
+- name: vets-storage
+- name: visits-service REST API
+  instances:
+  - name: Visits Microservice
+    coverage:
+      agentUrl: http://localhost:8054
+      buildId: spring-petclinic-visits-service-2023-11-14
+      coverageImages: spring-petclinic-visits-service
+      dtpFilter: spring-petclinic-visits-service
+      dtpProject: spring-petclinic-visits-service
+- name: visits-storage
