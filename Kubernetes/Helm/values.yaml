@@ -1,0 +1,82 @@
+app:
+  name: petclinic
+
+images: # Use these settings to include imagePullSecret, if needed
+  auth: false
+  secret: harborcred
+
+ingress:
+  name: petclinic-ingress
+  class: nginx
+
+config:
+  name: config-server
+  containerPort: 8888
+  service:
+    name: config-server
+    port: 8888
+  ingress:
+    hostname: config-server.demo
+
+discovery:
+  name: discovery-server
+  containerPort: 8761
+  service:
+    name: discovery-server
+    port: 8761
+  ingress:
+    hostname: discovery-server.demo
+
+apiGateway:
+  name: api-gateway
+  containerPort: 8080
+  service:
+    name: api-gateway
+    port: 8080
+  ingress:
+    hostname: api-gateway.demo
+
+visits:
+  name: visits-service
+  containerPort: 8082
+  service:
+    name: visits-service
+    port: 8082
+  ingress:
+    hostname: visits-service.demo
+
+vets:
+  name: vets-service
+  containerPort: 8083
+  service:
+    name: vets-service
+    port: 8083
+  ingress:
+    hostname: vets-service.demo
+
+customers:
+  name: customers-service
+  containerPort: 8081
+  service:
+    name: customers-service
+    port: 8081
+  ingress:
+    hostname: customers-service.demo
+
+tracing:
+  name: tracing-server
+  containerPort: 9411
+  service:
+    name: tracing-server
+    port: 9411
+  ingress:
+    hostname: tracing-server.demo
+
+admin:
+  name: admin-server
+  containerPort: 9090
+  service:
+    name: admin-server
+    port: 9090
+  ingress:
+    hostname: admin-server.demo

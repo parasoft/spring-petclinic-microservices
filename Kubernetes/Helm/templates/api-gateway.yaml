@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.apiGateway.name | quote }}
+  labels:
+    app: {{ .Values.app.name | quote }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.app.name | quote }}
+      microservice: {{ .Values.apiGateway.name | quote }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.app.name | quote }}
+        microservice: {{ .Values.apiGateway.name | quote }}
+    spec:
+      containers:
+      - name: {{ .Values.apiGateway.name | quote }}
+        image: harbor.parasoft.com/ctp/springcommunity/spring-petclinic-api-gateway:latest
+        imagePullPolicy: Always
+        command: ["./dockerize"]
+        args: ["-wait=tcp://{{ .Values.discovery.service.name }}:{{ .Values.discovery.service.port }}", "-timeout=60s", "--", "java", "org.springframework.boot.loader.JarLauncher"]
+        ports:
+        - containerPort: {{ .Values.apiGateway.containerPort }}
+        env:
+        - name: eureka.instance.hostname
+          value: {{ .Values.apiGateway.service.name | quote }}
+        - name: management.zipkin.tracing.endpoint
+          value: http://{{ .Values.tracing.service.name }}:{{ .Values.tracing.service.port }}/api/v2/spans
+        # For debugging; can see values spring boot picks up at /actuator/env, otherwise masked
+        # - name: management.endpoint.env.show-values
+        #   value: ALWAYS
+      {{ if .Values.images.auth }}
+      imagePullSecrets:
+      - name: {{ .Values.images.secret | quote }}
+      {{ end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.apiGateway.service.name | quote }}
+spec:
+  ports:
+  - port: {{ .Values.apiGateway.service.port }}
+    protocol: TCP
+    targetPort: {{ .Values.apiGateway.containerPort }}
+  selector:
+    app: {{ .Values.app.name | quote }}
+    microservice: {{ .Values.apiGateway.name | quote }}

@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tracing-server
+  labels:
+    app: petclinic
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: petclinic
+      microservice: tracing-server
+  template:
+    metadata:
+      labels:
+        app: petclinic
+        microservice: tracing-server
+    spec:
+      containers:
+      - name: tracing-server
+        image: openzipkin/zipkin:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 9411
+        env:
+        - name: eureka.instance.hostname
+          value: tracing-server
+        - name: JAVA_OPTS
+          value: -XX:+UnlockExperimentalVMOptions -Djava.security.egd=file:/dev/./urandom
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tracing-server
+spec:
+  ports:
+  - port: 9411
+    protocol: TCP
+    targetPort: 9411
+  selector:
+    app: petclinic
+    microservice: tracing-server

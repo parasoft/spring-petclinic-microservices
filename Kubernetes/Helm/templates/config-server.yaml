@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.config.name | quote }}
+  labels:
+    app: {{ .Values.app.name | quote }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.app.name | quote }}
+      microservice: {{ .Values.config.name | quote }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.app.name | quote }}
+        microservice: {{ .Values.config.name | quote }}
+    spec:
+      containers:
+      - name: {{ .Values.config.name | quote }}
+        image: harbor.parasoft.com/ctp/springcommunity/spring-petclinic-config-server:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: {{ .Values.config.containerPort }}
+      {{ if .Values.images.auth }}
+      imagePullSecrets:
+      - name: {{ .Values.images.secret | quote }}
+      {{ end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.config.service.name | quote }}
+spec:
+  ports:
+  - port: {{ .Values.config.service.port }}
+    protocol: TCP
+    targetPort: {{ .Values.config.containerPort }}
+  selector:
+    app: {{ .Values.app.name | quote }}
+    microservice: {{ .Values.config.name | quote }}

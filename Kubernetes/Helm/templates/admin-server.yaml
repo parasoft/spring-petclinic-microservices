@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.admin.name | quote }}
+  labels:
+    app: {{ .Values.app.name | quote }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.app.name | quote }}
+      microservice: {{ .Values.admin.name | quote }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.app.name | quote }}
+        microservice: {{ .Values.admin.name | quote }}
+    spec:
+      containers:
+      - name: {{ .Values.admin.name | quote }}
+        image: harbor.parasoft.com/ctp/springcommunity/spring-petclinic-admin-server:latest
+        imagePullPolicy: Always
+        command: ["./dockerize"]
+        args: ["-wait=tcp://{{ .Values.discovery.service.name }}:{{ .Values.discovery.service.port }}", "-timeout=60s", "--", "java", "org.springframework.boot.loader.JarLauncher"]
+        ports:
+        - containerPort: {{ .Values.admin.containerPort }}
+        env:
+        - name: eureka.instance.hostname
+          value: {{ .Values.admin.service.name | quote }}
+        - name: management.zipkin.tracing.endpoint
+          value: http://{{ .Values.tracing.service.name }}:{{ .Values.tracing.service.port }}/api/v2/spans
+      {{ if .Values.images.auth }}
+      imagePullSecrets:
+      - name: {{ .Values.images.secret | quote }}
+      {{ end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.admin.service.name | quote }}
+spec:
+  ports:
+  - port: {{ .Values.admin.service.port }}
+    protocol: TCP
+    targetPort: {{ .Values.admin.containerPort }}
+  selector:
+    app: {{ .Values.app.name | quote }}
+    microservice: {{ .Values.admin.name | quote }}

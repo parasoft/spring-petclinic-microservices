@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  labels:
+    app: petclinic
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: petclinic
+      microservice: api-gateway
+  template:
+    metadata:
+      labels:
+        app: petclinic
+        microservice: api-gateway
+    spec:
+      containers:
+      - name: api-gateway
+        image: harbor.parasoft.com/ctp/springcommunity/spring-petclinic-api-gateway:latest
+        imagePullPolicy: Always
+        command: ["./dockerize"]
+        args: ["-wait=tcp://discovery-server:8761", "-timeout=60s", "--", "java", "org.springframework.boot.loader.JarLauncher"]
+        ports:
+        - containerPort: 8080
+        env:
+        - name: eureka.instance.hostname
+          value: api-gateway
+        - name: management.zipkin.tracing.endpoint
+          value: http://tracing-server:9411/api/v2/spans
+        # For debugging; can see values spring boot picks up at /actuator/env, otherwise masked
+        - name: management.endpoint.env.show-values
+          value: ALWAYS
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: petclinic
+    microservice: api-gateway

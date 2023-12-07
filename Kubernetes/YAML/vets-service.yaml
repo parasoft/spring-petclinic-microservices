@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vets-service
+  labels:
+    app: petclinic
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: petclinic
+      microservice: vets-service
+  template:
+    metadata:
+      labels:
+        app: petclinic
+        microservice: vets-service
+    spec:
+      containers:
+      - name: vets-service
+        image: harbor.parasoft.com/ctp/springcommunity/spring-petclinic-vets-service:latest
+        imagePullPolicy: Always
+        command: ["./dockerize"]
+        args: ["-wait=tcp://discovery-server:8761", "-timeout=60s", "--", "java", "org.springframework.boot.loader.JarLauncher"]
+        ports:
+        - containerPort: 8083
+        env:
+        - name: eureka.instance.hostname
+          value: vets-service
+        - name: management.zipkin.tracing.endpoint
+          value: http://tracing-server:9411/api/v2/spans
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vets-service
+spec:
+  ports:
+  - port: 8083
+    protocol: TCP
+    targetPort: 8083
+  selector:
+    app: petclinic
+    microservice: vets-service

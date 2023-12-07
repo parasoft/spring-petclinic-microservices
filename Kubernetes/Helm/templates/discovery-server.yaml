@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.discovery.name | quote }}
+  labels:
+    app: {{ .Values.app.name | quote }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.app.name | quote }}
+      microservice: {{ .Values.discovery.name | quote }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.app.name | quote }}
+        microservice: {{ .Values.discovery.name | quote }}
+    spec:
+      containers:
+      - name: {{ .Values.discovery.name | quote }}
+        image: harbor.parasoft.com/ctp/springcommunity/spring-petclinic-discovery-server:latest
+        imagePullPolicy: Always
+        command: ["./dockerize"]
+        args: ["-wait=tcp://{{ .Values.config.service.name }}:{{ .Values.config.service.port }}", "-timeout=60s", "--", "java", "org.springframework.boot.loader.JarLauncher"]
+        ports:
+        - containerPort: {{ .Values.discovery.containerPort }}
+      {{ if .Values.images.auth }}
+      imagePullSecrets:
+      - name: {{ .Values.images.secret | quote }}
+      {{ end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.discovery.service.name | quote }}
+spec:
+  ports:
+  - port: {{ .Values.discovery.service.port }}
+    protocol: TCP
+    targetPort: {{ .Values.discovery.containerPort }}
+  selector:
+    app: {{ .Values.app.name | quote }}
+    microservice: {{ .Values.discovery.name | quote }}
