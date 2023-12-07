@@ -1,6 +1,6 @@
 apiVersion: v2
 name: helm-spring-petclinic-coverageagents-demo
-description: A Helm chart for deploying the Spring Petclinic Microservices Project to Kubernetes
+description: A Helm chart for deploying the Spring Petclinic Microservices Project to Kubernetes with Parasoft Coverage Agents
 type: application
 version: 2.6.7
 appVersion: "2.6.7"

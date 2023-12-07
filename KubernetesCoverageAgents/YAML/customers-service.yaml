@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: customers-service
+  labels:
+    app: petclinic
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: petclinic
+      microservice: customers-service
+  template:
+    metadata:
+      labels:
+        app: petclinic
+        microservice: customers-service
+    spec:
+      containers:
+      - name: customers-service
+        image: harbor.parasoft.com/ctp/springcommunity/spring-petclinic-customers-service:latest
+        imagePullPolicy: Always
+        command: ["./dockerize"]
+        args: ["-wait=tcp://discovery-server:8761", "-timeout=60s", "--", "java", "org.springframework.boot.loader.JarLauncher"]
+        ports:
+        - containerPort: 8081
+        - containerPort: 8050
+        env:
+        - name: eureka.instance.hostname
+          value: customers-service
+        - name: management.zipkin.tracing.endpoint
+          value: http://tracing-server:9411/api/v2/spans
+        - name: JDK_JAVA_OPTIONS
+          value: "-javaagent:/tmp/coverage/agent.jar=settings=/config/agent.properties"
+        volumeMounts:
+        - name: customers-service-volume
+          mountPath: /tmp/coverage
+        - name: customers-configmap
+          mountPath: /config
+      initContainers:
+      - name: java-coverage-agent
+        image: harbor.parasoft.com/ctp/java-coverage-init-container:latest
+        command: ['sh', '-c', 'cp /agent/agent.jar /tmp/coverage/agent.jar']
+        volumeMounts:
+        - name: customers-service-volume
+          mountPath: /tmp/coverage
+      volumes:
+      - name: customers-service-volume
+        emptyDir: {}
+      - name: customers-configmap
+        configMap:
+          name: customers-configmap
+          items:
+          - key: "agent.properties"
+            path: "agent.properties"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: customers-configmap
+data:
+  # Use below to configure the Coverage Agent for this Microservice
+  agent.properties: |
+    jtest.agent.runtimeData=runtime_coverage
+    jtest.agent.includes=org/springframework/samples/**
+    jtest.agent.autostart=false
+    jtest.agent.port=8050
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: customers-service
+spec:
+  ports:
+  - port: 8081
+    protocol: TCP
+    targetPort: 8081
+  selector:
+    app: petclinic
+    microservice: customers-service
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: customers-service-coverage-agent
+spec:
+  ports:
+  - port: 8050
+    protocol: TCP
+    targetPort: 8050
+  selector:
+    app: petclinic
+    microservice: customers-service

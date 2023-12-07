@@ -1,0 +1,117 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Values.ingress.name | quote }}
+  annotations:
+    kubernetes.io/ingress.class: {{ .Values.ingress.class | quote }}
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+spec:
+  rules:
+    - host: {{ .Values.apiGateway.ingress.hostname | quote }}
+      http:
+        paths:
+          - path: /(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.apiGateway.service.name | quote }}
+                port:
+                  number: {{ .Values.apiGateway.service.port }}
+          - path: {{ .Values.apiGateway.covagents.ingress.path }}/(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.apiGateway.covagents.service.name | quote }}
+                port:
+                  number: {{ .Values.apiGateway.covagents.service.port }}
+    - host: {{ .Values.admin.ingress.hostname | quote }}
+      http:
+        paths:
+          - path: /(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.admin.service.name | quote }}
+                port:
+                  number: {{ .Values.admin.service.port }}
+    - host: {{ .Values.config.ingress.hostname | quote }}
+      http:
+        paths:
+          - path: /(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.config.service.name | quote }}
+                port:
+                  number: {{ .Values.config.service.port }}
+    - host:  {{ .Values.discovery.ingress.hostname | quote }}
+      http:
+        paths:
+          - path: /(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.discovery.service.name | quote }}
+                port:
+                  number: {{ .Values.discovery.service.port }}
+    - host: {{ .Values.customers.ingress.hostname | quote }}
+      http:
+        paths:
+          - path: /(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.customers.service.name | quote }}
+                port:
+                  number: {{ .Values.customers.service.port }}
+          - path: {{ .Values.customers.covagents.ingress.path }}/(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.customers.covagents.service.name | quote }}
+                port:
+                  number: {{ .Values.customers.covagents.service.port }}
+    - host: {{ .Values.visits.ingress.hostname | quote }}
+      http:
+        paths:
+          - path: /(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.visits.service.name | quote }}
+                port:
+                  number: {{ .Values.visits.service.port }}
+          - path: {{ .Values.visits.covagents.ingress.path }}/(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.visits.covagents.service.name | quote }}
+                port:
+                  number: {{ .Values.visits.covagents.service.port }}
+    - host: {{ .Values.vets.ingress.hostname | quote }}
+      http:
+        paths:
+          - path: /(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.vets.service.name | quote }}
+                port:
+                  number: {{ .Values.vets.service.port }}
+          - path: {{ .Values.customers.covagents.ingress.path }}/(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.vets.covagents.service.name | quote }}
+                port:
+                  number: {{ .Values.vets.covagents.service.port }}
+    - host: {{ .Values.tracing.ingress.hostname | quote }}
+      http:
+        paths:
+          - path: /(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.tracing.service.name | quote }}
+                port:
+                  number: {{ .Values.tracing.service.port }}

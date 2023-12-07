@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.apiGateway.name | quote }}
+  labels:
+    app: {{ .Values.app.name | quote }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.app.name | quote }}
+      microservice: {{ .Values.apiGateway.name | quote }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.app.name | quote }}
+        microservice: {{ .Values.apiGateway.name | quote }}
+    spec:
+      containers:
+      - name: {{ .Values.apiGateway.name | quote }}
+        image: harbor.parasoft.com/ctp/springcommunity/spring-petclinic-api-gateway:latest
+        imagePullPolicy: Always
+        command: ["./dockerize"]
+        args: ["-wait=tcp://{{ .Values.discovery.service.name }}:{{ .Values.discovery.service.port }}", "-timeout=60s", "--", "java", "org.springframework.boot.loader.JarLauncher"]
+        ports:
+        - containerPort: {{ .Values.apiGateway.containerPort }}
+        - containerPort: {{ .Values.apiGateway.covagents.port }}
+        env:
+        - name: eureka.instance.hostname
+          value: {{ .Values.apiGateway.service.name | quote }}
+        - name: management.zipkin.tracing.endpoint
+          value: http://{{ .Values.tracing.service.name }}:{{ .Values.tracing.service.port }}/api/v2/spans
+        # For debugging; can see values spring boot picks up at /actuator/env, otherwise masked
+        # - name: management.endpoint.env.show-values
+        #   value: ALWAYS
+        - name: JDK_JAVA_OPTIONS
+          value: "-javaagent:{{ .Values.apiGateway.covagents.mountPath}}/agent.jar=settings={{ .Values.apiGateway.config.mountPath }}/agent.properties"
+        volumeMounts:
+        - name: {{ .Values.apiGateway.volume.name | quote }}
+          mountPath: {{ .Values.apiGateway.covagents.mountPath}}
+        - name: {{ .Values.apiGateway.config.name | quote }}
+          mountPath: {{ .Values.apiGateway.config.mountPath }}
+      initContainers:
+      - name: {{ .Values.apiGateway.init.name | quote }}
+        image: harbor.parasoft.com/ctp/java-coverage-init-container:latest
+        command: ['sh', '-c', 'cp /agent/agent.jar {{ .Values.apiGateway.init.mountPath }}/agent.jar']
+        volumeMounts:
+        - name: {{ .Values.apiGateway.volume.name | quote }}
+          mountPath: {{ .Values.apiGateway.init.mountPath }}
+      {{ if .Values.images.auth }}
+      imagePullSecrets:
+      - name: {{ .Values.images.secret | quote }}
+      {{ end }}
+      volumes:
+      - name: {{ .Values.apiGateway.volume.name | quote }}
+        emptyDir: {}
+      - name: {{ .Values.apiGateway.config.name | quote }}
+        configMap: 
+          name: {{ .Values.apiGateway.config.name | quote }}
+          items:
+          - key: "agent.properties"
+            path: "agent.properties"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.apiGateway.config.name | quote }}
+data:
+  agent.properties: {{ .Values.apiGateway.config.properties | toYaml | indent 1 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.apiGateway.service.name | quote }}
+spec:
+  ports:
+  - port: {{ .Values.apiGateway.service.port }}
+    protocol: TCP
+    targetPort: {{ .Values.apiGateway.containerPort }}
+  selector:
+    app: {{ .Values.app.name | quote }}
+    microservice: {{ .Values.apiGateway.name | quote }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.apiGateway.covagents.service.name | quote }}
+spec:
+  ports:
+  - port: {{ .Values.apiGateway.covagents.service.port }}
+    protocol: TCP
+    targetPort: {{ .Values.apiGateway.covagents.port }}
+  selector:
+    app: {{ .Values.app.name | quote }}
+    microservice: {{ .Values.apiGateway.name | quote }}

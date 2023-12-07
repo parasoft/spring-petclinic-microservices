@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  labels:
+    app: petclinic
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: petclinic
+      microservice: api-gateway
+  template:
+    metadata:
+      labels:
+        app: petclinic
+        microservice: api-gateway
+    spec:
+      containers:
+      - name: api-gateway
+        image: harbor.parasoft.com/ctp/springcommunity/spring-petclinic-api-gateway:latest
+        imagePullPolicy: Always
+        command: ["./dockerize"]
+        args: ["-wait=tcp://discovery-server:8761", "-timeout=60s", "--", "java", "org.springframework.boot.loader.JarLauncher"]
+        ports:
+        - containerPort: 8080
+        - containerPort: 8050
+        env:
+        - name: eureka.instance.hostname
+          value: api-gateway
+        - name: management.zipkin.tracing.endpoint
+          value: http://tracing-server:9411/api/v2/spans
+        # For debugging; can see values spring boot picks up at /actuator/env, otherwise masked
+        - name: management.endpoint.env.show-values
+          value: ALWAYS
+        - name: JDK_JAVA_OPTIONS
+          value: "-javaagent:/tmp/coverage/agent.jar=settings=/config/agent.properties"
+        volumeMounts:
+        - name: api-gateway-volume
+          mountPath: /tmp/coverage
+        - name: api-gateway-configmap
+          mountPath: /config
+      initContainers:
+      - name: java-coverage-agent
+        image: harbor.parasoft.com/ctp/java-coverage-init-container:latest
+        command: ['sh', '-c', 'cp /agent/agent.jar /tmp/coverage/agent.jar']
+        volumeMounts:
+        - name: api-gateway-volume
+          mountPath: /tmp/coverage
+      volumes:
+      - name: api-gateway-volume
+        emptyDir: {}
+      - name: api-gateway-configmap
+        configMap:
+          name: api-gateway-configmap
+          items:
+          - key: "agent.properties"
+            path: "agent.properties"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-gateway-configmap
+data:
+  agent.properties: |
+    jtest.agent.runtimeData=runtime_coverage
+    jtest.agent.includes=org/springframework/samples/**
+    jtest.agent.autostart=false
+    jtest.agent.port=8050
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: petclinic
+    microservice: api-gateway
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway-coverage-agent
+spec:
+  ports:
+  - port: 8050
+    protocol: TCP
+    targetPort: 8050
+  selector:
+    app: petclinic
+    microservice: api-gateway

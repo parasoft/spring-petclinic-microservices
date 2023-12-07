@@ -1,0 +1,166 @@
+app:
+  name: petclinic
+
+images: # Use these settings to include imagePullSecret, if needed
+  auth: false
+  secret: harborcred
+
+ingress:
+  name: petclinic-ingress
+  class: nginx
+
+config:
+  name: config-server
+  containerPort: 8888
+  service:
+    name: config-server
+    port: 8888
+  ingress:
+    hostname: config-server.demo
+
+discovery:
+  name: discovery-server
+  containerPort: 8761
+  service:
+    name: discovery-server
+    port: 8761
+  ingress:
+    hostname: discovery-server.demo
+
+apiGateway:
+  name: api-gateway
+  containerPort: 8080
+  service:
+    name: api-gateway
+    port: 8080
+  ingress:
+    hostname: api-gateway.demo
+  covagents:
+    port: 8050
+    service:
+      name: api-gateway-coverage-agent
+      port: 8050
+    ingress:
+      path: /covagent
+    mountPath: /tmp/coverage
+  volume:
+    name: api-gateway-volume
+  config:
+    name: api-gateway-configmap
+    properties: |
+      jtest.agent.runtimeData=runtime_coverage
+      jtest.agent.includes=org/springframework/samples/**
+      jtest.agent.autostart=false
+      jtest.agent.port=8050
+    mountPath: /config
+  init:
+    name: java-coverage-agent
+    mountPath: /tmp/coverage
+
+visits:
+  name: visits-service
+  containerPort: 8082
+  service:
+    name: visits-service
+    port: 8082
+  ingress:
+    hostname: visits-service.demo
+  covagents:
+    port: 8050
+    service:
+      name: visits-service-coverage-agent
+      port: 8050
+    ingress:
+      path: /covagent
+    mountPath: /tmp/coverage
+  volume:
+    name: visits-service-volume
+  config:
+    name: visits-service-configmap
+    properties: |
+      jtest.agent.runtimeData=runtime_coverage
+      jtest.agent.includes=org/springframework/samples/**
+      jtest.agent.autostart=false
+      jtest.agent.port=8050
+    mountPath: /config
+  init:
+    name: java-coverage-agent
+    mountPath: /tmp/coverage
+
+vets:
+  name: vets-service
+  containerPort: 8083
+  service:
+    name: vets-service
+    port: 8083
+  ingress:
+    hostname: vets-service.demo
+  covagents:
+    port: 8050
+    service:
+      name: vets-service-coverage-agent
+      port: 8050
+    ingress:
+      path: /covagent
+    mountPath: /tmp/coverage
+  volume:
+    name: vets-service-volume
+  config:
+    name: vets-service-configmap
+    properties: |
+      jtest.agent.runtimeData=runtime_coverage
+      jtest.agent.includes=org/springframework/samples/**
+      jtest.agent.autostart=false
+      jtest.agent.port=8050
+    mountPath: /config
+  init:
+    name: java-coverage-agent
+    mountPath: /tmp/coverage
+
+customers:
+  name: customers-service
+  containerPort: 8081
+  service:
+    name: customers-service
+    port: 8081
+  ingress:
+    hostname: customers-service.demo
+  covagents:
+    port: 8050
+    service:
+      name: customers-service-coverage-agent
+      port: 8050
+    ingress:
+      path: /covagent
+    mountPath: /tmp/coverage
+  volume:
+    name: customers-service-volume
+  config:
+    name: customers-configmap
+    properties: |
+      jtest.agent.runtimeData=runtime_coverage
+      jtest.agent.includes=org/springframework/samples/**
+      jtest.agent.autostart=false
+      jtest.agent.port=8050
+    mountPath: /config
+  init:
+    name: java-coverage-agent
+    mountPath: /tmp/coverage
+
+tracing:
+  name: tracing-server
+  containerPort: 9411
+  service:
+    name: tracing-server
+    port: 9411
+  ingress:
+    hostname: tracing-server.demo
+
+admin:
+  name: admin-server
+  containerPort: 9090
+  service:
+    name: admin-server
+    port: 9090
+  ingress:
+    hostname: admin-server.demo

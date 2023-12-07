@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: config-server
+  labels:
+    app: petclinic
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: petclinic
+      microservice: config-server
+  template:
+    metadata:
+      labels:
+        app: petclinic
+        microservice: config-server
+    spec:
+      containers:
+      - name: config-server
+        image: harbor.parasoft.com/ctp/springcommunity/spring-petclinic-config-server:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8888
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: config-server
+spec:
+  ports:
+  - port: 8888
+    protocol: TCP
+    targetPort: 8888
+  selector:
+    app: petclinic
+    microservice: config-server

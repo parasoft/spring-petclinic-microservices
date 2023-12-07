@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.visits.name | quote }}
+  labels:
+    app: {{ .Values.app.name | quote }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.app.name | quote }}
+      microservice: {{ .Values.visits.name | quote }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.app.name | quote }}
+        microservice: {{ .Values.visits.name | quote }}
+    spec:
+      containers:
+      - name: {{ .Values.visits.name | quote }}
+        image: harbor.parasoft.com/ctp/springcommunity/spring-petclinic-visits-service:latest
+        imagePullPolicy: Always
+        command: ["./dockerize"]
+        args: ["-wait=tcp://{{ .Values.discovery.service.name }}:{{ .Values.discovery.service.port }}", "-timeout=60s", "--", "java", "org.springframework.boot.loader.JarLauncher"]
+        ports:
+        - containerPort: {{ .Values.visits.containerPort }}
+        - containerPort: {{ .Values.visits.covagents.port }}
+        env:
+        - name: eureka.instance.hostname
+          value: {{ .Values.visits.service.name | quote }}
+        - name: management.zipkin.tracing.endpoint
+          value: http://{{ .Values.tracing.service.name }}:{{ .Values.tracing.service.port }}/api/v2/spans 
+        - name: JDK_JAVA_OPTIONS
+          value: "-javaagent:{{ .Values.visits.covagents.mountPath }}/agent.jar=settings={{ .Values.visits.config.mountPath }}/agent.properties"
+        volumeMounts:
+        - name: {{ .Values.visits.volume.name | quote }}
+          mountPath: {{ .Values.visits.covagents.mountPath }}
+        - name: {{ .Values.visits.config.name | quote }}
+          mountPath: {{ .Values.visits.config.mountPath }}
+      initContainers:
+      - name: {{ .Values.visits.init.name | quote }}
+        image: harbor.parasoft.com/ctp/java-coverage-init-container:latest
+        command: ['sh', '-c', 'cp /agent/agent.jar {{ .Values.visits.init.mountPath }}/agent.jar']
+        volumeMounts:
+        - name: {{ .Values.visits.volume.name | quote }}
+          mountPath: {{ .Values.visits.init.mountPath }}         
+      {{ if .Values.images.auth }}
+      imagePullSecrets:
+      - name: {{ .Values.images.secret | quote }}
+      {{ end }}
+      volumes:
+      - name: {{ .Values.visits.volume.name | quote }}
+        emptyDir: {}
+      - name: {{ .Values.visits.config.name | quote }}
+        configMap:
+          name: {{ .Values.visits.config.name | quote }}
+          items:
+          - key: "agent.properties"
+            path: "agent.properties"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.visits.config.name | quote }}
+data:
+  agent.properties: {{ .Values.visits.config.properties | toYaml | indent 1 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.visits.service.name | quote }}
+spec:
+  ports:
+  - port: {{ .Values.visits.service.port }}
+    protocol: TCP
+    targetPort: {{ .Values.visits.containerPort }}
+  selector:
+    app: {{ .Values.app.name | quote }}
+    microservice: {{ .Values.visits.name | quote }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.visits.covagents.service.name | quote }}
+spec:
+  ports:
+  - port: {{ .Values.visits.covagents.service.port }}
+    protocol: TCP
+    targetPort: {{ .Values.visits.covagents.port }}
+  selector:
+    app: {{ .Values.app.name | quote }}
+    microservice: {{ .Values.visits.name | quote }}

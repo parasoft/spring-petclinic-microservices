@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.tracing.name | quote }}
+spec:
+  labels:
+    app: {{ .Values.app.name | quote }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.app.name | quote }}
+      microservice: {{ .Values.tracing.name | quote }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.app.name | quote }}
+        microservice: {{ .Values.tracing.name | quote }}
+    spec:
+      containers:
+      - name: {{ .Values.tracing.name | quote }}
+        image: openzipkin/zipkin:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: {{ .Values.tracing.containerPort }}
+        env:
+        - name: eureka.instance.hostname
+          value: {{ .Values.tracing.service.name | quote }}
+        - name: JAVA_OPTS
+          value: -XX:+UnlockExperimentalVMOptions -Djava.security.egd=file:/dev/./urandom
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.tracing.service.name | quote }}
+spec:
+  ports:
+  - port: {{ .Values.tracing.service.port }}
+    protocol: TCP
+    targetPort: {{ .Values.tracing.containerPort }}
+  selector:
+    app: {{ .Values.app.name | quote }}
+    microservice: {{ .Values.tracing.name | quote }}
