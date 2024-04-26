@@ -73,6 +73,9 @@ You can then access petclinic here: http://localhost:8080/
 
 Import `ctp-system.zip` from this Git repo into your CTP to quickly set up the above diagram.
 
+## Selenium web functional tests integrated with CTP
+
+See the `spring-petclinic-selenium-tests` project for sample Selenium tests configured to report test results and associated coverage to the CTP REST API at http://localhost:8081/em/api
 
 
 ## In case you find a bug/suggested improvement for Spring Petclinic Microservices
