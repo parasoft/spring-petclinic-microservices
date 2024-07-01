@@ -9,7 +9,7 @@ and the Eureka Service Discovery from the [Spring Cloud Netflix](https://github.
 
 ## Starting services with Parasoft coverage agent for Java
 
-Four microservice projects have been configured with Parasoft coverage agent properties.  All you need to do is copy the agent.jar file into the src/test/resources/coverage/ folder along side the existing agent.properties.  Maven will automatically pick up the Java agent and inject it into the Spring Boot runtime.  Coverage agent port numbers for each microservice are configured in src/test/resources/coverage/agent.properties files.  Follow the instructions below to start each microservice using `..\mvnw spring-boot:run` command in a separate terminal and in the correct order to run them with the coverage agent.  The four microservice projects configured for coverage are:
+Four microservice projects have been configured with Parasoft coverage agent properties.  All you need to do is copy the agent.jar, opentelemetry-javaagent.jar and   jtest-otel-ext.jar files into the src/test/resources/coverage/ folder along side the existing agent.properties.  Maven will automatically pick up the Java agent and inject it into the Spring Boot runtime.  Coverage agent port numbers for each microservice are configured in src/test/resources/coverage/agent.properties files.  Follow the instructions below to start each microservice using `..\mvnw spring-boot:run` command in a separate terminal and in the correct order to run them with the coverage agent.  The four microservice projects configured for coverage are:
 * spring-petclinic-api-gateway
 * spring-petclinic-customers-service
 * spring-petclinic-vets-service

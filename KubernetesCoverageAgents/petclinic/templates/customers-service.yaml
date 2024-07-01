@@ -40,7 +40,7 @@ spec:
       initContainers:
       - name: {{ .Values.customers.init.name | quote }}
         image: harbor.parasoft.com/ctp/java-coverage-init-container:latest
-        command: ['sh', '-c', 'cp /agent/agent.jar {{ .Values.customers.init.mountPath }}/agent.jar']
+        command: ['sh', '-c', 'cp /agent/*.jar {{ .Values.customers.init.mountPath }}/']
         volumeMounts:
         - name: {{ .Values.customers.volume.name | quote }}
           mountPath: {{ .Values.customers.init.mountPath }}

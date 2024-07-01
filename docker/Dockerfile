@@ -29,7 +29,6 @@ COPY --from=builder application/snapshot-dependencies/ ./
 COPY --from=builder application/application/ ./
 
 # Copy Coverae agent
-#COPY coverage/agent.jar /tmp/coverage/.
-#COPY coverage/agent.properties /tmp/coverage/.
+#COPY coverage/* /tmp/coverage/
 
 ENTRYPOINT ["java", "org.springframework.boot.loader.JarLauncher"]

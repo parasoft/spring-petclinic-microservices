@@ -60,9 +60,9 @@ pipeline {
                     tree .;
 
                     # add agent.jar into all microservices projects
-                    cp ./petclinic-jenkins/jtest/agent.jar ./petclinic/spring-petclinic-customers-service/src/test/resources/coverage/agent.jar;
-                    cp ./petclinic-jenkins/jtest/agent.jar ./petclinic/spring-petclinic-vets-service/src/test/resources/coverage/agent.jar;
-                    cp ./petclinic-jenkins/jtest/agent.jar ./petclinic/spring-petclinic-visits-service/src/test/resources/coverage/agent.jar;
+                    cp ./petclinic-jenkins/jtest/*.jar ./petclinic/spring-petclinic-customers-service/src/test/resources/coverage/;
+                    cp ./petclinic-jenkins/jtest/*.jar ./petclinic/spring-petclinic-vets-service/src/test/resources/coverage/;
+                    cp ./petclinic-jenkins/jtest/*.jar ./petclinic/spring-petclinic-visits-service/src/test/resources/coverage/;
 
                     # Debugging
                     tree ./petclinic;

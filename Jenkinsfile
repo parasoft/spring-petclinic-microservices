@@ -23,9 +23,9 @@ pipeline {
                 // unzip
                 // copy in to the coverage folder
                 sh '''
-                    cp docker/coverage/agent.jar spring-petclinic-customers-service/src/test/resources/coverage/agent.jar
-                    cp docker/coverage/agent.jar spring-petclinic-vets-service/src/test/resources/coverage/agent.jar
-                    cp docker/coverage/agent.jar spring-petclinic-visits-service/src/test/resources/coverage/agent.jar
+                    cp docker/coverage/*.jar spring-petclinic-customers-service/src/test/resources/coverage/
+                    cp docker/coverage/*.jar spring-petclinic-vets-service/src/test/resources/coverage/
+                    cp docker/coverage/*.jar spring-petclinic-visits-service/src/test/resources/coverage/
                     '''
                 // check running containers
                 sh '''

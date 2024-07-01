@@ -40,7 +40,7 @@ spec:
       initContainers:
       - name: java-coverage-agent
         image: harbor.parasoft.com/ctp/java-coverage-init-container:latest
-        command: ['sh', '-c', 'cp /agent/agent.jar /tmp/coverage/agent.jar']
+        command: ['sh', '-c', 'cp /agent/*.jar /tmp/coverage/']
         volumeMounts:
         - name: customers-service-volume
           mountPath: /tmp/coverage
