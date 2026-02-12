@@ -27,8 +27,8 @@ components:
   instances:
   - coverage:
       agentUrl: http://api-gateway:8050
-      buildId: spring-petclinic-api-gateway-2023-11-14
-      coverageImages: spring-petclinic-api-gateway
+      buildId: spring-petclinic-api-gateway-2026-02-10
+      coverageImages: spring-petclinic-api-gateway;spring-petclinic-api-gateway-FT
       dtpFilter: null
       dtpProject: spring-petclinic-api-gateway
     description: ''
@@ -52,8 +52,8 @@ components:
   instances:
   - coverage:
       agentUrl: http://customers-service:8050
-      buildId: spring-petclinic-customers-service-2023-11-14
-      coverageImages: spring-petclinic-customers-service
+      buildId: spring-petclinic-customers-service-2026-02-10
+      coverageImages: spring-petclinic-customers-service;spring-petclinic-customers-service-FT
       dtpFilter: null
       dtpProject: spring-petclinic-customers-service
     description: ''
@@ -71,8 +71,8 @@ components:
   instances:
   - coverage:
       agentUrl: http://vets-service:8050
-      buildId: spring-petclinic-vets-service-2023-11-14
-      coverageImages: spring-petclinic-vets-service
+      buildId: spring-petclinic-vets-service-2026-02-10
+      coverageImages: spring-petclinic-vets-service;spring-petclinic-vets-service-FT
       dtpFilter: null
       dtpProject: spring-petclinic-vets-service
     description: ''
@@ -90,8 +90,8 @@ components:
   instances:
   - coverage:
       agentUrl: http://visits-service:8050
-      buildId: spring-petclinic-visits-service-2023-11-14
-      coverageImages: spring-petclinic-visits-service
+      buildId: spring-petclinic-visits-service-2026-02-10
+      coverageImages: spring-petclinic-visits-service;spring-petclinic-visits-service-FT
       dtpFilter: null
       dtpProject: spring-petclinic-visits-service
     description: ''
@@ -105,7 +105,7 @@ components:
   name: visits-storage
   tags: [
     ]
-description: ''
-name: Local PetClinic
+description: Each microservice points to a different DTP project.
+name: Multi Repo PetClinic Example
 tags: [
   ]

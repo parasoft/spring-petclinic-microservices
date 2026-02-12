@@ -16,9 +16,11 @@ target/
 
 # Visual Studio Code
 .factorypath
+settings.json
 
 # Branch switching
 generated/
 
+jtest.settings
 
 /*/*/*/resources/coverage

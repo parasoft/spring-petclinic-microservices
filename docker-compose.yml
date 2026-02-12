@@ -100,7 +100,7 @@ services:
      - discovery-server
     entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "org.springframework.boot.loader.JarLauncher"]
     ports:
-     - 9090:9090
+     - 9099:9090
 
 # Commment out to save space
   ## Grafana / Prometheus

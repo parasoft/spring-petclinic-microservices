@@ -1,4 +1,4 @@
-package org.example;
+package org.springframework.samples.petclinic.playwright;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -19,8 +19,8 @@ import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.options.AriaRole;
 
 @ExtendWith(ParasoftWatcher.class)
-public class PetTest {
-    static Playwright playwright;
+public class VisitTest {
+       static Playwright playwright;
     static Browser browser;
 
     BrowserContext context;
@@ -28,7 +28,7 @@ public class PetTest {
     String userId;
     String petclinicUrl;
 
-    public PetTest(String userId) {
+    public VisitTest(String userId) {
         this.userId = userId;
         petclinicUrl = System.getProperty("petclinicUrl");
         if (petclinicUrl == null) {
@@ -63,19 +63,14 @@ public class PetTest {
     }
 
     @Test
-    void testRenamePet() {
+    void testVisitTest() {
         page.navigate(petclinicUrl);
         page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("Owners")).click();
         page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("All")).click();
         page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("George Franklin")).click();
-        page.locator("tr:has-text(\"Leo\")").getByRole(AriaRole.LINK, new Locator.GetByRoleOptions().setName("Edit Pet")).click();
-        page.locator("input[name=\"name\"]").click();
-        page.locator("input[name=\"name\"]").fill("Lena");
-        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("Submit")).click();
-        page.locator("tr:has-text(\"Lena\")").getByRole(AriaRole.LINK, new Locator.GetByRoleOptions().setName("Edit Pet")).click();
-        page.locator("input[name=\"name\"]").click();
-        page.locator("input[name=\"name\"]").fill("Leo");
-        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("Submit")).click();
-        page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("Home")).click();
+        page.locator("tr:has-text(\"Leo\")").getByRole(AriaRole.LINK, new Locator.GetByRoleOptions().setName("Add Visit")).click();
+        page.locator("input[type=\"date\"]").fill("2023-11-15");
+        page.locator("textarea").fill("Yearly checkup");
+        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("Add New Visit")).click();
     }
 }

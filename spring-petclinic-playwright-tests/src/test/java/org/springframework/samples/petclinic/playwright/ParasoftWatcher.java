@@ -1,4 +1,4 @@
-package org.example;
+package org.springframework.samples.petclinic.playwright;
 
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.BeforeTestExecutionCallback;

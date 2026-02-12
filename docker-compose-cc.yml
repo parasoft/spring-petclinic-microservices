@@ -1,9 +1,10 @@
-version: '2'
-
+#version: '2'
 services:
   config-server:
     image: springcommunity/spring-petclinic-config-server
     container_name: config-server
+    networks:
+      - demo-net
     mem_limit: 512M
     ports:
      - 8888:8888
@@ -11,6 +12,8 @@ services:
   discovery-server:
     image: springcommunity/spring-petclinic-discovery-server
     container_name: discovery-server
+    networks:
+      - demo-net
     mem_limit: 512M
     depends_on:
       - config-server
@@ -21,14 +24,16 @@ services:
   customers-service:
     image: springcommunity/spring-petclinic-customers-service
     container_name: customers-service
+    networks:
+      - demo-net
     mem_limit: 512M
     depends_on:
      - config-server
      - discovery-server
-    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "${COV_AGENT_ARGS},port=8051", "org.springframework.boot.loader.JarLauncher"]
+    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "${COV_AGENT_ARGS}", "org.springframework.boot.loader.JarLauncher"]
     ports:
     - 8081:8081
-    - 8051:8051
+    - 8052:8050
     volumes:
       - type: bind
         source: ./spring-petclinic-customers-service/src/test/resources/coverage
@@ -38,54 +43,63 @@ services:
     container_name: visits-service
     user: 0:0
     mem_limit: 512M
+    networks:
+      - demo-net
     depends_on:
      - config-server
      - discovery-server
-#    env_file:
-#      - /home/ec2-user/microservices/spring-petclinic-microservices/spring-petclinic-visits-service/src/test/resources/coverage/cov.env
-#    environment:
-#      JAVA_OPTS: '-javaagent:/tmp/coverage/agent.jar=settings=/tmp/coverage/agent.properties,runtimeData=/tmp/coverage/runtime_coverage'
     ports:
      - 8082:8082
-     - 8052:8052 # cov agent
+     - 8054:8050 # cov agent
     volumes:
       - type: bind
         source: ./spring-petclinic-visits-service/src/test/resources/coverage
         target: /tmp/coverage
-    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "${COV_AGENT_ARGS},port=8052", "org.springframework.boot.loader.JarLauncher"]
+    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "${COV_AGENT_ARGS}", "org.springframework.boot.loader.JarLauncher"]
     
   vets-service:
     user: root:root
     image: springcommunity/spring-petclinic-vets-service
     container_name: vets-service
     mem_limit: 512M
+    networks:
+      - demo-net
     depends_on:
      - config-server
      - discovery-server
-    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "${COV_AGENT_ARGS},port=8053", "org.springframework.boot.loader.JarLauncher"]
     ports:
      - 8083:8083
-     - 8053:8053 # cov agent
+     - 8053:8050 # cov agent
     volumes:
       - type: bind
         source: ./spring-petclinic-vets-service/src/test/resources/coverage
         target: /tmp/coverage
+    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "${COV_AGENT_ARGS}", "org.springframework.boot.loader.JarLauncher"]
 
   api-gateway:
     image: springcommunity/spring-petclinic-api-gateway
     container_name: api-gateway
     mem_limit: 512M
+    networks:
+      - demo-net
     depends_on:
      - config-server
      - discovery-server
-    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "org.springframework.boot.loader.JarLauncher"]
     ports:
      - 8099:8080
+     - 8051:8050 # cov agent
+    volumes:
+      - type: bind
+        source: ./spring-petclinic-vets-service/src/test/resources/coverage
+        target: /tmp/coverage
+    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "${COV_AGENT_ARGS}", "org.springframework.boot.loader.JarLauncher"]
 
   tracing-server:
     image: openzipkin/zipkin
     container_name: tracing-server
     mem_limit: 512M
+    networks:
+      - demo-net
     environment:
     - JAVA_OPTS=-XX:+UnlockExperimentalVMOptions -Djava.security.egd=file:/dev/./urandom
     ports:
@@ -95,12 +109,24 @@ services:
     image: springcommunity/spring-petclinic-admin-server
     container_name: admin-server
     mem_limit: 512M
+    networks:
+      - demo-net
     depends_on:
      - config-server
      - discovery-server
     entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "org.springframework.boot.loader.JarLauncher"]
     ports:
-     - 9090:9090
+     - 9099:9090
+networks:
+  demo-net:
+    external: true
+    name: demo-net
+#  selenium:
+#    image: selenium/standalone-chrome:latest
+#    container_name: standalone-chrome
+#    ports:
+#      - "4444:4444"
+#      - "7900:7900"
 
 # Commment out to save space
   ## Grafana / Prometheus

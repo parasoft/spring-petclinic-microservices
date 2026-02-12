@@ -1,4 +1,4 @@
-package org.springframework.samples.petclinic;
+package org.springframework.samples.petclinic.selenium;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -9,10 +9,9 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 
 @ExtendWith(ParasoftWatcher.class)
-class PetTest {
-	
+public class PetTest {
 	private static WebDriver driver;
-	
+
 	@BeforeAll
 	static void openBrowser() {
 		driver = new ChromeDriver();
@@ -20,12 +19,14 @@ class PetTest {
 	
 	@AfterAll
 	static void closeBrowser() {
-		driver.close();
+		if (driver != null) {
+			driver.quit();
+		}
 	}
 
 	@Test
-	void testRenamePet() throws Exception {
-		driver.get("http://localhost:8080/");
+	public void testRenamePet() throws Exception {
+		driver.get("http://localhost:8099/");
 		Thread.sleep(1000);
 		driver.findElement(By.xpath("//a[@class=\"dropdown-toggle\"]")).click();
 		Thread.sleep(1000);
@@ -49,5 +50,4 @@ class PetTest {
 		Thread.sleep(1000);
 		driver.findElement(By.xpath("//a[@title=\"home page\"]")).click();
 	}
-
 }

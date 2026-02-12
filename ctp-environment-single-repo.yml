@@ -27,10 +27,10 @@ components:
   instances:
   - coverage:
       agentUrl: http://api-gateway:8050
-      buildId: spring-petclinic-api-gateway-2023-11-14
-      coverageImages: spring-petclinic-api-gateway
+      buildId: spring-petclinic-microservices-baseline
+      coverageImages: spring-petclinic-microservices;spring-petclinic-microservices-FT
       dtpFilter: null
-      dtpProject: spring-petclinic-api-gateway
+      dtpProject: spring-petclinic-microservices
     description: ''
     name: Local Gateway
   name: UI + API Gateway
@@ -52,10 +52,10 @@ components:
   instances:
   - coverage:
       agentUrl: http://customers-service:8050
-      buildId: spring-petclinic-customers-service-2023-11-14
-      coverageImages: spring-petclinic-customers-service
+      buildId: spring-petclinic-microservices-baseline
+      coverageImages: spring-petclinic-microservices;spring-petclinic-microservices-FT
       dtpFilter: null
-      dtpProject: spring-petclinic-customers-service
+      dtpProject: spring-petclinic-microservices
     description: ''
     name: Customers Microservice
   name: customers-service REST API
@@ -71,10 +71,10 @@ components:
   instances:
   - coverage:
       agentUrl: http://vets-service:8050
-      buildId: spring-petclinic-vets-service-2023-11-14
-      coverageImages: spring-petclinic-vets-service
+      buildId: spring-petclinic-microservices-baseline
+      coverageImages: spring-petclinic-microservices;spring-petclinic-microservices-FT
       dtpFilter: null
-      dtpProject: spring-petclinic-vets-service
+      dtpProject: spring-petclinic-microservices
     description: ''
     name: Vets Microservice
   name: vets-service REST API
@@ -90,10 +90,10 @@ components:
   instances:
   - coverage:
       agentUrl: http://visits-service:8050
-      buildId: spring-petclinic-visits-service-2023-11-14
-      coverageImages: spring-petclinic-visits-service
+      buildId: spring-petclinic-microservices-baseline
+      coverageImages: spring-petclinic-microservices;spring-petclinic-microservices-FT
       dtpFilter: null
-      dtpProject: spring-petclinic-visits-service
+      dtpProject: spring-petclinic-microservices
     description: ''
     name: Visits Microservice
   name: visits-service REST API
@@ -105,7 +105,7 @@ components:
   name: visits-storage
   tags: [
     ]
-description: ''
-name: Local PetClinic
+description: All microservices point to the same DTP project.
+name: Single Repo PetClinic Example
 tags: [
   ]

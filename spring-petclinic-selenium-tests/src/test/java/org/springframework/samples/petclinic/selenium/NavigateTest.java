@@ -1,4 +1,4 @@
-package org.springframework.samples.petclinic;
+package org.springframework.samples.petclinic.selenium;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -9,9 +9,9 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 
 @ExtendWith(ParasoftWatcher.class)
-class NavigateTest {
-	
+public class NavigateTest {
 	private static WebDriver driver;
+	// private static BrowserMobProxy proxy; // Removed proxy declaration
 	
 	@BeforeAll
 	static void openBrowser() {
@@ -20,12 +20,14 @@ class NavigateTest {
 	
 	@AfterAll
 	static void closeBrowser() {
-		driver.close();
+		if (driver != null) {
+			driver.quit();
+		}
 	}
 
 	@Test
-	void testPetClinicNavigation() throws Exception {
-		driver.get("http://localhost:8080/");
+	public void testPetClinicNavigation() throws Exception {
+		driver.get("http://localhost:8099/");
 		Thread.sleep(1000);
 		driver.findElement(By.xpath("//a[@title=\"veterinarians\"]")).click();
 		Thread.sleep(1000);
@@ -39,5 +41,4 @@ class NavigateTest {
 		Thread.sleep(1000);
 		driver.findElement(By.xpath("//a[@title=\"home page\"]")).click();
 	}
-
 }

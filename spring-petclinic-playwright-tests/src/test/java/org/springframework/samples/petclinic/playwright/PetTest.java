@@ -1,4 +1,4 @@
-package org.example;
+package org.springframework.samples.petclinic.playwright;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -13,13 +13,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.BrowserType;
+import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.options.AriaRole;
 
 @ExtendWith(ParasoftWatcher.class)
-public class RegisterOwnerAndPetTest {
-        static Playwright playwright;
+public class PetTest {
+    static Playwright playwright;
     static Browser browser;
 
     BrowserContext context;
@@ -27,7 +28,7 @@ public class RegisterOwnerAndPetTest {
     String userId;
     String petclinicUrl;
 
-    public RegisterOwnerAndPetTest(String userId) {
+    public PetTest(String userId) {
         this.userId = userId;
         petclinicUrl = System.getProperty("petclinicUrl");
         if (petclinicUrl == null) {
@@ -62,22 +63,19 @@ public class RegisterOwnerAndPetTest {
     }
 
     @Test
-    void testRegisterOwnerAndPetTest() {
+    void testRenamePet() {
         page.navigate(petclinicUrl);
-        page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("Home")).click();
         page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("Owners")).click();
-        page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("Register")).click();
-        page.locator("input[name=\"firstName\"]").fill("Mark");
-        page.locator("input[name=\"lastName\"]").fill("Verdugo");
-        page.locator("input[name=\"address\"]").fill("101 E. Huntington Dr.");
-        page.locator("input[name=\"city\"]").fill("Monrovia");
-        page.locator("input[name=\"telephone\"]").fill("016267391734");
+        page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("All")).click();
+        page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("George Franklin")).click();
+        page.locator("tr:has-text(\"Leo\")").getByRole(AriaRole.LINK, new Locator.GetByRoleOptions().setName("Edit Pet")).click();
+        page.locator("input[name=\"name\"]").click();
+        page.locator("input[name=\"name\"]").fill("Lena");
         page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("Submit")).click();
-        page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("Mark Verdugo")).last().click();
-        page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("Add New Pet")).click();
-        page.locator("input[name=\"name\"]").fill("Arty");
-        page.locator("input[type=\"date\"]").fill("2016-11-11");
-        page.getByRole(AriaRole.COMBOBOX).selectOption("2");
-        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("Submit")).click();   
+        page.locator("tr:has-text(\"Lena\")").getByRole(AriaRole.LINK, new Locator.GetByRoleOptions().setName("Edit Pet")).click();
+        page.locator("input[name=\"name\"]").click();
+        page.locator("input[name=\"name\"]").fill("Leo");
+        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("Submit")).click();
+        page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("Home")).click();
     }
 }

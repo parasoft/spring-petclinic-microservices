@@ -1,4 +1,4 @@
-package org.example;
+package org.springframework.samples.petclinic.playwright;
 
 import java.util.HashMap;
 import java.util.Map;
