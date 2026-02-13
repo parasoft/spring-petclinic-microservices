@@ -12,7 +12,6 @@
 package org.springframework.samples.petclinic.selenium.util;
 
 import org.springframework.samples.petclinic.testcommon.ParasoftCTPApiClient;
-import org.testng.ITestContext;
 import org.testng.ITestListener;
 import org.testng.ITestResult;
 
