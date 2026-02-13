@@ -1,3 +1,15 @@
+/**
+ * ParasoftSuiteListener integrates with Parasoft CTP and DTP during test execution.
+ * <p>
+ * This class implements the JUnit Platform TestExecutionListener interface to automate
+ * the following actions:
+ * <ul>
+ *   <li>Starts a coverage session in Parasoft CTP when the test plan begins</li>
+ *   <li>Stops the session and publishes coverage data to Parasoft DTP when the test plan ends</li>
+ *   <li>Optionally publishes baseline build information if configured</li>
+ * </ul>
+ * It handles REST API calls, authentication, and error logging for these operations.
+ */
 package org.springframework.samples.petclinic.selenium;
 
 import org.junit.platform.launcher.TestExecutionListener;
@@ -19,6 +31,7 @@ public class ParasoftSuiteListener implements TestExecutionListener {
 
     @Override
     public void testPlanExecutionStarted(TestPlan testPlan) {
+        // Start the CTP test session
         // CTP REST API: /v3/environments/{envId}/agents/session/start
         try {
             StringBuilder sessionStartPayload = new StringBuilder();
@@ -55,11 +68,9 @@ public class ParasoftSuiteListener implements TestExecutionListener {
 
     @Override
     public void testPlanExecutionFinished(TestPlan testPlan) {
-        // CTP REST API: /v3/environments/{envId}/agents/session/stop
-        // CTP REST API: /v3/environments/{envId}/coverage/{sessionId}
-        // (Conditional) CTP REST API: /v3/environments/{envId}/coverage/baselines/{baselineBuildId}
         try {
-            // Stop session
+            // Stop the CTP test session
+            // CTP REST API: /v3/environments/{envId}/agents/session/stop
             StringBuilder sessionStopPayload = new StringBuilder();
             if (ParasoftSettings.CTP_MULTI_USER_MODE.equalsIgnoreCase("true")) {
                 sessionStopPayload.append('{');
@@ -78,7 +89,8 @@ public class ParasoftSuiteListener implements TestExecutionListener {
             HttpResponse<String> stopSessionResponse = client.send(stopSessionRequest, HttpResponse.BodyHandlers.ofString());
             if (ParasoftSettings.CTP_DEBUG) LOGGER.info("[ParasoftSuiteListener] API call response: " + stopSessionResponse.statusCode() + " - " + stopSessionResponse.body());
 
-            // Publish coverage to DTP
+            // Publish coverage data to DTP
+            // CTP REST API: /v3/environments/{envId}/coverage/{sessionId}
             StringBuilder coveragePayload = new StringBuilder();
             coveragePayload.append('{');
             coveragePayload.append("\"sessionTag\":\"" + ParasoftSettings.getDtpSessionTag() + "\"");
@@ -102,7 +114,8 @@ public class ParasoftSuiteListener implements TestExecutionListener {
             HttpResponse<String> response = client.send(coverageRequest, HttpResponse.BodyHandlers.ofString());
             if (ParasoftSettings.CTP_DEBUG) LOGGER.info("[ParasoftSuiteListener] API call response: " + response.statusCode() + " - " + response.body());
 
-            // publish "baselineBuildId" if "publishBaseline" System property is set to true
+            // Publish "baselineBuildId" if "publishBaseline" System property is set to true
+            // (Conditional) CTP REST API: /v3/environments/{envId}/coverage/baselines/{baselineBuildId}
             if (ParasoftSettings.publishBaseline) {
                 HttpRequest baselineRequest = HttpRequest.newBuilder()
                     .uri(URI.create(ParasoftSettings.CTP_BASE_URL + "/api/v3/environments/" + ParasoftSettings.CTP_ENV_ID+ "/coverage/baselines/" + ParasoftSettings.baseLineBuildId))

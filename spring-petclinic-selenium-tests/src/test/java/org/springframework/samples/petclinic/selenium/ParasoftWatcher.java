@@ -1,3 +1,13 @@
+/**
+ * ParasoftWatcher integrates JUnit test execution with Parasoft CTP for test-level coverage tracking.
+ * <p>
+ * Implements BeforeEachCallback and TestWatcher to:
+ * <ul>
+ *   <li>Tell the CTP coverage agents when a test is starting</li>
+ *   <li>Tell the CTP coverage agents when a test has passed or failed</li>
+ * </ul>
+ * Handles authentication, error logging, and multi-user mode support.
+ */
 package org.springframework.samples.petclinic.selenium;
 
 import org.junit.jupiter.api.extension.BeforeEachCallback;

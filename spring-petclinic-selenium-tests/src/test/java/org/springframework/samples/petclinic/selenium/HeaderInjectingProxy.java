@@ -1,3 +1,14 @@
+/**
+ * HeaderInjectingProxy creates an HTTP proxy server that injects custom headers into outgoing requests.
+ * <p>
+ * This class uses LittleProxy and Netty to start a proxy server that automatically adds
+ * a "baggage" header containing the test operator ID to all proxied HTTP requests.
+ * <ul>
+ *   <li>Used for coverage tracking in Parasoft environments</li>
+ *   <li>Supports dynamic port assignment</li>
+ *   <li>Integrates with ParasoftSettings for user identification</li>
+ * </ul>
+ */
 package org.springframework.samples.petclinic.selenium;
 
 import io.netty.channel.ChannelHandlerContext;
