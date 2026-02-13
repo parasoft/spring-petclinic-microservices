@@ -15,7 +15,7 @@ import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 
 @ExtendWith(org.springframework.samples.petclinic.selenium.util.ParasoftWatcher.class)
-public class NavigateTest {
+public class PetIT {
 	private static WebDriver driver;
 	private static HttpProxyServer proxy;
 	
@@ -45,10 +45,8 @@ public class NavigateTest {
 	}
 
 	@Test
-	public void testPetClinicNavigation() throws Exception {
+	public void testRenamePet() throws Exception {
 		driver.get("http://localhost:8099/");
-		Thread.sleep(1000);
-		driver.findElement(By.xpath("//a[@title=\"veterinarians\"]")).click();
 		Thread.sleep(1000);
 		driver.findElement(By.xpath("//a[@class=\"dropdown-toggle\"]")).click();
 		Thread.sleep(1000);
@@ -57,6 +55,18 @@ public class NavigateTest {
 		driver.findElement(By.xpath("//owner-list/table/tbody/tr[1]/td[1]/a")).click();
 		Thread.sleep(1000);
 		driver.findElement(By.xpath("//dd/a")).click();
+		Thread.sleep(1000);
+		driver.findElement(By.name("name")).clear();
+		driver.findElement(By.name("name")).sendKeys("Lena");
+		Thread.sleep(1000);
+		driver.findElement(By.xpath("//button[@type=\"submit\"]")).click();
+		Thread.sleep(1000);
+		driver.findElement(By.xpath("//dd/a")).click();
+		Thread.sleep(1000);
+		driver.findElement(By.name("name")).clear();
+		driver.findElement(By.name("name")).sendKeys("Leo");
+		Thread.sleep(1000);
+		driver.findElement(By.xpath("//button[@type=\"submit\"]")).click();
 		Thread.sleep(1000);
 		driver.findElement(By.xpath("//a[@title=\"home page\"]")).click();
 	}

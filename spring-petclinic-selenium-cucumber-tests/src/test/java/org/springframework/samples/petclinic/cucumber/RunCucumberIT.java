@@ -9,5 +9,5 @@ import static io.cucumber.junit.platform.engine.Constants.GLUE_PROPERTY_NAME;
 @Suite
 @SelectClasspathResource("org/springframework/samples/petclinic/cucumber/resources")
 @ConfigurationParameter(key = GLUE_PROPERTY_NAME, value = "org.springframework.samples.petclinic.cucumber")
-public class RunCucumberTest {
+public class RunCucumberIT {
 }

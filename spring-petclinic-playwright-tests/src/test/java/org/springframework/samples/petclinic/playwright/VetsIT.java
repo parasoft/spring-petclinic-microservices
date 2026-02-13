@@ -18,7 +18,7 @@ import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.options.AriaRole;
 
 @ExtendWith(ParasoftWatcher.class)
-public class VetsTest {
+public class VetsIT {
     static Playwright playwright;
     static Browser browser;
 
@@ -27,7 +27,7 @@ public class VetsTest {
     String userId;
     String petclinicUrl;
 
-    public VetsTest(String userId) {
+    public VetsIT(String userId) {
         this.userId = userId;
         petclinicUrl = System.getProperty("petclinicUrl");
         if (petclinicUrl == null) {

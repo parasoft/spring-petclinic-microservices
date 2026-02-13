@@ -18,8 +18,8 @@ import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.options.AriaRole;
 
 @ExtendWith(ParasoftWatcher.class)
-public class NavigateTest {
-    static Playwright playwright;
+public class RegisterOwnerAndPetIT {
+        static Playwright playwright;
     static Browser browser;
 
     BrowserContext context;
@@ -27,7 +27,7 @@ public class NavigateTest {
     String userId;
     String petclinicUrl;
 
-    public NavigateTest(String userId) {
+    public RegisterOwnerAndPetIT(String userId) {
         this.userId = userId;
         petclinicUrl = System.getProperty("petclinicUrl");
         if (petclinicUrl == null) {
@@ -62,13 +62,22 @@ public class NavigateTest {
     }
 
     @Test
-    void testPetClinicNavigation() {
+    void testRegisterOwnerAndPetTest() {
         page.navigate(petclinicUrl);
-        page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("Veterinarians")).click();
-        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("Owners")).click();
-        page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("All")).click();
-        page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("Betty Davis")).click();
-        page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("Basil")).click();
         page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("Home")).click();
+        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("Owners")).click();
+        page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("Register")).click();
+        page.locator("input[name=\"firstName\"]").fill("Mark");
+        page.locator("input[name=\"lastName\"]").fill("Verdugo");
+        page.locator("input[name=\"address\"]").fill("101 E. Huntington Dr.");
+        page.locator("input[name=\"city\"]").fill("Monrovia");
+        page.locator("input[name=\"telephone\"]").fill("016267391734");
+        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("Submit")).click();
+        page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("Mark Verdugo")).last().click();
+        page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("Add New Pet")).click();
+        page.locator("input[name=\"name\"]").fill("Arty");
+        page.locator("input[type=\"date\"]").fill("2016-11-11");
+        page.getByRole(AriaRole.COMBOBOX).selectOption("2");
+        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("Submit")).click();   
     }
 }

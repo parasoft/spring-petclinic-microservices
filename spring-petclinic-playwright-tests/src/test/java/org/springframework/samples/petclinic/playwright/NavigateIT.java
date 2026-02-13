@@ -13,14 +13,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.BrowserType;
-import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.options.AriaRole;
 
-@ExtendWith(ParasoftWatcher.class)
-public class VisitTest {
-       static Playwright playwright;
+    @ExtendWith(ParasoftWatcher.class)
+    public class NavigateIT {
+    static Playwright playwright;
     static Browser browser;
 
     BrowserContext context;
@@ -28,7 +27,7 @@ public class VisitTest {
     String userId;
     String petclinicUrl;
 
-    public VisitTest(String userId) {
+    public NavigateIT(String userId) {
         this.userId = userId;
         petclinicUrl = System.getProperty("petclinicUrl");
         if (petclinicUrl == null) {
@@ -63,14 +62,13 @@ public class VisitTest {
     }
 
     @Test
-    void testVisitTest() {
+    void testPetClinicNavigation() {
         page.navigate(petclinicUrl);
+        page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("Veterinarians")).click();
         page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("Owners")).click();
         page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("All")).click();
-        page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("George Franklin")).click();
-        page.locator("tr:has-text(\"Leo\")").getByRole(AriaRole.LINK, new Locator.GetByRoleOptions().setName("Add Visit")).click();
-        page.locator("input[type=\"date\"]").fill("2023-11-15");
-        page.locator("textarea").fill("Yearly checkup");
-        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("Add New Visit")).click();
+        page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("Betty Davis")).click();
+        page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("Basil")).click();
+        page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("Home")).click();
     }
 }
