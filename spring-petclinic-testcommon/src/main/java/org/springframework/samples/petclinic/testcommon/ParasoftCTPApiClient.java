@@ -183,17 +183,17 @@ public class ParasoftCTPApiClient {
             LOGGER.log(Level.SEVERE, "[ParasoftCTPApiClient] Unexpected error during API call", e);
         }
 
-        // System property 'publishBaseline' defines whether a baselineBuildId (also a System property) gets published to CTP for this test execution.
-        if (ParasoftSettings.publishBaseline) {
+        // System property 'PUBLISH_BASELINE' defines whether a BASELINE_BUILD_ID (also a System property) gets published to CTP for this test execution.
+        if (ParasoftSettings.PUBLISH_BASELINE) {
             publishBaseline();
         }
     }
 
     // CTP REST API: /v3/environments/{envId}/coverage/baselines/{baselineId}
     private static void publishBaseline() {
-        if (!ParasoftSettings.publishBaseline) return;
+        if (!ParasoftSettings.PUBLISH_BASELINE) return;
         HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create(ParasoftSettings.CTP_BASE_URL + "/api/v3/environments/" + ParasoftSettings.CTP_ENV_ID+ "/coverage/baselines/" + ParasoftSettings.baseLineBuildId))
+            .uri(URI.create(ParasoftSettings.CTP_BASE_URL + "/api/v3/environments/" + ParasoftSettings.CTP_ENV_ID+ "/coverage/baselines/" + ParasoftSettings.BASELINE_BUILD_ID))
             .header("Content-Type", "application/json")
             .header("Authorization", "Basic " + Base64.getEncoder().encodeToString(basicAuth.getBytes()))
             .POST(HttpRequest.BodyPublishers.noBody())

@@ -21,10 +21,20 @@ public class ParasoftSettings {
     public static final boolean CTP_DEBUG = Boolean.parseBoolean(System.getProperty("CTP_DEBUG", "true"));
 
     // publishBaseline controls whether this test run should set a baselineBuildId to be used as a reference point for Test Impact Analysis.
-    public static final boolean publishBaseline = Boolean.parseBoolean(System.getProperty("PUBLISH_BASELINE", "false"));
-    public static final String baseLineBuildId = System.getProperty("BASELINE_BUILD_ID", "defaultBaseline");
+    public static final boolean PUBLISH_BASELINE = Boolean.parseBoolean(System.getProperty("PUBLISH_BASELINE", "false"));
+    public static final String BASELINE_BUILD_ID = System.getProperty("BASELINE_BUILD_ID", "BASELINE_BUILD_ID");
 
-    public static final String testFramework = "selenium";
+    private static volatile String testFramework = "selenium";
+
+    public static void setTestFramework(String framework) {
+        if (framework != null && !framework.isBlank()) {
+            testFramework = framework;
+        }
+    }
+
+    public static String getTestFramework() {
+        return testFramework;
+    }
 
     // coverageUserId convention: {testFramework}-{ctpUsername}-{nodeId}
     // When coverage agents are deployed in multi-user mode, CTP test sessions are owned by a userId. Test sessions are started/stopped using the userId as an identifier.
@@ -33,7 +43,7 @@ public class ParasoftSettings {
     // {nodeId} is a unique identifier for a grid node or thread, to differentiate multiple CTP test sessions that are running in parallel.
     public static String getCoverageUserId() {
         // placeholder for dynamic nodeName retrieval from parallel test execution
-        return testFramework + "-" + CTP_USERNAME + "-" + "defaultNode";
+        return getTestFramework() + "-" + CTP_USERNAME + "-" + "defaultNode";
     }
 
     // sessionTag convention: {testFramework}-{ctpUsername}-{nodeId}-{runCount}
