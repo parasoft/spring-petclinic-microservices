@@ -1,3 +1,8 @@
+/**
+ * ParasoftCTPApiClient centralizes REST API calls to Parasoft CTP for test session and coverage management.
+ * Provides methods for session start/stop, test start/stop, coverage publishing, and baseline publishing.
+ */
+
 package org.springframework.samples.petclinic.testcommon;
 
 import java.net.http.HttpClient;
@@ -10,10 +15,6 @@ import java.util.logging.Logger;
 import java.io.IOException;
 import java.net.SocketException;
 
-/**
- * ParasoftCTPApiClient centralizes REST API calls to Parasoft CTP for test session and coverage management.
- * Provides methods for session start/stop, test start/stop, coverage publishing, and baseline publishing.
- */
 public class ParasoftCTPApiClient {
     private static final Logger LOGGER = Logger.getLogger(ParasoftCTPApiClient.class.getName());
     private static final HttpClient client = HttpClient.newBuilder().build();
@@ -181,11 +182,15 @@ public class ParasoftCTPApiClient {
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "[ParasoftCTPApiClient] Unexpected error during API call", e);
         }
+
+        // System property 'publishBaseline' defines whether a baselineBuildId (also a System property) gets published to CTP for this test execution.
+        if (ParasoftSettings.publishBaseline) {
+            publishBaseline();
+        }
     }
 
     // CTP REST API: /v3/environments/{envId}/coverage/baselines/{baselineId}
-    public static void publishBaseline() {
-        // System property 'publishBaseline' defines whether a baselineBuildId (also a System property) gets published to CTP for this test execution.
+    private static void publishBaseline() {
         if (!ParasoftSettings.publishBaseline) return;
         HttpRequest request = HttpRequest.newBuilder()
             .uri(URI.create(ParasoftSettings.CTP_BASE_URL + "/api/v3/environments/" + ParasoftSettings.CTP_ENV_ID+ "/coverage/baselines/" + ParasoftSettings.baseLineBuildId))

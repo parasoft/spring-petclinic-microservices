@@ -8,7 +8,7 @@
  * </ul>
  * Handles authentication, error logging, and multi-user mode support.
  */
-package org.springframework.samples.petclinic.selenium;
+package org.springframework.samples.petclinic.selenium.util;
 
 import org.springframework.samples.petclinic.testcommon.*;
 
@@ -17,24 +17,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.TestWatcher;
 
 public class ParasoftWatcher implements BeforeEachCallback, TestWatcher  {
-	
-	// *** Leaving this here for reference as an alternative approach to using a proxy server for header injection
-	// Selenium DevTools header injection for coverage agent baggage header
-	// public static void injectBaggageHeader(ChromeDriver driver) {
-	// 	DevTools devTools = driver.getDevTools();
-	// 	devTools.createSession();
-	// 	devTools.send(Network.enable(
-	// 		Optional.empty(), // maxTotalBufferSize
-	// 		Optional.empty(), // maxResourceBufferSize
-	// 		Optional.empty(), // maxPostDataSize
-	// 		Optional.empty(), // maxBlockedCookies
-	// 		Optional.empty()  // maxBlockedRequests
-	// 	));
-	// 	HashMap<String, Object> headers = new HashMap<>();
-	// 	headers.put("baggage", "test-operator-id=" + ParasoftSettings.getCoverageUserId());
-	// 	devTools.send(Network.setExtraHTTPHeaders(new Headers(headers)));
-	// }
-	
+
 	@Override
 	public void beforeEach(ExtensionContext context) throws Exception {
 		String testId = getTestId(context);
@@ -71,4 +54,21 @@ public class ParasoftWatcher implements BeforeEachCallback, TestWatcher  {
 	private static String getTestId(ExtensionContext context) {
 		return context.getTestClass().get().getName() + '#' + context.getTestMethod().get().getName();
 	}
+		
+	// *** Leaving this here for reference as an alternative approach to using a proxy server for header injection
+	// Selenium DevTools header injection for coverage agent baggage header
+	// public static void injectBaggageHeader(ChromeDriver driver) {
+	// 	DevTools devTools = driver.getDevTools();
+	// 	devTools.createSession();
+	// 	devTools.send(Network.enable(
+	// 		Optional.empty(), // maxTotalBufferSize
+	// 		Optional.empty(), // maxResourceBufferSize
+	// 		Optional.empty(), // maxPostDataSize
+	// 		Optional.empty(), // maxBlockedCookies
+	// 		Optional.empty()  // maxBlockedRequests
+	// 	));
+	// 	HashMap<String, Object> headers = new HashMap<>();
+	// 	headers.put("baggage", "test-operator-id=" + ParasoftSettings.getCoverageUserId());
+	// 	devTools.send(Network.setExtraHTTPHeaders(new Headers(headers)));
+	// }
 }

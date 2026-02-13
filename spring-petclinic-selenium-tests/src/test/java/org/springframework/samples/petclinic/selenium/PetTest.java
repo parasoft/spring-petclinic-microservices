@@ -14,7 +14,7 @@ import org.openqa.selenium.Proxy;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 
-@ExtendWith(ParasoftWatcher.class)
+@ExtendWith(org.springframework.samples.petclinic.selenium.util.ParasoftWatcher.class)
 public class PetTest {
 	private static WebDriver driver;
 	private static HttpProxyServer proxy;

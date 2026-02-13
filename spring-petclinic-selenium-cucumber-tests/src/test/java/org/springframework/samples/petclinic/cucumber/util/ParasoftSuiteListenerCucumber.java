@@ -10,31 +10,26 @@
  * </ul>
  * It handles REST API calls, authentication, and error logging for these operations.
  */
-package org.springframework.samples.petclinic.selenium;
-
-import org.springframework.samples.petclinic.testcommon.ParasoftCTPApiClient;
+package org.springframework.samples.petclinic.cucumber.util;
 
 import org.junit.platform.launcher.TestExecutionListener;
 import org.junit.platform.launcher.TestPlan;
+import org.springframework.samples.petclinic.testcommon.ParasoftCTPApiClient;
 
-public class ParasoftSuiteListener implements TestExecutionListener {
+public class ParasoftSuiteListenerCucumber implements TestExecutionListener {
     private String sessionId;
 
     @Override
     public void testPlanExecutionStarted(TestPlan testPlan) {
-        // Start the CTP test session and store sessionId
         sessionId = ParasoftCTPApiClient.startSession();
     }
 
     @Override
     public void testPlanExecutionFinished(TestPlan testPlan) {
-        // Stop the CTP test session
         ParasoftCTPApiClient.stopSession();
-        // Publish coverage data to DTP
+        
         if (sessionId != null) {
             ParasoftCTPApiClient.publishCoverage(sessionId);
         }
-        // Publish baseline if enabled
-        ParasoftCTPApiClient.publishBaseline();
     }
 }
