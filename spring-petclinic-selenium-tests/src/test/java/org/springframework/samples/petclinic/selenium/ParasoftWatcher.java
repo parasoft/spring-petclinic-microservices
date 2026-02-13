@@ -3,17 +3,17 @@ package org.springframework.samples.petclinic.selenium;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.TestWatcher;
-import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.devtools.DevTools;
-import org.openqa.selenium.devtools.v142.network.Network;
-import org.openqa.selenium.devtools.v142.network.model.Headers;
+// import org.openqa.selenium.chrome.ChromeDriver;
+// import org.openqa.selenium.devtools.DevTools;
+// import org.openqa.selenium.devtools.v142.network.Network;
+// import org.openqa.selenium.devtools.v142.network.model.Headers;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.URI;
 import java.util.Base64;
-import java.util.HashMap;
-import java.util.Optional;
+// import java.util.HashMap;
+// import java.util.Optional;
 import java.io.IOException;
 import java.net.SocketException;
 import java.util.logging.Level;
@@ -25,20 +25,20 @@ public class ParasoftWatcher implements BeforeEachCallback, TestWatcher  {
 	private static final String basicAuth = ParasoftSettings.CTP_USERNAME + ":" + ParasoftSettings.CTP_PASSWORD;
 
 	// Selenium DevTools header injection for coverage agent baggage header
-	public static void injectBaggageHeader(ChromeDriver driver) {
-		DevTools devTools = driver.getDevTools();
-		devTools.createSession();
-		devTools.send(Network.enable(
-			Optional.empty(), // maxTotalBufferSize
-			Optional.empty(), // maxResourceBufferSize
-			Optional.empty(), // maxPostDataSize
-			Optional.empty(), // maxBlockedCookies
-			Optional.empty()  // maxBlockedRequests
-		));
-		HashMap<String, Object> headers = new HashMap<>();
-		headers.put("baggage", "test-operator-id=" + ParasoftSettings.getCoverageUserId());
-		devTools.send(Network.setExtraHTTPHeaders(new Headers(headers)));
-	}
+	// public static void injectBaggageHeader(ChromeDriver driver) {
+	// 	DevTools devTools = driver.getDevTools();
+	// 	devTools.createSession();
+	// 	devTools.send(Network.enable(
+	// 		Optional.empty(), // maxTotalBufferSize
+	// 		Optional.empty(), // maxResourceBufferSize
+	// 		Optional.empty(), // maxPostDataSize
+	// 		Optional.empty(), // maxBlockedCookies
+	// 		Optional.empty()  // maxBlockedRequests
+	// 	));
+	// 	HashMap<String, Object> headers = new HashMap<>();
+	// 	headers.put("baggage", "test-operator-id=" + ParasoftSettings.getCoverageUserId());
+	// 	devTools.send(Network.setExtraHTTPHeaders(new Headers(headers)));
+	// }
 
 	@Override
 	public void beforeEach(ExtensionContext context) throws Exception {
@@ -70,19 +70,19 @@ public class ParasoftWatcher implements BeforeEachCallback, TestWatcher  {
 		} catch (Exception e) {
 			LOGGER.log(Level.SEVERE, "[ParasoftWatcher] Unexpected error during API call", e);
 		}
-		Object testInstance = context.getTestInstance().orElse(null);
-		if (testInstance != null) {
-			try {
-				java.lang.reflect.Field driverField = testInstance.getClass().getDeclaredField("driver");
-				driverField.setAccessible(true);
-				Object driverObj = driverField.get(testInstance);
-				if (driverObj instanceof ChromeDriver) {
-					injectBaggageHeader((ChromeDriver) driverObj);
-				}
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-		}
+		// Object testInstance = context.getTestInstance().orElse(null);
+		// if (testInstance != null) {
+		// 	try {
+		// 		java.lang.reflect.Field driverField = testInstance.getClass().getDeclaredField("driver");
+		// 		driverField.setAccessible(true);
+		// 		Object driverObj = driverField.get(testInstance);
+		// 		if (driverObj instanceof ChromeDriver) {
+		// 			injectBaggageHeader((ChromeDriver) driverObj);
+		// 		}
+		// 	} catch (Exception e) {
+		// 		e.printStackTrace();
+		// 	}
+		// }
 	}
 
 	@Override

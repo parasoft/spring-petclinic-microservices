@@ -6,22 +6,38 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.Proxy;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
+import org.littleshoot.proxy.*;
 
 @ExtendWith(ParasoftWatcher.class)
 public class NavigateTest {
 	private static WebDriver driver;
-	// private static BrowserMobProxy proxy; // Removed proxy declaration
+	private static HttpProxyServer proxy;
 	
 	@BeforeAll
 	static void openBrowser() {
-		driver = new ChromeDriver();
+		proxy = HeaderInjectingProxy.startProxy();
+		int proxyPort = proxy.getListenAddress().getPort();
+
+		Proxy seleniumProxy = new Proxy();
+		seleniumProxy.setHttpProxy("localhost:" + proxyPort); //need to replace localhost if running on Grid
+		seleniumProxy.setSslProxy("localhost:" + proxyPort);  //need to replace localhost if running on Grid
+		seleniumProxy.setNoProxy("<-loopback>");
+		
+		ChromeOptions options = new ChromeOptions();
+		options.setProxy(seleniumProxy);
+		driver = new ChromeDriver(options);
 	}
 	
 	@AfterAll
 	static void closeBrowser() {
 		if (driver != null) {
 			driver.quit();
+		}
+		if (proxy != null) {
+			proxy.stop();
 		}
 	}
 

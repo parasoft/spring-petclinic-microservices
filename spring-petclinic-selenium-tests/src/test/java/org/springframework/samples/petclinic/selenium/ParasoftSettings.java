@@ -15,8 +15,9 @@ public class ParasoftSettings {
 
     public static final String testFramework = "selenium";
 
-    // ctpUserId convention: {testFramework}-{username}-{nodeId}
-    // When coverage agents are deployed in multi-user mode, CTP test sessions are owned by a userId. Starting and stopping sessions use the userId to identify which user's session to start/stop.
+    // coverageUserId convention: {testFramework}-{username}-{nodeId}
+    // When coverage agents are deployed in multi-user mode, CTP test sessions are owned by a userId. Sessions are started/stopped using the userId as an identifier.
+    //    If multiple sessions are being started in parallel, the userId is used to differentiate between the sessions.
     // {username} is included to differentiate multiple CTP test sessions that are running in parallel, if running on a Grid consider username as the grid node identifier.
     // {nodeId} is a unique identifier for the grid node or thread, provided by the grid or fallback to thread name.
     public static String getCoverageUserId() {
@@ -30,6 +31,7 @@ public class ParasoftSettings {
     // {runCount} is used to differentiate multiple test runs that publish reports to the same buildId.  If test executions are batched and publish to the same buildId, 
     //    incrementing runCount for each test run will ensure that coverage data from each test run is published and not overwritten in DTP.
     public static String getDtpSessionTag() {
-        return getCoverageUserId() + "-2";
+        // placeholder for dynamic runCount if multiple test execution jobs are run against the same buildId
+        return getCoverageUserId() + "-1";
     }
 }
