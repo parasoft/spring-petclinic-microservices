@@ -10,6 +10,10 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
+
+import java.time.Duration;
 
 import org.littleshoot.proxy.HttpProxyServer;
 import org.springframework.samples.petclinic.testcommon.ParasoftHeaderInjectingProxy;
@@ -17,6 +21,7 @@ import org.springframework.samples.petclinic.testcommon.ParasoftHeaderInjectingP
 public class PetClinicSteps {
     private ChromeDriver driver;
     private HttpProxyServer proxy;
+    private WebDriverWait wait;
 
     @Given("the browser is open")
     public void the_browser_is_open() {
@@ -33,11 +38,12 @@ public class PetClinicSteps {
         options.setProxy(seleniumProxy);
         
         driver = new ChromeDriver(options);
+        wait = new WebDriverWait(driver, Duration.ofSeconds(5));
     }
 
     @When("I navigate to the home page")
     public void i_navigate_to_home_page() {
-        driver.get("http://localhost:8099/");
+        openHomePage();
     }
 
     @After
@@ -57,34 +63,44 @@ public class PetClinicSteps {
 
     @When("I navigate to the owners page")
     public void i_navigate_to_owners_page() {
-        driver.findElement(By.xpath("//a[@ui-sref='owners']")).click();
+        openHomePage();
+        wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//a[@class='dropdown-toggle']"))).click();
+        wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//a[@ui-sref='owners']"))).click();
     }
 
     @When("I select the first owner")
     public void i_select_first_owner() {
-        driver.findElement(By.xpath("//owner-list/table/tbody/tr[1]/td[1]/a")).click();
+        wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//owner-list/table/tbody/tr[1]/td[1]/a"))).click();
     }
 
     @When("I edit the pet name to {string}")
     public void i_edit_pet_name(String name) {
-        driver.findElement(By.xpath("//dd/a")).click();
-        driver.findElement(By.name("name")).clear();
+        wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//dd/a"))).click();
+        wait.until(ExpectedConditions.visibilityOfElementLocated(By.name("name"))).clear();
         driver.findElement(By.name("name")).sendKeys(name);
-        driver.findElement(By.xpath("//button[@type='submit']")).click();
+        wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//button[@type='submit']"))).click();
     }
 
     @Then("the pet name should be updated to {string}")
     public void pet_name_should_be_updated(String name) {
+        wait.until(ExpectedConditions.textToBePresentInElementLocated(By.tagName("body"), name));
         Assertions.assertTrue(driver.getPageSource().contains(name));
     }
 
     @When("I navigate to the veterinarians page")
     public void i_navigate_to_vets_page() {
-        driver.findElement(By.xpath("//a[@title='veterinarians']")).click();
+        openHomePage();
+        wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//a[@title='veterinarians']"))).click();
     }
 
     @Then("I should see the list of veterinarians")
     public void i_should_see_vets_list() {
+        wait.until(ExpectedConditions.textToBePresentInElementLocated(By.tagName("body"), "Veterinarians"));
         Assertions.assertTrue(driver.getPageSource().contains("Veterinarians"));
+    }
+
+    private void openHomePage() {
+        driver.get("http://localhost:8099/");
+        wait.until(ExpectedConditions.textToBePresentInElementLocated(By.tagName("body"), "Welcome"));
     }
 }

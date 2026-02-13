@@ -2,24 +2,24 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    
+
     <groupId>org.springframework.samples.petclinic.cucumber</groupId>
     <artifactId>spring-petclinic-selenium-cucumber-tests</artifactId>
     <packaging>jar</packaging>
     <description>Spring PetClinic Selenium Cucumber Tests</description>
-    
+
     <parent>
         <groupId>org.springframework.samples</groupId>
         <artifactId>spring-petclinic-microservices</artifactId>
         <version>3.0.9</version>
     </parent>
-    
+
     <properties>
         <junit.version>5.14.2</junit.version>
         <selenium.version>4.40.0</selenium.version>
-        <cucumber.version>7.14.0</cucumber.version>
+        <cucumber.version>7.34.2</cucumber.version>
     </properties>
-    
+
     <dependencies>
         <dependency>
             <groupId>org.springframework.samples.petclinic.testcommon</groupId>
@@ -56,21 +56,10 @@
         </dependency>
 
         <!-- JUnit -->
-        <dependency>
-            <groupId>org.junit</groupId>
-            <artifactId>junit-bom</artifactId>
-            <version>${junit.version}</version>
-            <scope>import</scope>
-            <type>pom</type>
-        </dependency>
+        <!-- JUnit dependencies managed by BOM below -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-engine</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -80,14 +69,25 @@
         </dependency>
         <dependency>
             <groupId>org.junit.platform</groupId>
-            <artifactId>junit-platform-launcher</artifactId>
+            <artifactId>junit-platform-suite-engine</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
 
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.junit</groupId>
+                <artifactId>junit-bom</artifactId>
+                <version>${junit.version}</version>
+                <scope>import</scope>
+                <type>pom</type>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <build>
         <plugins>
-            <!-- Use Failsafe for functional/integration tests -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
@@ -105,6 +105,12 @@
                         <include>**/*IT.java</include>
                         <include>**/*ITCase.java</include>
                     </includes>
+                    <providers>
+                        <provider>
+                            <name>junit-platform</name>
+                        </provider>
+                    </providers>
+                    <useModulePath>false</useModulePath>
                 </configuration>
             </plugin>
         </plugins>
