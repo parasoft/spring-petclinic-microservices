@@ -13,16 +13,16 @@ package org.springframework.samples.petclinic.testcommon;
 
 public class ParasoftSettings {
     // System variables for CTP integration
-    public static final String CTP_BASE_URL = System.getProperty("ctpBaseUrl", "http://localhost:8070/em");
-    public static final int CTP_ENV_ID = Integer.parseInt(System.getProperty("ctpEnvId", "4"));
-    public static final String CTP_USERNAME = System.getProperty("ctpUsername", "admin");
-    public static final String CTP_PASSWORD = System.getProperty("ctpPassword", "admin");
-    public static final String CTP_MULTI_USER_MODE = System.getProperty("ctpMultiUserMode", "true");
-    public static final boolean CTP_DEBUG = Boolean.parseBoolean(System.getProperty("ctpDebug", "true"));
+    public static final String CTP_BASE_URL = System.getProperty("CTP_BASE_URL", "http://localhost:8070/em");
+    public static final int CTP_ENV_ID = Integer.parseInt(System.getProperty("CTP_ENV_ID", "4"));
+    public static final String CTP_USERNAME = System.getProperty("CTP_USERNAME", "admin");
+    public static final String CTP_PASSWORD = System.getProperty("CTP_PASSWORD", "admin");
+    public static final String CTP_MULTI_USER_MODE = System.getProperty("CTP_MULTI_USER_MODE", "true");
+    public static final boolean CTP_DEBUG = Boolean.parseBoolean(System.getProperty("CTP_DEBUG", "true"));
 
     // publishBaseline controls whether this test run should set a baselineBuildId to be used as a reference point for Test Impact Analysis.
-    public static final boolean publishBaseline = Boolean.parseBoolean(System.getProperty("publishBaseline", "false"));
-    public static final String baseLineBuildId = System.getProperty("baseLineBuildId", "defaultBaseline");
+    public static final boolean publishBaseline = Boolean.parseBoolean(System.getProperty("PUBLISH_BASELINE", "false"));
+    public static final String baseLineBuildId = System.getProperty("BASELINE_BUILD_ID", "defaultBaseline");
 
     public static final String testFramework = "selenium";
 
