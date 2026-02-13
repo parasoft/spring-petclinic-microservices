@@ -1,15 +1,18 @@
 package org.springframework.samples.petclinic.selenium;
 
+import org.springframework.samples.petclinic.testcommon.ParasoftHeaderInjectingProxy;
+import org.littleshoot.proxy.*;
+
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
-import org.littleshoot.proxy.*;
 
 @ExtendWith(ParasoftWatcher.class)
 public class PetTest {
@@ -18,7 +21,7 @@ public class PetTest {
 	
 	@BeforeAll
 	static void openBrowser() {
-		proxy = HeaderInjectingProxy.startProxy();
+		proxy = ParasoftHeaderInjectingProxy.startProxy();
 		int proxyPort = proxy.getListenAddress().getPort();
 
 		Proxy seleniumProxy = new Proxy();

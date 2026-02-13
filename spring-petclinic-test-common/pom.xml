@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.springframework.samples</groupId>
+        <artifactId>spring-petclinic-microservices</artifactId>
+        <version>3.0.9</version>
+    </parent>
+    <groupId>org.springframework.samples.petclinic.testcommon</groupId>
+    <artifactId>spring-petclinic-test-common</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+    <description>Common test utilities for PetClinic test modules</description>
+
+    <properties>
+        <littleproxy.version>1.1.2</littleproxy.version>
+        <netty.version>4.2.10.Final</netty.version>
+    </properties>
+
+    <dependencies>
+        <!-- Utility for HTTP proxying -->
+        <dependency>
+            <groupId>org.littleshoot</groupId>
+            <artifactId>littleproxy</artifactId>
+            <version>${littleproxy.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-all</artifactId>
+            <version>${netty.version}</version>
+        </dependency>
+    </dependencies>
+</project>

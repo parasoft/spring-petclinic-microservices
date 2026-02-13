@@ -9,7 +9,7 @@
  * </ul>
  * Used by other classes to access configuration and generate identifiers for REST API calls.
  */
-package org.springframework.samples.petclinic.selenium;
+package org.springframework.samples.petclinic.testcommon;
 
 public class ParasoftSettings {
     // System variables for CTP integration

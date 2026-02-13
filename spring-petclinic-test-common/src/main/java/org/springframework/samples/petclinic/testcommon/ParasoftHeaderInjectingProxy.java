@@ -1,5 +1,5 @@
 /**
- * HeaderInjectingProxy creates an HTTP proxy server that injects custom headers into outgoing requests.
+ * ParasoftHeaderInjectingProxy creates an HTTP proxy server that injects custom headers into outgoing requests.
  * <p>
  * This class uses LittleProxy and Netty to start a proxy server that automatically adds
  * a "baggage" header containing the test operator ID to all proxied HTTP requests.
@@ -9,7 +9,7 @@
  *   <li>Integrates with ParasoftSettings for user identification</li>
  * </ul>
  */
-package org.springframework.samples.petclinic.selenium;
+package org.springframework.samples.petclinic.testcommon;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.HttpObject;
@@ -19,7 +19,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import org.littleshoot.proxy.*;
 import org.littleshoot.proxy.impl.DefaultHttpProxyServer;
 
-public class HeaderInjectingProxy {
+public class ParasoftHeaderInjectingProxy {
 
     public static HttpProxyServer startProxy() {
         return DefaultHttpProxyServer.bootstrap()
