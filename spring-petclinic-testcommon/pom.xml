@@ -2,16 +2,18 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.springframework.samples.petclinic.testcommon</groupId>
+    <artifactId>spring-petclinic-testcommon</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+    <description>Common test utilities for PetClinic test modules</description>
+
     <parent>
         <groupId>org.springframework.samples</groupId>
         <artifactId>spring-petclinic-microservices</artifactId>
         <version>3.0.9</version>
     </parent>
-    <groupId>org.springframework.samples.petclinic.testcommon</groupId>
-    <artifactId>spring-petclinic-test-common</artifactId>
-    <version>1.0.0</version>
-    <packaging>jar</packaging>
-    <description>Common test utilities for PetClinic test modules</description>
 
     <properties>
         <littleproxy.version>1.1.2</littleproxy.version>

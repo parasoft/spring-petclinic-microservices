@@ -2,24 +2,28 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+    
     <groupId>org.springframework.samples.petclinic.cucumber</groupId>
     <artifactId>spring-petclinic-selenium-cucumber-tests</artifactId>
     <packaging>jar</packaging>
     <description>Spring PetClinic Selenium Cucumber Tests</description>
+    
     <parent>
         <groupId>org.springframework.samples</groupId>
         <artifactId>spring-petclinic-microservices</artifactId>
         <version>3.0.9</version>
     </parent>
+    
     <properties>
         <junit.version>5.14.2</junit.version>
         <selenium.version>4.40.0</selenium.version>
         <cucumber.version>7.14.0</cucumber.version>
     </properties>
+    
     <dependencies>
         <dependency>
             <groupId>org.springframework.samples.petclinic.testcommon</groupId>
-            <artifactId>spring-petclinic-test-common</artifactId>
+            <artifactId>spring-petclinic-testcommon</artifactId>
             <version>1.0.0</version>
         </dependency>
 

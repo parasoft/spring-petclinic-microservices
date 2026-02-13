@@ -23,7 +23,7 @@
         <module>spring-petclinic-config-server</module>
         <module>spring-petclinic-discovery-server</module>
         <module>spring-petclinic-api-gateway</module>
-        <module>spring-petclinic-test-common</module>
+        <module>spring-petclinic-testcommon</module>
         <module>spring-petclinic-selenium-tests</module>
         <module>spring-petclinic-selenium-cucumber-tests</module>
         <module>spring-petclinic-playwright-tests</module>

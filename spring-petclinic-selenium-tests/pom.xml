@@ -22,7 +22,7 @@
     <dependencies>
         <dependency>
             <groupId>org.springframework.samples.petclinic.testcommon</groupId>
-            <artifactId>spring-petclinic-test-common</artifactId>
+            <artifactId>spring-petclinic-testcommon</artifactId>
             <version>1.0.0</version>
         </dependency>
 
