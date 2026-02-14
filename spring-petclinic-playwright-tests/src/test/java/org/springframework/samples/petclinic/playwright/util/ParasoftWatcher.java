@@ -1,7 +1,6 @@
 package org.springframework.samples.petclinic.playwright.util;
 
 import org.springframework.samples.petclinic.testcommon.ParasoftCTPApiClient;
-import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
 
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
