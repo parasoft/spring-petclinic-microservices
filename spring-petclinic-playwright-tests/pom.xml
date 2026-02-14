@@ -19,8 +19,10 @@
       <groupId>org.springframework.samples.petclinic.testcommon</groupId>
       <artifactId>spring-petclinic-testcommon</artifactId>
       <version>1.0.0</version>
+      <type>test-jar</type>
+      <scope>test</scope>
     </dependency>
-    
+
     <!-- Web UI Testing -->
     <dependency>
       <groupId>com.microsoft.playwright</groupId>
@@ -28,7 +30,7 @@
       <version>${playwright.version}</version>
       <scope>test</scope>
     </dependency>
-    
+
     <!-- Test Framework -->
     <dependency>
       <groupId>org.junit.jupiter</groupId>

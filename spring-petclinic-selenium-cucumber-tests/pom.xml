@@ -25,6 +25,8 @@
             <groupId>org.springframework.samples.petclinic.testcommon</groupId>
             <artifactId>spring-petclinic-testcommon</artifactId>
             <version>1.0.0</version>
+            <type>test-jar</type>
+            <scope>test</scope>
         </dependency>
 
         <!-- Web UI Testing -->
