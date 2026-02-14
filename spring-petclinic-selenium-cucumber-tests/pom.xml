@@ -34,14 +34,8 @@
             <version>${selenium.version}</version>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.seleniumhq.selenium</groupId>
-            <artifactId>selenium-devtools-v142</artifactId>
-            <version>${selenium.version}</version>
-            <scope>test</scope>
-        </dependency>
 
-        <!-- Cucumber JUnit -->
+        <!-- Test Framework -->
         <dependency>
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-java</artifactId>
@@ -54,9 +48,6 @@
             <version>${cucumber.version}</version>
             <scope>test</scope>
         </dependency>
-
-        <!-- JUnit -->
-        <!-- JUnit dependencies managed by BOM below -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>

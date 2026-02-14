@@ -12,7 +12,7 @@
  */
 package org.springframework.samples.petclinic.cucumber.util;
 
-import org.springframework.samples.petclinic.testcommon.ParasoftCTPApiClient;
+import org.springframework.samples.petclinic.testcommon.*;
 import io.cucumber.java.AfterAll;
 import io.cucumber.java.BeforeAll;
 
@@ -21,6 +21,7 @@ public class ParasoftSuiteListenerCucumber {
 
     @BeforeAll
     public static void testPlanExecutionStarted() {
+        ParasoftSettings.setTestFramework("seleniumCucumberJUnit");
         sessionId = ParasoftCTPApiClient.startSession();
     }
 

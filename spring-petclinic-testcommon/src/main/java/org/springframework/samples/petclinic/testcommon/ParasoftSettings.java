@@ -19,10 +19,11 @@ public class ParasoftSettings {
     public static final String CTP_PASSWORD = System.getProperty("CTP_PASSWORD", "admin");
     public static final String CTP_MULTI_USER_MODE = System.getProperty("CTP_MULTI_USER_MODE", "true");
     public static final boolean CTP_DEBUG = Boolean.parseBoolean(System.getProperty("CTP_DEBUG", "true"));
+    public static final boolean HEADLESS = Boolean.parseBoolean(System.getProperty("HEADLESS", "false"));
 
     // publishBaseline controls whether this test run should set a baselineBuildId to be used as a reference point for Test Impact Analysis.
     public static final boolean PUBLISH_BASELINE = Boolean.parseBoolean(System.getProperty("PUBLISH_BASELINE", "false"));
-    public static final String BASELINE_BUILD_ID = System.getProperty("BASELINE_BUILD_ID", "BASELINE_BUILD_ID");
+    public static final String BASELINE_BUILD_ID = System.getProperty("BASELINE_BUILD_ID", "spring-petclinic-baseline");
 
     private static volatile String testFramework = "selenium";
 
@@ -34,6 +35,10 @@ public class ParasoftSettings {
 
     public static String getTestFramework() {
         return testFramework;
+    }
+
+    public static boolean isHeadless() {
+        return HEADLESS;
     }
 
     // coverageUserId convention: {testFramework}-{ctpUsername}-{nodeId}

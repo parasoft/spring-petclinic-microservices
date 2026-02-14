@@ -26,6 +26,7 @@
             <artifactId>spring-petclinic-testcommon</artifactId>
             <version>1.0.0</version>
         </dependency>
+        
         <!-- Web UI Testing -->
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
@@ -33,12 +34,8 @@
             <version>${selenium.version}</version>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.seleniumhq.selenium</groupId>
-            <artifactId>selenium-devtools-v142</artifactId>
-            <version>${selenium.version}</version>
-        </dependency>
-        <!-- TestNG -->
+        
+        <!-- Test Framework -->
         <dependency>
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>

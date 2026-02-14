@@ -10,6 +10,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import org.springframework.samples.petclinic.playwright.util.ParasoftWatcher;
+import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
+
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.BrowserType;
@@ -22,24 +25,16 @@ public class RegisterOwnerAndPetIT {
         static Playwright playwright;
     static Browser browser;
 
+    private static final String PETCLINIC_URL = System.getProperty("PETCLINIC_URL", "http://localhost:8099");
+
     BrowserContext context;
     Page page;
     String userId;
-    String petclinicUrl;
-
-    public RegisterOwnerAndPetIT(String userId) {
-        this.userId = userId;
-        petclinicUrl = System.getProperty("petclinicUrl");
-        if (petclinicUrl == null) {
-            petclinicUrl = "http://localhost:8080";
-        }
-    }
 
     @BeforeAll
     static void launchBrowser() {
         playwright = Playwright.create();
-        boolean headless = Boolean.valueOf(System.getProperty("headless"));
-        browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(headless).setSlowMo(500));
+        browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(ParasoftSettings.isHeadless()).setSlowMo(500));
     }
 
     @AfterAll
@@ -50,9 +45,14 @@ public class RegisterOwnerAndPetIT {
     @BeforeEach
     void createContextAndPage() {
         context = browser.newContext();
-        Map<String, String> headers = new HashMap<>();
-        headers.put("baggage", "test-operator-id=" + userId);
-        context.setExtraHTTPHeaders(headers);
+        // Using Playwright API for request header injection, required for Parasoft
+        // coverage reporting when agents are in multi-user mode
+        if (ParasoftSettings.CTP_MULTI_USER_MODE.equalsIgnoreCase("true")) {
+            userId = ParasoftSettings.getCoverageUserId();
+            Map<String, String> headers = new HashMap<>();
+            headers.put("baggage", "test-operator-id=" + userId);
+            context.setExtraHTTPHeaders(headers);
+        }
         page = context.newPage();
     }
 
@@ -63,7 +63,7 @@ public class RegisterOwnerAndPetIT {
 
     @Test
     void testRegisterOwnerAndPetTest() {
-        page.navigate(petclinicUrl);
+        page.navigate(PETCLINIC_URL);
         page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("Home")).click();
         page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("Owners")).click();
         page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName("Register")).click();

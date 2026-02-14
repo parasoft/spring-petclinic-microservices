@@ -13,7 +13,7 @@
 
 package org.springframework.samples.petclinic.selenium.util;
 
-import org.springframework.samples.petclinic.testcommon.ParasoftCTPApiClient;
+import org.springframework.samples.petclinic.testcommon.*;
 import org.testng.ISuite;
 import org.testng.ISuiteListener;
 
@@ -22,7 +22,7 @@ public class ParasoftSuiteListener implements ISuiteListener {
 
     @Override
     public void onStart(ISuite suite) {
-        sessionId = ParasoftCTPApiClient.startSession();
+        ParasoftSettings.setTestFramework("seleniumTestNG");
     }
 
     @Override

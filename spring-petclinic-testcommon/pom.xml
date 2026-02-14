@@ -18,6 +18,7 @@
     <properties>
         <littleproxy.version>1.1.2</littleproxy.version>
         <netty.version>4.2.10.Final</netty.version>
+        <selenium.version>4.40.0</selenium.version>
     </properties>
 
     <dependencies>
@@ -37,6 +38,20 @@
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
             <version>${netty.version}</version>
+        </dependency>
+        
+        <!-- Selenium DevTools dependency for header injection-->
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>selenium-java</artifactId>
+            <version>${selenium.version}</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>selenium-devtools-v142</artifactId>
+            <version>${selenium.version}</version>
+            <optional>true</optional>
         </dependency>
     </dependencies>
 </project>

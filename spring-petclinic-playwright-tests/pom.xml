@@ -7,42 +7,58 @@
   <artifactId>spring-petclinic-playwright-tests</artifactId>
   <version>3.0.9</version>
   <name>spring-petclinic-playwright-tests</name>
+
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <junit.version>5.10.2</junit.version>
+    <junit.version>5.14.2</junit.version>
+    <playwright.version>1.58.0</playwright.version>
   </properties>
+
   <dependencies>
     <dependency>
       <groupId>org.springframework.samples.petclinic.testcommon</groupId>
-      <artifactId>spring-petclinic-test-common</artifactId>
+      <artifactId>spring-petclinic-testcommon</artifactId>
       <version>1.0.0</version>
     </dependency>
+    
+    <!-- Web UI Testing -->
     <dependency>
       <groupId>com.microsoft.playwright</groupId>
       <artifactId>playwright</artifactId>
-      <version>1.45.0</version>
+      <version>${playwright.version}</version>
       <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-      <version>2.17.2</version>
-      <scope>test</scope>
-    </dependency>
-    <!-- Unit Testing -->
+    
+    <!-- Test Framework -->
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-api</artifactId>
-      <version>${junit.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-engine</artifactId>
-      <version>${junit.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.platform</groupId>
+      <artifactId>junit-platform-launcher</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.junit</groupId>
+        <artifactId>junit-bom</artifactId>
+        <version>${junit.version}</version>
+        <scope>import</scope>
+        <type>pom</type>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
   <build>
     <plugins>
       <plugin>
@@ -58,7 +74,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
-        <version>3.0.0-M5</version>
+        <version>3.5.4</version>
         <executions>
           <execution>
             <goals>
@@ -68,11 +84,6 @@
           </execution>
         </executions>
         <configuration>
-          <systemPropertyVariables>
-            <envId>${envId}</envId>
-            <ctpBaseUrl>${ctpBaseUrl}</ctpBaseUrl>
-            <userId>${userId}</userId>
-          </systemPropertyVariables>
           <includes>
             <include>**/*IT.java</include>
             <include>**/*ITCase.java</include>

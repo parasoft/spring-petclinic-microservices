@@ -8,6 +8,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
+
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.Proxy;
@@ -18,22 +20,31 @@ import org.openqa.selenium.chrome.ChromeOptions;
 public class NavigateIT {
 	private static WebDriver driver;
 	private static HttpProxyServer proxy;
-	
+
 	@BeforeAll
 	static void openBrowser() {
-		proxy = ParasoftHeaderInjectingProxy.startProxy();
-		int proxyPort = proxy.getListenAddress().getPort();
-
-		Proxy seleniumProxy = new Proxy();
-		seleniumProxy.setHttpProxy("localhost:" + proxyPort); //need to replace localhost if running on Grid
-		seleniumProxy.setSslProxy("localhost:" + proxyPort);  //need to replace localhost if running on Grid
-		seleniumProxy.setNoProxy("<-loopback>");
-		
 		ChromeOptions options = new ChromeOptions();
-		options.setProxy(seleniumProxy);
+
+		// Using LittleProxy for request header injection, required for Parasoft
+		// coverage reporting when agents are in multi-user mode
+		if (ParasoftSettings.CTP_MULTI_USER_MODE.equalsIgnoreCase("true")) {
+			proxy = ParasoftHeaderInjectingProxy.startProxy();
+			int proxyPort = proxy.getListenAddress().getPort();
+
+			Proxy seleniumProxy = new Proxy();
+			seleniumProxy.setHttpProxy("localhost:" + proxyPort); // need to replace localhost if running on Grid
+			seleniumProxy.setSslProxy("localhost:" + proxyPort); // need to replace localhost if running on Grid
+			seleniumProxy.setNoProxy("<-loopback>");
+			
+			options.setProxy(seleniumProxy);
+		}
+		if (ParasoftSettings.isHeadless()) {
+			options.addArguments("--headless=new");
+		}
+		
 		driver = new ChromeDriver(options);
 	}
-	
+
 	@AfterAll
 	static void closeBrowser() {
 		if (driver != null) {

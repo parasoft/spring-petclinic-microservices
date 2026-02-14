@@ -10,47 +10,67 @@
  */
 package org.springframework.samples.petclinic.cucumber.util;
 
-import org.springframework.samples.petclinic.testcommon.*;
+import java.net.URI;
+
+import org.springframework.samples.petclinic.testcommon.ParasoftCTPApiClient;
 
 import io.cucumber.java.Before;
 import io.cucumber.java.After;
 import io.cucumber.java.Scenario;
 
-// import org.openqa.selenium.devtools.DevTools;
-// import org.openqa.selenium.devtools.v142.network.Network;
-// import org.openqa.selenium.devtools.v142.network.model.Headers;
-// import java.util.HashMap;
-// import java.util.Optional;
-
 public class ParasoftWatcherCucumber {
-    @Before
-    public void beforeScenario(Scenario scenario) {
-        ParasoftCTPApiClient.startTest(scenario.getName());
-    }
+	private static final ThreadLocal<String> CURRENT_TEST_ID = new ThreadLocal<>();
 
-    @After
-    public void afterScenario(Scenario scenario) {
-        ParasoftCTPApiClient.stopTest(
-            scenario.getName(),
-            !scenario.isFailed(),
-            scenario.isFailed() && scenario.getStatus() != null ? scenario.getStatus().toString() : null
-        );
-    }
+	@Before
+	public void beforeScenario(Scenario scenario) {
+		String testId = getTestId(scenario);
+		CURRENT_TEST_ID.set(testId);
+		ParasoftCTPApiClient.startTest(testId);
+	}
 
-    //*** Leaving this here for reference as an alternative approach to using a proxy server for header injection
-	// Selenium DevTools header injection for coverage agent baggage header
-	// public static void injectBaggageHeader(ChromeDriver driver) {
-	// 	DevTools devTools = driver.getDevTools();
-	// 	devTools.createSession();
-	// 	devTools.send(Network.enable(
-	// 		Optional.empty(), // maxTotalBufferSize
-	// 		Optional.empty(), // maxResourceBufferSize
-	// 		Optional.empty(), // maxPostDataSize
-	// 		Optional.empty(), // maxBlockedCookies
-	// 		Optional.empty()  // maxBlockedRequests
-	// 	));
-	// 	HashMap<String, Object> headers = new HashMap<>();
-	// 	headers.put("baggage", "test-operator-id=" + ParasoftSettings.getCoverageUserId());
-	// 	devTools.send(Network.setExtraHTTPHeaders(new Headers(headers)));
-	// }
+	@After
+	public void afterScenario(Scenario scenario) {
+		String testId = CURRENT_TEST_ID.get();
+		if (testId == null) {
+			testId = getTestId(scenario);
+		}
+		ParasoftCTPApiClient.stopTest(
+				testId,
+				!scenario.isFailed(),
+				scenario.isFailed() && scenario.getStatus() != null ? scenario.getStatus().toString() : null);
+		CURRENT_TEST_ID.remove();
+	}
+
+	// Results in a test name like name.feature#Scenario Name, where
+	// "filename.feature" is the test file reported in DTP, and
+	// "filename.feature#Scenario Name" is the test name reported in DTP.
+	private static String getTestId(Scenario scenario) {
+		String scenarioName = scenario.getName();
+		String featureFileName = extractFeatureFileName(scenario.getUri());
+		if (featureFileName == null || featureFileName.isBlank()) {
+			return scenarioName;
+		}
+		return featureFileName + '#' + scenarioName;
+	}
+
+	private static String extractFeatureFileName(URI uri) {
+		if (uri == null) {
+			return null;
+		}
+		String path = uri.getPath();
+		if (path == null || path.isBlank()) {
+			path = uri.toString();
+		}
+		if (path == null || path.isBlank()) {
+			return null;
+		}
+		if (path.startsWith("classpath:")) {
+			path = path.substring("classpath:".length());
+		} else if (path.startsWith("file:")) {
+			path = path.substring("file:".length());
+		}
+		path = path.replace('\\', '/');
+		String fileName = path.substring(path.lastIndexOf('/') + 1);
+		return fileName.isBlank() ? null : fileName;
+	}
 }

@@ -11,6 +11,7 @@ import org.openqa.selenium.chrome.ChromeOptions;
 import org.testng.Assert;
 import org.testng.annotations.*;
 import org.springframework.samples.petclinic.selenium.util.ParasoftWatcher;
+import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
 
 @Listeners({ParasoftWatcher.class})
 public class NavigateIT {
@@ -19,16 +20,25 @@ public class NavigateIT {
 
     @BeforeClass
     public void openBrowser() {
-        proxy = ParasoftHeaderInjectingProxy.startProxy();
-        int proxyPort = proxy.getListenAddress().getPort();
-
-        Proxy seleniumProxy = new Proxy();
-        seleniumProxy.setHttpProxy("localhost:" + proxyPort);
-        seleniumProxy.setSslProxy("localhost:" + proxyPort);
-        seleniumProxy.setNoProxy("<-loopback>");
-
         ChromeOptions options = new ChromeOptions();
-        options.setProxy(seleniumProxy);
+
+        // Using LittleProxy for request header injection, required for Parasoft
+        // coverage reporting when agents are in multi-user mode
+        if (ParasoftSettings.CTP_MULTI_USER_MODE.equalsIgnoreCase("true")) {
+            proxy = ParasoftHeaderInjectingProxy.startProxy();
+            int proxyPort = proxy.getListenAddress().getPort();
+
+            Proxy seleniumProxy = new Proxy();
+            seleniumProxy.setHttpProxy("localhost:" + proxyPort);
+            seleniumProxy.setSslProxy("localhost:" + proxyPort);
+            seleniumProxy.setNoProxy("<-loopback>");
+
+            options.setProxy(seleniumProxy);
+        }
+        if (ParasoftSettings.isHeadless()) {
+            options.addArguments("--headless=new");
+        }
+        
         driver = new ChromeDriver(options);
     }
 

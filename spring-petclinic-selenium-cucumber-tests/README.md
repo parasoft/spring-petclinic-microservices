@@ -1,8 +1,8 @@
-# Playwright-JUnit Web Functional Tests with CTP
+# Selenium Cucumber-JUnit Web Functional Tests with CTP
 
 In order to run the tests, CTP must be running and configured for both communicating with DTP and for collecting coverage on a running petclinic application with agents properly configured.
 
-First, make sure you've had a successful build, use the command 
+First, make sure you've had a successful build, use the command
 ```
 mvn -ntp clean install -DskipTests
 ```
@@ -14,7 +14,7 @@ mvn -ntp clean package jtest:monitor -DskipTests=true -Djtest.settings=jtest.set
 
 To run all tests in this module, use the command
 ```
-mvn verify -pl spring-petclinic-playwright-tests -am -DCTP_ENV_ID=<CTP ENVIRONMENT ID> -DCTP_BASE_URL=<CTP BASE URL> -DPETCLINIC_URL=<PETCLINIC URL>
+mvn verify -pl spring-petclinic-selenium-cucumber-tests -am -DCTP_ENV_ID=<CTP ENVIRONMENT ID> -DCTP_BASE_URL=<CTP BASE URL> -DPETCLINIC_URL=<PETCLINIC URL>
 ```
 
 By default, PETCLINIC_URL will be set to http://localhost:8099 if not provided.
