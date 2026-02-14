@@ -191,7 +191,6 @@ public class ParasoftCTPApiClient {
 
     // CTP REST API: /v3/environments/{envId}/coverage/baselines/{baselineId}
     private static void publishBaseline() {
-        if (!ParasoftSettings.PUBLISH_BASELINE) return;
         HttpRequest request = HttpRequest.newBuilder()
             .uri(URI.create(ParasoftSettings.CTP_BASE_URL + "/api/v3/environments/" + ParasoftSettings.CTP_ENV_ID+ "/coverage/baselines/" + ParasoftSettings.BASELINE_BUILD_ID))
             .header("Content-Type", "application/json")
