@@ -1,6 +1,10 @@
 package org.springframework.samples.petclinic.selenium;
 
 import org.springframework.samples.petclinic.testcommon.ParasoftHeaderInjectingProxy;
+import org.springframework.samples.petclinic.selenium.util.ParasoftSeleniumContext;
+
+import java.net.MalformedURLException;
+
 import org.littleshoot.proxy.*;
 
 import org.openqa.selenium.By;
@@ -8,13 +12,22 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.remote.RemoteWebDriver;
 import org.testng.Assert;
 import org.testng.annotations.*;
 import org.springframework.samples.petclinic.selenium.util.ParasoftWatcher;
 import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
 
+import java.net.URL;
+import java.net.MalformedURLException;
+
+import java.util.logging.Logger;
+
 @Listeners({ParasoftWatcher.class})
 public class NavigateIT {
+    private static final Logger LOGGER = Logger.getLogger(NavigateIT.class.getName());
+	private static String PETCLINIC_URL = System.getProperty("PETCLINIC_URL", "http://localhost:8099");
+    
     private static WebDriver driver;
     private static HttpProxyServer proxy;
 
@@ -24,13 +37,13 @@ public class NavigateIT {
 
         // Using LittleProxy for request header injection, required for Parasoft
         // coverage reporting when agents are in multi-user mode
-        if (ParasoftSettings.CTP_MULTI_USER_MODE.equalsIgnoreCase("true")) {
-            proxy = ParasoftHeaderInjectingProxy.startProxy();
+        if (ParasoftSettings.isMultiUserMode()) {
+            proxy = ParasoftHeaderInjectingProxy.startProxy(ParasoftSeleniumContext.getCoverageUserIdRef());
             int proxyPort = proxy.getListenAddress().getPort();
 
             Proxy seleniumProxy = new Proxy();
-            seleniumProxy.setHttpProxy("localhost:" + proxyPort);
-            seleniumProxy.setSslProxy("localhost:" + proxyPort);
+            seleniumProxy.setHttpProxy(ParasoftSettings.PROXY_HOST + ":" + proxyPort);
+            seleniumProxy.setSslProxy(ParasoftSettings.PROXY_HOST + ":" + proxyPort);
             seleniumProxy.setNoProxy("<-loopback>");
 
             options.setProxy(seleniumProxy);
@@ -38,8 +51,23 @@ public class NavigateIT {
         if (ParasoftSettings.isHeadless()) {
             options.addArguments("--headless=new");
         }
-        
-        driver = new ChromeDriver(options);
+        // Calling code to retrieve the Selenium Grid node ID to dynamically set the CTP coverage user ID
+		// Calling code to retrieve the Selenium Grid node ID to dynamically set the CTP coverage user ID
+		if (ParasoftSettings.isSeleniumGrid()) {
+			String gridUrl = ParasoftSettings.SELENIUM_GRID_URL;
+			try {
+				driver = new RemoteWebDriver(new URL(gridUrl), options, false);
+				if (ParasoftSettings.CTP_DEBUG) {
+					LOGGER.info("[NavigateIT] Using Selenium Grid at " + gridUrl);
+				}
+			} catch (MalformedURLException me) {
+				throw new RuntimeException("Failed to connect to Selenium Grid at " + gridUrl, me);
+			} catch (Exception e) {
+				throw new RuntimeException("General failure to initialize RemoteWebDriver for Selenium Grid at " + gridUrl, e);
+			}
+		} else {
+			driver = new ChromeDriver(options);
+		}
     }
 
     @AfterClass
@@ -54,7 +82,7 @@ public class NavigateIT {
 
     @Test
     public void testPetClinicNavigation() throws Exception {
-        driver.get("http://localhost:8099/");
+        driver.get(PETCLINIC_URL);
         Thread.sleep(1000);
         driver.findElement(By.xpath("//a[@title=\"veterinarians\"]")).click();
         Thread.sleep(1000);

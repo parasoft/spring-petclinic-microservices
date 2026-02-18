@@ -2,6 +2,8 @@
 
 In order to run the tests, CTP must be running and configured for both communicating with DTP and for collecting coverage on a running petclinic application with agents properly configured.
 
+For parallel execution experiments, see the `spring-petclinic-selenium-parallel-tests` module.
+
 First, make sure you've had a successful build, use the command
 ```
 mvn -ntp clean install -DskipTests
@@ -14,7 +16,7 @@ mvn -ntp clean package jtest:monitor -DskipTests=true -Djtest.settings=jtest.set
 
 To run all tests in this module, use the command
 ```
-mvn verify -pl spring-petclinic-selenium-tests -am -DCTP_ENV_ID=<CTP ENVIRONMENT ID> -DCTP_BASE_URL=<CTP BASE URL> -DPETCLINIC_URL=<PETCLINIC URL>
+mvn -ntp verify -pl spring-petclinic-selenium-tests -am -DCTP_ENV_ID=<CTP ENVIRONMENT ID> -DCTP_BASE_URL=<CTP BASE URL> -DPETCLINIC_URL=<PETCLINIC URL>
 ```
 
 By default, PETCLINIC_URL will be set to http://localhost:8099 if not provided.
@@ -27,7 +29,7 @@ If your CTP instance uses non-default credentials, set `-DCTP_USERNAME=<USERNAME
 
 These tests use the shared Parasoft settings from testcommon. You can override the following system properties when running Maven:
 
-For additional context and comments about these settings, see [spring-petclinic-testcommon/src/main/java/org/springframework/samples/petclinic/testcommon/ParasoftSettings.java](spring-petclinic-testcommon/src/main/java/org/springframework/samples/petclinic/testcommon/ParasoftSettings.java).
+For additional context and comments about these settings, see [spring-petclinic-testcommon/src/test/java/org/springframework/samples/petclinic/testcommon/ParasoftSettings.java](spring-petclinic-testcommon/src/test/java/org/springframework/samples/petclinic/testcommon/ParasoftSettings.java).
 
 - `PETCLINIC_URL` (default: `http://localhost:8099`)
 - `HEADLESS` (default: `false`)
@@ -40,4 +42,4 @@ For additional context and comments about these settings, see [spring-petclinic-
 - `PUBLISH_BASELINE` (default: `false`)
 - `BASELINE_BUILD_ID` (default: `spring-petclinic-baseline`)
 
-When `CTP_MULTI_USER_MODE` is `true`, the tests generate a coverage user ID using the format `{testFramework}-{ctpUsername}-{nodeId}`.
+When `CTP_MULTI_USER_MODE` is `true`, this module uses a fixed coverage user ID format of `{testFramework}-{ctpUsername}-1`.

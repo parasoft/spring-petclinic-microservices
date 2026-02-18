@@ -76,6 +76,7 @@ Import `ctp-system.zip` from this Git repo into your CTP to quickly set up the a
 ## Selenium web functional tests integrated with CTP
 
 See the `spring-petclinic-selenium-tests` project for sample Selenium tests configured to report test results and associated coverage to the CTP REST API at http://localhost:8081/em/api
+For parallel execution experiments, see the `spring-petclinic-selenium-parallel-tests` module.
 
 
 ## In case you find a bug/suggested improvement for Spring Petclinic Microservices

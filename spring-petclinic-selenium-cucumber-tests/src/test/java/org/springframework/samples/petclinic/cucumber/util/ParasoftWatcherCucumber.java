@@ -13,6 +13,7 @@ package org.springframework.samples.petclinic.cucumber.util;
 import java.net.URI;
 
 import org.springframework.samples.petclinic.testcommon.ParasoftCTPApiClient;
+import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
 
 import io.cucumber.java.Before;
 import io.cucumber.java.After;
@@ -25,6 +26,10 @@ public class ParasoftWatcherCucumber {
 	public void beforeScenario(Scenario scenario) {
 		String testId = getTestId(scenario);
 		CURRENT_TEST_ID.set(testId);
+		if (ParasoftSettings.isMultiUserMode()) {
+			ParasoftCTPApiClient.startTest(testId, ParasoftSeleniumContext.getCoverageUserId());
+			return;
+		}
 		ParasoftCTPApiClient.startTest(testId);
 	}
 
@@ -34,10 +39,19 @@ public class ParasoftWatcherCucumber {
 		if (testId == null) {
 			testId = getTestId(scenario);
 		}
+		if (ParasoftSettings.isMultiUserMode()) {
+			ParasoftCTPApiClient.stopTest(
+					testId,
+					!scenario.isFailed(),
+					scenario.isFailed() ? buildFailureMessage(scenario) : null,
+					ParasoftSeleniumContext.getCoverageUserId());
+			CURRENT_TEST_ID.remove();
+			return;
+		}
 		ParasoftCTPApiClient.stopTest(
 				testId,
 				!scenario.isFailed(),
-				scenario.isFailed() && scenario.getStatus() != null ? scenario.getStatus().toString() : null);
+				scenario.isFailed() ? buildFailureMessage(scenario) : null);
 		CURRENT_TEST_ID.remove();
 	}
 
@@ -72,5 +86,28 @@ public class ParasoftWatcherCucumber {
 		path = path.replace('\\', '/');
 		String fileName = path.substring(path.lastIndexOf('/') + 1);
 		return fileName.isBlank() ? null : fileName;
+	}
+
+	private static String buildFailureMessage(Scenario scenario) {
+		if (scenario == null) {
+			return null;
+		}
+		String status = scenario.getStatus() != null ? scenario.getStatus().toString() : "FAILED";
+		String name = scenario.getName();
+		String message = status;
+		if (name != null && !name.isBlank()) {
+			message = status + ": " + name;
+		}
+		int newlineIndex = message.indexOf('\n');
+		if (newlineIndex >= 0) {
+			message = message.substring(0, newlineIndex);
+		}
+		message = message.replace('\r', ' ');
+		String sanitized = message
+				.replace('"', '\'')
+				.replace("\n", " ")
+				.replace("\t", " ");
+		int maxLength = 500;
+		return sanitized.length() <= maxLength ? sanitized : sanitized.substring(0, maxLength);
 	}
 }

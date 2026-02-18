@@ -16,7 +16,7 @@ public final class ParasoftHeaderInjectingSeleniumDevTools {
     private ParasoftHeaderInjectingSeleniumDevTools() {
     }
 
-    public static void injectBaggageHeader(ChromeDriver driver) {
+    public static void injectBaggageHeader(ChromeDriver driver, String coverageUserId) {
         DevTools devTools = driver.getDevTools();
         devTools.createSession();
         devTools.send(Network.enable(
@@ -26,7 +26,7 @@ public final class ParasoftHeaderInjectingSeleniumDevTools {
                 Optional.empty(),
                 Optional.empty()));
         HashMap<String, Object> headers = new HashMap<>();
-        headers.put("baggage", "test-operator-id=" + ParasoftSettings.getCoverageUserId());
+        headers.put("baggage", "test-operator-id=" + coverageUserId);
         devTools.send(Network.setExtraHTTPHeaders(new Headers(headers)));
     }
 }

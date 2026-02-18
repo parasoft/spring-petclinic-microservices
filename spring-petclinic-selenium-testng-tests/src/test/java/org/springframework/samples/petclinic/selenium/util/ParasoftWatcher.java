@@ -12,6 +12,7 @@
 package org.springframework.samples.petclinic.selenium.util;
 
 import org.springframework.samples.petclinic.testcommon.ParasoftCTPApiClient;
+import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
 import org.testng.ITestListener;
 import org.testng.ITestResult;
 
@@ -19,22 +20,61 @@ public class ParasoftWatcher implements ITestListener {
     @Override
     public void onTestStart(ITestResult result) {
         String testId = getTestId(result);
+        if (ParasoftSettings.isMultiUserMode()) {
+            ParasoftCTPApiClient.startTest(testId, ParasoftSeleniumContext.getCoverageUserId());
+            return;
+        }
         ParasoftCTPApiClient.startTest(testId);
     }
 
     @Override
     public void onTestSuccess(ITestResult result) {
         String testId = getTestId(result);
+        if (ParasoftSettings.isMultiUserMode()) {
+            ParasoftCTPApiClient.stopTest(testId, true, null, ParasoftSeleniumContext.getCoverageUserId());
+            return;
+        }
         ParasoftCTPApiClient.stopTest(testId, true, null);
     }
 
     @Override
     public void onTestFailure(ITestResult result) {
         String testId = getTestId(result);
-        ParasoftCTPApiClient.stopTest(testId, false, result.getThrowable() != null ? result.getThrowable().getMessage() : null);
+        if (ParasoftSettings.isMultiUserMode()) {
+            ParasoftCTPApiClient.stopTest(testId, false,
+                    buildFailureMessage(result.getThrowable()),
+                    ParasoftSeleniumContext.getCoverageUserId());
+            return;
+        }
+        ParasoftCTPApiClient.stopTest(testId, false, buildFailureMessage(result.getThrowable()));
     }
 
     private static String getTestId(ITestResult result) {
         return result.getTestClass().getName() + '#' + result.getMethod().getMethodName();
+    }
+
+    private static String buildFailureMessage(Throwable cause) {
+        if (cause == null) {
+            return null;
+        }
+        String message = cause.getMessage();
+        if (message != null) {
+            int newlineIndex = message.indexOf('\n');
+            if (newlineIndex >= 0) {
+                message = message.substring(0, newlineIndex);
+            }
+            message = message.replace('\r', ' ');
+        }
+        StringBuilder summary = new StringBuilder();
+        summary.append(cause.getClass().getSimpleName());
+        if (message != null && !message.isBlank()) {
+            summary.append(": ").append(message);
+        }
+        String sanitized = summary.toString()
+                .replace('"', '\'')
+                .replace("\n", " ")
+                .replace("\t", " ");
+        int maxLength = 500;
+        return sanitized.length() <= maxLength ? sanitized : sanitized.substring(0, maxLength);
     }
 }

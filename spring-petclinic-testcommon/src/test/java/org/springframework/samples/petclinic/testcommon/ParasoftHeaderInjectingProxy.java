@@ -11,6 +11,11 @@
  */
 package org.springframework.samples.petclinic.testcommon;
 
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Logger;
+
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpRequest;
@@ -20,10 +25,32 @@ import org.littleshoot.proxy.*;
 import org.littleshoot.proxy.impl.DefaultHttpProxyServer;
 
 public class ParasoftHeaderInjectingProxy {
+    private static final Logger LOGGER = Logger.getLogger(ParasoftHeaderInjectingProxy.class.getName());
 
     public static HttpProxyServer startProxy() {
-        return DefaultHttpProxyServer.bootstrap()
-                .withPort(0) // auto-assign port
+        return startProxy(null);
+    }
+
+    public static HttpProxyServer startProxy(AtomicReference<String> coverageUserIdRef) {
+        InetSocketAddress bindAddress = null;
+        if (ParasoftSettings.PROXY_BIND_HOST != null && !ParasoftSettings.PROXY_BIND_HOST.isBlank()) {
+            try {
+                // Use an IPv4 address for containerized Grid server scenarios.
+                bindAddress = new InetSocketAddress(InetAddress.getByName(ParasoftSettings.PROXY_BIND_HOST), 0);
+            } catch (Exception e) {
+                if (ParasoftSettings.CTP_DEBUG) {
+                    LOGGER.info("[ParasoftHeaderInjectingProxy] Failed to resolve bind host '" + ParasoftSettings.PROXY_BIND_HOST + "': " + e.getMessage());
+                }
+                bindAddress = null;
+            }
+        }
+        HttpProxyServerBootstrap bootstrap = DefaultHttpProxyServer.bootstrap();
+        if (bindAddress != null) {
+            bootstrap = bootstrap.withAddress(bindAddress);
+        } else {
+            bootstrap = bootstrap.withPort(0); // auto-assign port
+        }
+        return bootstrap
                 .withFiltersSource(new HttpFiltersSourceAdapter() {
 
                     @Override
@@ -33,9 +60,10 @@ public class ParasoftHeaderInjectingProxy {
                             @Override
                             public HttpResponse clientToProxyRequest(HttpObject httpObject) {
                                 if (httpObject instanceof HttpRequest request) {
+                                    String coverageUserId = resolveCoverageUserId(coverageUserIdRef);
                                     request.headers().set(
                                             "baggage",
-                                            "test-operator-id=" + ParasoftSettings.getCoverageUserId());
+                                            "test-operator-id=" + coverageUserId);
                                 }
                                 return null; // continue proxying
                             }
@@ -43,5 +71,16 @@ public class ParasoftHeaderInjectingProxy {
                     }
                 })
                 .start();
+    }
+
+    private static String resolveCoverageUserId(AtomicReference<String> coverageUserIdRef) {
+        if (coverageUserIdRef == null) {
+            return "NoCoverageUserIdProvided";
+        }
+        String coverageUserId = coverageUserIdRef.get();
+        if (coverageUserId == null || coverageUserId.isBlank()) {
+            return "NoCoverageUserIdProvided";
+        }
+        return coverageUserId;
     }
 }

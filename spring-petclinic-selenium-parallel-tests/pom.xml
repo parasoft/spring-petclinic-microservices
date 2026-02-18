@@ -4,9 +4,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.springframework.samples.petclinic.selenium</groupId>
-    <artifactId>spring-petclinic-selenium-tests</artifactId>
+    <artifactId>spring-petclinic-selenium-parallel-tests</artifactId>
     <packaging>jar</packaging>
-    <description>Spring PetClinic Selenium Tests</description>
+    <description>Spring PetClinic Selenium Parallel Tests</description>
 
     <parent>
         <groupId>org.springframework.samples</groupId>
@@ -57,7 +57,6 @@
             <artifactId>junit-platform-launcher</artifactId>
             <scope>test</scope>
         </dependency>
-    
     </dependencies>
 
     <dependencyManagement>

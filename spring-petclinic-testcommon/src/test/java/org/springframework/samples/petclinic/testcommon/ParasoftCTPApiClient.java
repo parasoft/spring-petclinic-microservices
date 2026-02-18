@@ -22,11 +22,21 @@ public class ParasoftCTPApiClient {
 
     // CTP REST API: /v3/environments/{envId}/agents/session/start
     public static String startSession() {
+        return startSession(null); // if coverageUserId is not provided, the API client will assume single user mode
+    }
+
+    public static String startSession(String coverageUserId) {
+        String resolvedCoverageUserId = resolveCoverageUserId(coverageUserId);
+        if (ParasoftSettings.CTP_DEBUG) {
+            LOGGER.info("[ParasoftCTPApiClient] Starting CTP session for environment: " + ParasoftSettings.CTP_ENV_ID);
+            LOGGER.info("[ParasoftCTPApiClient] Coverage User ID: " + resolvedCoverageUserId);
+        }
+
         StringBuilder payload = new StringBuilder();
         // Only include userId if the coverage agents are configured in multi-user mode
-        if (ParasoftSettings.CTP_MULTI_USER_MODE.equalsIgnoreCase("true")) {
+        if (ParasoftSettings.isMultiUserMode() && coverageUserId != null && !coverageUserId.isBlank()) {
             payload.append('{');
-            payload.append("\"userId\":\"" + ParasoftSettings.getCoverageUserId() + "\"");
+            payload.append("\"userId\":\"" + resolvedCoverageUserId + "\"");
             payload.append('}');
         }
         HttpRequest request = HttpRequest.newBuilder()
@@ -58,13 +68,18 @@ public class ParasoftCTPApiClient {
 
     // CTP REST API: /v3/environments/{envId}/agents/test/start
     public static void startTest(String testId) {
+        startTest(testId, null); // if coverageUserId is not provided, the API client will assume single user mode
+    }
+
+    public static void startTest(String testId, String coverageUserId) {
+        String resolvedCoverageUserId = resolveCoverageUserId(coverageUserId);
         StringBuilder payload = new StringBuilder();
         payload.append('{');
         payload.append("\"test\":\"" + testId + "\"");
         // Only include userId if the coverage agents are configured in multi-user mode
-        if (ParasoftSettings.CTP_MULTI_USER_MODE.equalsIgnoreCase("true")) {
+        if (ParasoftSettings.isMultiUserMode()) {
             payload.append(',');
-            payload.append("\"userId\":\"" + ParasoftSettings.getCoverageUserId() + "\"");
+            payload.append("\"userId\":\"" + resolvedCoverageUserId + "\"");
         }
         payload.append('}');
         HttpRequest request = HttpRequest.newBuilder()
@@ -88,13 +103,18 @@ public class ParasoftCTPApiClient {
 
     // CTP REST API: /v3/environments/{envId}/agents/test/stop
     public static void stopTest(String testId, boolean passed, String message) {
+        stopTest(testId, passed, message, null); // if coverageUserId is not provided, the API client will assume single user mode
+    }
+
+    public static void stopTest(String testId, boolean passed, String message, String coverageUserId) {
+        String resolvedCoverageUserId = resolveCoverageUserId(coverageUserId);
         StringBuilder payload = new StringBuilder();
         payload.append('{');
         payload.append("\"test\":\"" + testId + "\"");
         payload.append(',');
         // Only include userId if the coverage agents are configured in multi-user mode
-        if (ParasoftSettings.CTP_MULTI_USER_MODE.equalsIgnoreCase("true")) {
-            payload.append("\"userId\":\"" + ParasoftSettings.getCoverageUserId() + "\"");
+        if (ParasoftSettings.isMultiUserMode()) {
+            payload.append("\"userId\":\"" + resolvedCoverageUserId + "\"");
             payload.append(',');
         }
         payload.append("\"result\":\"" + (passed ? "PASS" : "FAIL") + "\"");
@@ -110,7 +130,6 @@ public class ParasoftCTPApiClient {
             .POST(HttpRequest.BodyPublishers.ofString(payload.toString()))
             .build();
         try {
-            if (ParasoftSettings.CTP_DEBUG) LOGGER.info("[ParasoftCTPApiClient] Sending API call: " + request.uri());
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (ParasoftSettings.CTP_DEBUG) LOGGER.info("[ParasoftCTPApiClient] API call response: " + response.statusCode() + " - " + response.body());
         } catch (SocketException ce) {
@@ -124,11 +143,16 @@ public class ParasoftCTPApiClient {
 
     // CTP REST API: /v3/environments/{envId}/agents/session/stop
     public static void stopSession() {
+        stopSession(null); // if coverageUserId is not provided, the API client will assume single user mode
+    }
+
+    public static void stopSession(String coverageUserId) {
+        String resolvedCoverageUserId = resolveCoverageUserId(coverageUserId);
         StringBuilder payload = new StringBuilder();
         // Only include userId if the coverage agents are configured in multi-user mode
-        if (ParasoftSettings.CTP_MULTI_USER_MODE.equalsIgnoreCase("true")) {
+        if (ParasoftSettings.isMultiUserMode()) {
             payload.append('{');
-            payload.append("\"userId\":\"" + ParasoftSettings.getCoverageUserId() + "\"");
+            payload.append("\"userId\":\"" + resolvedCoverageUserId + "\"");
             payload.append('}');
         }
         HttpRequest request = HttpRequest.newBuilder()
@@ -151,17 +175,23 @@ public class ParasoftCTPApiClient {
     }
 
     // CTP REST API: /v3/environments/{envId}/coverage/{sessionId}
-    public static void publishCoverage(String sessionId) {
+    public static void publishCoverage(String sessionId, String dtpSessionTag) {
+        publishCoverage(sessionId, dtpSessionTag, null); // if coverageUserId is not provided, the API client will assume single user mode  
+    }
+
+    public static void publishCoverage(String sessionId, String dtpSessionTag, String coverageUserId) {
+        String resolvedCoverageUserId = resolveCoverageUserId(coverageUserId);
+        String resolvedDtpSessionTag = resolveDtpSessionTag(dtpSessionTag);
         StringBuilder payload = new StringBuilder();
         payload.append('{');
-        payload.append("\"sessionTag\":\"" + ParasoftSettings.getDtpSessionTag() + "\"");
+        payload.append("\"sessionTag\":\"" + resolvedDtpSessionTag + "\"");
         payload.append(',');
         payload.append("\"analysisType\":\"FUNCTIONAL_TEST\"");
         payload.append('}');
         // Only include userId if the coverage agents are configured in multi-user mode
         URI coverageUri;
-        if (ParasoftSettings.CTP_MULTI_USER_MODE.equalsIgnoreCase("true")) {
-            coverageUri = URI.create(ParasoftSettings.CTP_BASE_URL + "/api/v3/environments/" + ParasoftSettings.CTP_ENV_ID + "/coverage/" + sessionId + "?userId=" + ParasoftSettings.getCoverageUserId());
+        if (ParasoftSettings.isMultiUserMode()) {
+            coverageUri = URI.create(ParasoftSettings.CTP_BASE_URL + "/api/v3/environments/" + ParasoftSettings.CTP_ENV_ID + "/coverage/" + sessionId + "?userId=" + resolvedCoverageUserId);
         } else {
             coverageUri = URI.create(ParasoftSettings.CTP_BASE_URL + "/api/v3/environments/" + ParasoftSettings.CTP_ENV_ID + "/coverage/" + sessionId);
         }
@@ -184,7 +214,7 @@ public class ParasoftCTPApiClient {
         }
 
         // System property 'PUBLISH_BASELINE' defines whether a BASELINE_BUILD_ID (also a System property) gets published to CTP for this test execution.
-        if (ParasoftSettings.PUBLISH_BASELINE) {
+        if (ParasoftSettings.CTP_PUBLISH_BASELINE) {
             publishBaseline();
         }
     }
@@ -192,7 +222,7 @@ public class ParasoftCTPApiClient {
     // CTP REST API: /v3/environments/{envId}/coverage/baselines/{baselineId}
     private static void publishBaseline() {
         HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create(ParasoftSettings.CTP_BASE_URL + "/api/v3/environments/" + ParasoftSettings.CTP_ENV_ID+ "/coverage/baselines/" + ParasoftSettings.BASELINE_BUILD_ID))
+            .uri(URI.create(ParasoftSettings.CTP_BASE_URL + "/api/v3/environments/" + ParasoftSettings.CTP_ENV_ID+ "/coverage/baselines/" + ParasoftSettings.CTP_BASELINE_BUILD_ID))
             .header("Content-Type", "application/json")
             .header("Authorization", "Basic " + Base64.getEncoder().encodeToString(basicAuth.getBytes()))
             .POST(HttpRequest.BodyPublishers.noBody())
@@ -208,5 +238,19 @@ public class ParasoftCTPApiClient {
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "[ParasoftCTPApiClient] Unexpected error during API call", e);
         }
+    }
+
+    private static String resolveCoverageUserId(String coverageUserId) {
+        if (coverageUserId == null || coverageUserId.isBlank()) {
+            return "NoCoverageUserIdProvided";
+        }
+        return coverageUserId;
+    }
+
+    private static String resolveDtpSessionTag(String dtpSessionTag) {
+       if (dtpSessionTag == null || dtpSessionTag.isBlank()) {
+            return "NoDTPSessionTagProvided";
+        }
+        return dtpSessionTag;
     }
 }

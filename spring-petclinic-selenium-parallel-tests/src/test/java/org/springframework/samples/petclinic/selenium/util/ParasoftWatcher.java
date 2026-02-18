@@ -21,11 +21,13 @@ public class ParasoftWatcher implements BeforeEachCallback, TestWatcher  {
 	@Override
 	public void beforeEach(ExtensionContext context) throws Exception {
 		String testId = getTestId(context);
-		if (ParasoftSettings.isMultiUserMode()) {
-			ParasoftCTPApiClient.startTest(testId, ParasoftSeleniumContext.getCoverageUserId());
+		
+		// When in multi-user mode, the coverage user ID is required to associate the test with the correct CTP test session for coverage reporting
+		if (ParasoftSettings.CTP_MULTI_USER_MODE) {
+			ParasoftCTPApiClient.startTest(testId, getCoverageUserId(context)); 
 			return;
 		}
-		ParasoftCTPApiClient.startTest(testId);
+		ParasoftCTPApiClient.startTest(testId, null); // if not running in multi-user mode, the coverage user ID is not needed 
 
 		// *** Leaving this here for reference as an alternative approach to using a proxy server for header injection
 		// Object testInstance = context.getTestInstance().orElse(null);
@@ -46,25 +48,35 @@ public class ParasoftWatcher implements BeforeEachCallback, TestWatcher  {
 	@Override
 	public void testSuccessful(ExtensionContext context) {
 		String testId = getTestId(context);
-		if (ParasoftSettings.isMultiUserMode()) {
-			ParasoftCTPApiClient.stopTest(testId, true, null, ParasoftSeleniumContext.getCoverageUserId());
+		
+		// When in multi-user mode, the coverage user ID is required to associate the test with the correct CTP test session for coverage reporting
+		if( ParasoftSettings.CTP_MULTI_USER_MODE) {
+			ParasoftCTPApiClient.stopTest(testId, true, null, getCoverageUserId(context)); 
 			return;
 		}
-		ParasoftCTPApiClient.stopTest(testId, true, null);
+		ParasoftCTPApiClient.stopTest(testId, true, null, null); // if not running in multi-user mode, the coverage user ID is not needed 
 	}
 
 	@Override
 	public void testFailed(ExtensionContext context, Throwable cause) {
 		String testId = getTestId(context);
-		if (ParasoftSettings.isMultiUserMode()) {
-			ParasoftCTPApiClient.stopTest(testId, false, buildFailureMessage(cause), ParasoftSeleniumContext.getCoverageUserId());
+		// When in multi-user mode, the coverage user ID is required to associate the test with the correct CTP test session for coverage reporting
+		if( ParasoftSettings.CTP_MULTI_USER_MODE) {
+			ParasoftCTPApiClient.stopTest(testId, false, buildFailureMessage(cause), getCoverageUserId(context)); 
 			return;
 		}
-		ParasoftCTPApiClient.stopTest(testId, false, buildFailureMessage(cause));
+		ParasoftCTPApiClient.stopTest(testId, false, buildFailureMessage(cause), null); // if not running in multi-user mode, the coverage user ID is not needed 
 	}
 
 	private static String getTestId(ExtensionContext context) {
 		return context.getTestClass().get().getName() + '#' + context.getTestMethod().get().getName();
+	}
+
+	private static String getCoverageUserId(ExtensionContext context) {
+		String testClassName = context.getTestClass().map(Class::getName).orElse(null);
+		String coverageUserId = ParasoftTestSessionRegistry.getCoverageUserId(testClassName); // retrieve the coverage user ID for this test class from the registry, which was set when the WebDriver instance was created in the test class
+
+		return coverageUserId;
 	}
 
 	private static String buildFailureMessage(Throwable cause) {

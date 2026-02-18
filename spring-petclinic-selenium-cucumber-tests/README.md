@@ -40,4 +40,4 @@ For additional context and comments about these settings, see [spring-petclinic-
 - `PUBLISH_BASELINE` (default: `false`)
 - `BASELINE_BUILD_ID` (default: `spring-petclinic-baseline`)
 
-When `CTP_MULTI_USER_MODE` is `true`, the tests generate a coverage user ID using the format `{testFramework}-{ctpUsername}-{nodeId}`.
+When `CTP_MULTI_USER_MODE` is `true`, this module uses a fixed coverage user ID format of `{testFramework}-{ctpUsername}-1`.

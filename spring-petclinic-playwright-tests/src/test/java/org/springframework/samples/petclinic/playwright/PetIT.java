@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import org.springframework.samples.petclinic.playwright.util.ParasoftSeleniumContext;
 import org.springframework.samples.petclinic.playwright.util.ParasoftWatcher;
 import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
 
@@ -30,7 +31,6 @@ public class PetIT {
 
     BrowserContext context;
     Page page;
-    String userId;
 
     @BeforeAll
     static void launchBrowser() {
@@ -41,6 +41,7 @@ public class PetIT {
     @AfterAll
     static void closeBrowser() {
         browser.close();
+        playwright.close();
     }
 
     @BeforeEach
@@ -48,10 +49,9 @@ public class PetIT {
         context = browser.newContext();
         // Using Playwright API for request header injection, required for Parasoft
         // coverage reporting when agents are in multi-user mode
-        if (ParasoftSettings.CTP_MULTI_USER_MODE.equalsIgnoreCase("true")) {
-            userId = ParasoftSettings.getCoverageUserId();
+        if (ParasoftSettings.isMultiUserMode()) {
             Map<String, String> headers = new HashMap<>();
-            headers.put("baggage", "test-operator-id=" + userId);
+            headers.put("baggage", "test-operator-id=" + ParasoftSeleniumContext.getCoverageUserId());
             context.setExtraHTTPHeaders(headers);
         }
         page = context.newPage();

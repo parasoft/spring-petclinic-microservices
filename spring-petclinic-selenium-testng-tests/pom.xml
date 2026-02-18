@@ -61,10 +61,9 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <includes>
-                        <include>**/*IT.java</include>
-                        <include>**/*ITCase.java</include>
-                    </includes>
+                    <suiteXmlFiles>
+                        <suiteXmlFile>testng.xml</suiteXmlFile>
+                    </suiteXmlFiles>
                     <providers>
                         <provider>
                             <name>testng</name>

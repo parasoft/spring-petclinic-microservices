@@ -1,6 +1,7 @@
 package org.springframework.samples.petclinic.playwright.util;
 
 import org.springframework.samples.petclinic.testcommon.ParasoftCTPApiClient;
+import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
 
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -14,22 +15,71 @@ public class ParasoftWatcher implements BeforeEachCallback, TestWatcher {
     @Override
     public void beforeEach(ExtensionContext context) {
         String testId = getTestId(context);
+        if (ParasoftSettings.isMultiUserMode()) {
+            ParasoftCTPApiClient.startTest(testId, ParasoftSeleniumContext.getCoverageUserId());
+            return;
+        }
         ParasoftCTPApiClient.startTest(testId);
     }
 
     @Override
     public void testSuccessful(ExtensionContext context) {
         String testId = getTestId(context);
+        if (ParasoftSettings.isMultiUserMode()) {
+            ParasoftCTPApiClient.stopTest(testId, true, null, ParasoftSeleniumContext.getCoverageUserId());
+            return;
+        }
         ParasoftCTPApiClient.stopTest(testId, true, null);
     }
 
     @Override
     public void testFailed(ExtensionContext context, Throwable cause) {
         String testId = getTestId(context);
-        ParasoftCTPApiClient.stopTest(testId, false, cause.getMessage());
+        if (ParasoftSettings.isMultiUserMode()) {
+            ParasoftCTPApiClient.stopTest(testId, false, buildFailureMessage(cause), ParasoftSeleniumContext.getCoverageUserId());
+            return;
+        }
+        ParasoftCTPApiClient.stopTest(testId, false, buildFailureMessage(cause));
     }
 
     private static String getTestId(ExtensionContext context) {
         return context.getTestClass().get().getName() + '#' + context.getTestMethod().get().getName();
+    }
+
+    private static String buildFailureMessage(Throwable cause) {
+        if (cause == null) {
+            return null;
+        }
+        String message = cause.getMessage();
+        if (message != null) {
+            message = normalizeWhitespace(message);
+            int stackIndex = message.indexOf(" stack=");
+            if (stackIndex >= 0) {
+                message = message.substring(0, stackIndex);
+            }
+            int atIndex = message.indexOf(" at ");
+            if (atIndex >= 0) {
+                message = message.substring(0, atIndex);
+            }
+        }
+        StringBuilder summary = new StringBuilder();
+        summary.append(cause.getClass().getSimpleName());
+        if (message != null && !message.isBlank()) {
+            summary.append(": ").append(message);
+        }
+        String sanitized = summary.toString()
+                .replace('"', '\'')
+                .replace("\n", " ")
+                .replace("\t", " ");
+        int maxLength = 500;
+        return sanitized.length() <= maxLength ? sanitized : sanitized.substring(0, maxLength);
+    }
+
+    private static String normalizeWhitespace(String value) {
+        String normalized = value.replace('\r', ' ').replace('\n', ' ').replace('\t', ' ');
+        while (normalized.contains("  ")) {
+            normalized = normalized.replace("  ", " ");
+        }
+        return normalized.trim();
     }
 }

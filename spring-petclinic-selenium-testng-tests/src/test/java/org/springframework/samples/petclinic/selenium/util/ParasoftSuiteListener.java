@@ -23,13 +23,28 @@ public class ParasoftSuiteListener implements ISuiteListener {
     @Override
     public void onStart(ISuite suite) {
         ParasoftSettings.setTestFramework("seleniumTestNG");
+        ParasoftSeleniumContext.initForSuite();
+        if (ParasoftSettings.isMultiUserMode()) {
+            sessionId = ParasoftCTPApiClient.startSession(ParasoftSeleniumContext.getCoverageUserId());
+        } else {
+            sessionId = ParasoftCTPApiClient.startSession();
+        }
+        ParasoftSeleniumContext.setCtpSessionId(sessionId);
     }
 
     @Override
     public void onFinish(ISuite suite) {
+        if (ParasoftSettings.isMultiUserMode()) {
+            ParasoftCTPApiClient.stopSession(ParasoftSeleniumContext.getCoverageUserId());
+            if (sessionId != null && !sessionId.isBlank()) {
+                ParasoftCTPApiClient.publishCoverage(sessionId, ParasoftSeleniumContext.getDtpSessionTag(),
+                        ParasoftSeleniumContext.getCoverageUserId());
+            }
+            return;
+        }
         ParasoftCTPApiClient.stopSession();
-        if (sessionId != null) {
-            ParasoftCTPApiClient.publishCoverage(sessionId);
+        if (sessionId != null && !sessionId.isBlank()) {
+            ParasoftCTPApiClient.publishCoverage(sessionId, ParasoftSeleniumContext.getDtpSessionTag());
         }
     }
 }
