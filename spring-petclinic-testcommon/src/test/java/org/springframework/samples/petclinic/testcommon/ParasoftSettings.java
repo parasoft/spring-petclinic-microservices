@@ -4,7 +4,6 @@
  * This class provides:
  * <ul>
  *   <li>Static fields for system properties controlling CTP environment, authentication, debug mode, and baseline publishing</li>
- *   <li>Utility methods for generating user and session tags used in coverage tracking and reporting</li>
  *   <li>Conventions for multi-user mode, parallel test execution, and test impact analysis</li>
  * </ul>
  * Used by other classes to access configuration and generate identifiers for REST API calls.
@@ -31,7 +30,7 @@ public class ParasoftSettings {
     public static final boolean SELENIUM_GRID = Boolean.parseBoolean(System.getProperty("SELENIUM_GRID", "false"));
     public static final String SELENIUM_GRID_URL = System.getProperty("SELENIUM_GRID_URL", "http://localhost:4444/wd/hub");
 
-    private static volatile String testFramework = "selenium";
+    private static volatile String testFramework = "defaultTestFramework";
 
     public static void setTestFramework(String framework) {
         if (framework != null && !framework.isBlank()) {

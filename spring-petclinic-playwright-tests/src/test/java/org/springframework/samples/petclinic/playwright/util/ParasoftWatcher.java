@@ -15,31 +15,34 @@ public class ParasoftWatcher implements BeforeEachCallback, TestWatcher {
     @Override
     public void beforeEach(ExtensionContext context) {
         String testId = getTestId(context);
+        // When in multi-user mode, the coverage user ID is required to associate the test with the correct CTP test session for coverage reporting
         if (ParasoftSettings.isMultiUserMode()) {
             ParasoftCTPApiClient.startTest(testId, ParasoftSeleniumContext.getCoverageUserId());
             return;
         }
-        ParasoftCTPApiClient.startTest(testId);
+        ParasoftCTPApiClient.startTest(testId); // if not running in multi-user mode, the coverage user ID is not needed
     }
 
     @Override
     public void testSuccessful(ExtensionContext context) {
         String testId = getTestId(context);
+        // When in multi-user mode, the coverage user ID is required to associate the test with the correct CTP test session for coverage reporting
         if (ParasoftSettings.isMultiUserMode()) {
             ParasoftCTPApiClient.stopTest(testId, true, null, ParasoftSeleniumContext.getCoverageUserId());
             return;
         }
-        ParasoftCTPApiClient.stopTest(testId, true, null);
+        ParasoftCTPApiClient.stopTest(testId, true, null); // if not running in multi-user mode, the coverage user ID is not needed
     }
 
     @Override
     public void testFailed(ExtensionContext context, Throwable cause) {
         String testId = getTestId(context);
+        // When in multi-user mode, the coverage user ID is required to associate the test with the correct CTP test session for coverage reporting
         if (ParasoftSettings.isMultiUserMode()) {
             ParasoftCTPApiClient.stopTest(testId, false, buildFailureMessage(cause), ParasoftSeleniumContext.getCoverageUserId());
             return;
         }
-        ParasoftCTPApiClient.stopTest(testId, false, buildFailureMessage(cause));
+        ParasoftCTPApiClient.stopTest(testId, false, buildFailureMessage(cause)); // if not running in multi-user mode, the coverage user ID is not needed
     }
 
     private static String getTestId(ExtensionContext context) {

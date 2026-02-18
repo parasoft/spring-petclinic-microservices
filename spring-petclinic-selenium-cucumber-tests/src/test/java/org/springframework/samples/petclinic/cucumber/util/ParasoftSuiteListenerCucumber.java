@@ -12,7 +12,9 @@
  */
 package org.springframework.samples.petclinic.cucumber.util;
 
-import org.springframework.samples.petclinic.testcommon.*;
+import org.springframework.samples.petclinic.testcommon.ParasoftCTPApiClient;
+import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
+
 import io.cucumber.java.AfterAll;
 import io.cucumber.java.BeforeAll;
 
@@ -22,6 +24,7 @@ public class ParasoftSuiteListenerCucumber {
     @BeforeAll
     public static void testPlanExecutionStarted() {
         ParasoftSettings.setTestFramework("seleniumCucumberJUnit");
+        // This module uses a fixed coverage user ID per suite.
         ParasoftSeleniumContext.initForSuite();
         if (ParasoftSettings.isMultiUserMode()) {
             sessionId = ParasoftCTPApiClient.startSession(ParasoftSeleniumContext.getCoverageUserId());

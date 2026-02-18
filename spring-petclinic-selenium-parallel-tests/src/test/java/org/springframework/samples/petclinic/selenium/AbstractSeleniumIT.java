@@ -1,21 +1,24 @@
 package org.springframework.samples.petclinic.selenium;
 
-import org.junit.jupiter.api.extension.ExtendWith;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Logger;
+
+import org.springframework.samples.petclinic.testcommon.ParasoftCTPApiClient;
+import org.springframework.samples.petclinic.testcommon.ParasoftHeaderInjectingProxy;
+import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
+import org.springframework.samples.petclinic.selenium.util.ParasoftTestSessionRegistry;
+
 import org.littleshoot.proxy.HttpProxyServer;
+
+import org.junit.jupiter.api.extension.ExtendWith;
+
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.remote.RemoteWebDriver;
-import org.springframework.samples.petclinic.selenium.util.ParasoftTestSessionRegistry;
-import org.springframework.samples.petclinic.testcommon.ParasoftCTPApiClient;
-import org.springframework.samples.petclinic.testcommon.ParasoftHeaderInjectingProxy;
-import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
-
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Logger;
 
 @ExtendWith(org.springframework.samples.petclinic.selenium.util.ParasoftWatcher.class)
 abstract class AbstractSeleniumIT {
@@ -72,12 +75,18 @@ abstract class AbstractSeleniumIT {
 		} else {
 			driver = new ChromeDriver(options);
 		}
-
+		
+		// In multi-user mode for parallel test execution (class-level / WebDriver instance), the CTP API test session lifecycle
+		// should mirror the WebDriver lifecycle, so the test session should be started when the browser is started
+		//
+		// When multi-user mode is false, see the ParasoftSuiteListener class where the CTP test session lifecycle is at the suite-level
+		// and not test class / WebDriver instance
 		String webDriverSessionId = getWebDriverSessionId(driver);
 		String coverageUserId = null;
+
 		if (ParasoftSettings.isMultiUserMode()) {
 			coverageUserId = ParasoftTestSessionRegistry.buildRegisterCoverageUserId(testClass.getName(), webDriverSessionId); // use the WebDriver session ID to build a unique CTP coverage user ID and register it in the registry so that it can be retrieved later by the suite listener to publish coverage for this test session
-			coverageUserIdRef.set(coverageUserId); // set the coverage user ID in the reference passed to the proxy so that it can be included in the headers of intercepted requests
+			coverageUserIdRef.set(coverageUserId); // set the coverage user ID in the AtomicReference passed to the proxy so that it can be included in the headers of intercepted requests
 			String ctpTestSessionId = ParasoftCTPApiClient.startSession(coverageUserId); // start a CTP test session using the coverage user ID as the identifier for the session
 			ParasoftTestSessionRegistry.registerCtpTestSession(ctpTestSessionId, coverageUserId); // register the CTP test session in the registry so that it can be retrieved later by the suite listener to publish coverage for this test session
 		}
@@ -88,6 +97,12 @@ abstract class AbstractSeleniumIT {
 		if (context == null) {
 			return;
 		}
+		
+		// In multi-user mode for parallel test execution (class-level / WebDriver instance), the CTP API test session lifecycle
+		// should mirror the WebDriver lifecycle, so the test session should be stopped when the browser is stopped
+		//
+		// When multi-user mode is false, see the ParasoftSuiteListener class where the CTP test session lifecycle is at the suite-level
+		// and not test class / WebDriver
 		if (ParasoftSettings.isMultiUserMode()) {
 			ParasoftCTPApiClient.stopSession(context.coverageUserId);
 		}

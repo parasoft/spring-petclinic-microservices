@@ -12,7 +12,8 @@
  */
 package org.springframework.samples.petclinic.selenium.util;
 
-import org.springframework.samples.petclinic.testcommon.*;
+import org.springframework.samples.petclinic.testcommon.ParasoftCTPApiClient;
+import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
 
 import org.junit.platform.launcher.TestExecutionListener;
 import org.junit.platform.launcher.TestPlan;
@@ -23,6 +24,7 @@ public class ParasoftSuiteListener implements TestExecutionListener {
     @Override
     public void testPlanExecutionStarted(TestPlan testPlan) {
         ParasoftSettings.setTestFramework("seleniumJUnit");
+        // This module uses a fixed coverage user ID per suite.
         ParasoftSeleniumContext.initForSuite();
         if (ParasoftSettings.isMultiUserMode()) {
             sessionId = ParasoftCTPApiClient.startSession(ParasoftSeleniumContext.getCoverageUserId());

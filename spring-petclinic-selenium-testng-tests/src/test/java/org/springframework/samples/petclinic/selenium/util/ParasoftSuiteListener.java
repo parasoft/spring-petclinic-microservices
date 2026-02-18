@@ -1,7 +1,7 @@
 /**
  * ParasoftSuiteListener integrates with Parasoft CTP and DTP during test execution.
  * <p>
- * This class implements the JUnit Platform TestExecutionListener interface to automate
+ * This class implements the TestNG ISuiteListener interface to automate
  * the following actions:
  * <ul>
  *   <li>Starts a coverage session in Parasoft CTP when the test plan begins</li>
@@ -13,7 +13,8 @@
 
 package org.springframework.samples.petclinic.selenium.util;
 
-import org.springframework.samples.petclinic.testcommon.*;
+import org.springframework.samples.petclinic.testcommon.ParasoftCTPApiClient;
+import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
 import org.testng.ISuite;
 import org.testng.ISuiteListener;
 
@@ -23,6 +24,7 @@ public class ParasoftSuiteListener implements ISuiteListener {
     @Override
     public void onStart(ISuite suite) {
         ParasoftSettings.setTestFramework("seleniumTestNG");
+        // This module uses a fixed coverage user ID per suite.
         ParasoftSeleniumContext.initForSuite();
         if (ParasoftSettings.isMultiUserMode()) {
             sessionId = ParasoftCTPApiClient.startSession(ParasoftSeleniumContext.getCoverageUserId());

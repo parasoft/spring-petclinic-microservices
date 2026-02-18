@@ -1,15 +1,19 @@
 package org.springframework.samples.petclinic.selenium;
 
-import org.springframework.samples.petclinic.testcommon.ParasoftHeaderInjectingProxy;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.logging.Logger;
+
 import org.springframework.samples.petclinic.selenium.util.ParasoftSeleniumContext;
-import org.littleshoot.proxy.*;
+import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
+import org.springframework.samples.petclinic.testcommon.ParasoftHeaderInjectingProxy;
+
+import org.littleshoot.proxy.HttpProxyServer;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-
-import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
 
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -17,11 +21,6 @@ import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
-
-import java.net.URL;
-import java.net.MalformedURLException;
-
-import java.util.logging.Logger;
 
 @ExtendWith(org.springframework.samples.petclinic.selenium.util.ParasoftWatcher.class)
 public class NavigateIT {
@@ -51,7 +50,7 @@ public class NavigateIT {
 		if (ParasoftSettings.isHeadless()) {
 			options.addArguments("--headless=new");
 		}
-		// Calling code to retrieve the Selenium Grid node ID to dynamically set the CTP coverage user ID
+		// Initialize RemoteWebDriver when running on Selenium Grid; coverage user ID is fixed per suite
 		if (ParasoftSettings.isSeleniumGrid()) {
 			String gridUrl = ParasoftSettings.SELENIUM_GRID_URL;
 			try {

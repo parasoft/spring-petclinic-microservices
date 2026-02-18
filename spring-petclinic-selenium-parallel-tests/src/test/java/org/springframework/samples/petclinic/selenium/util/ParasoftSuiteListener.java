@@ -12,7 +12,8 @@
  */
 package org.springframework.samples.petclinic.selenium.util;
 
-import org.springframework.samples.petclinic.testcommon.*;
+import org.springframework.samples.petclinic.testcommon.ParasoftCTPApiClient;
+import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
 
 import org.junit.platform.launcher.TestExecutionListener;
 import org.junit.platform.launcher.TestPlan;

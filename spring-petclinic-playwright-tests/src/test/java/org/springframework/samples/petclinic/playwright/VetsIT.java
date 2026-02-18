@@ -3,16 +3,16 @@ package org.springframework.samples.petclinic.playwright;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.samples.petclinic.playwright.util.ParasoftSeleniumContext;
+import org.springframework.samples.petclinic.playwright.util.ParasoftWatcher;
+import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
+
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-
-import org.springframework.samples.petclinic.playwright.util.ParasoftSeleniumContext;
-import org.springframework.samples.petclinic.playwright.util.ParasoftWatcher;
-import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
 
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;

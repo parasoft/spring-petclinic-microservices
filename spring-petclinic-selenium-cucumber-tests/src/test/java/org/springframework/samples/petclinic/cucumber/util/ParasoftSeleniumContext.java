@@ -4,6 +4,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
 
+// Holds suite-scoped Parasoft metadata for the selenium-cucumber-tests module.
+// This module uses a fixed coverage user ID per suite: {testFramework}-{ctpUsername}-1.
 public final class ParasoftSeleniumContext {
     private static final AtomicReference<String> COVERAGE_USER_ID_REF = new AtomicReference<>("");
     private static volatile String coverageUserId = "";

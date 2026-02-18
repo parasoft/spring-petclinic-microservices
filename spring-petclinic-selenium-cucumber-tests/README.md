@@ -2,6 +2,8 @@
 
 In order to run the tests, CTP must be running and configured for both communicating with DTP and for collecting coverage on a running petclinic application with agents properly configured.
 
+This module assumes sequential test execution.  For an example of a parallel test execution implementation, see the `spring-petclinic-selenium-parallel-tests` module.
+
 First, make sure you've had a successful build, use the command
 ```
 mvn -ntp clean install -DskipTests
@@ -16,6 +18,15 @@ To run all tests in this module, use the command
 ```
 mvn verify -pl spring-petclinic-selenium-cucumber-tests -am -DCTP_ENV_ID=<CTP ENVIRONMENT ID> -DCTP_BASE_URL=<CTP BASE URL> -DPETCLINIC_URL=<PETCLINIC URL>
 ```
+To run all the tests in this module with Selenium Grid, use the command
+```
+mvn -ntp verify -pl spring-petclinic-selenium-cucumber-tests -am -DCTP_ENV_ID=<CTP ENVIRONMENT ID> -DCTP_BASE_URL=<CTP BASE URL> -DPETCLINIC_URL=<PETCLINIC URL> -DSELENIUM_GRID=true -DPROXY_HOST=<PROXY HOST>
+```
+
+Notes about Selenium Grid:
+- If Selenium Grid is running in a container (e.g., Docker Desktop) and the JUnit test runner is on the host, then the host.docker.internal convention may not work.
+- Use your host's ip address and set both `-DPROXY_HOST` and `-DPROXY_BIND_HOST` to that ip address.
+- If Selenium Grid is not running in a container, then you only need to provide -DPROXY_HOST to where Selenium Grid is located. If Selenium Grid is running on the cloud, extra considerations (e.g., VPC) may be necessary to ensure connectivity between the test runner + local proxy and grid service.
 
 By default, PETCLINIC_URL will be set to http://localhost:8099 if not provided.
 

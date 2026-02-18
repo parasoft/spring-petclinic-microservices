@@ -1,24 +1,28 @@
 package org.springframework.samples.petclinic.selenium;
 
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.logging.Logger;
+
+import org.springframework.samples.petclinic.selenium.util.ParasoftSeleniumContext;
+import org.springframework.samples.petclinic.selenium.util.ParasoftWatcher;
+import org.springframework.samples.petclinic.testcommon.ParasoftHeaderInjectingProxy;
+import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
+
+import org.littleshoot.proxy.HttpProxyServer;
+
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Listeners;
+import org.testng.annotations.Test;
+
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.remote.RemoteWebDriver;
-import org.testng.Assert;
-import org.testng.annotations.*;
-import org.springframework.samples.petclinic.selenium.util.ParasoftWatcher;
-
-import java.net.URL;
-import java.net.MalformedURLException;
-
-import java.util.logging.Logger;
-
-import org.littleshoot.proxy.HttpProxyServer;
-import org.springframework.samples.petclinic.testcommon.ParasoftHeaderInjectingProxy;
-import org.springframework.samples.petclinic.selenium.util.ParasoftSeleniumContext;
-import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
 
 @Listeners({ParasoftWatcher.class})
 public class PetIT {
@@ -48,7 +52,7 @@ public class PetIT {
         if (ParasoftSettings.isHeadless()) {
             options.addArguments("--headless=new");
         }
-		// Calling code to retrieve the Selenium Grid node ID to dynamically set the CTP coverage user ID
+        // Initialize RemoteWebDriver when running on Selenium Grid; coverage user ID is fixed per suite
 		if (ParasoftSettings.isSeleniumGrid()) {
 			String gridUrl = ParasoftSettings.SELENIUM_GRID_URL;
 			try {

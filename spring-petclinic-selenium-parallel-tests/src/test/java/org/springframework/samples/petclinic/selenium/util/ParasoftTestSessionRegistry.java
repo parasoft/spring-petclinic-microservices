@@ -10,6 +10,8 @@ import java.util.concurrent.ConcurrentHashMap;
 // This registry class assumes that parallel test execution is being performed at the test class level (i.e., each test
 // class is executed in its own thread with its own WebDriver instance)
 public final class ParasoftTestSessionRegistry {
+	// SessionInfo wrapper class encapsulates relevant information needed to publish CTP test sessions and coverage data
+	// See usage in the AbstractSeleniumIT and ParasoftSuiteListener classes
 	public static final class SessionInfo {
 		public final String coverageUserId;
 		public volatile String ctpTestSessionId;
@@ -20,8 +22,14 @@ public final class ParasoftTestSessionRegistry {
 		}
 	}
 	
-	private static final Map<String, String> COVERAGE_USER_IDS = new ConcurrentHashMap<>();
-	private static final Map<String, SessionInfo> SESSIONS = new ConcurrentHashMap<>();
+	// Maps test class name to coverage user ID relationship, this is used to retrieve the coverage user ID for a given 
+	// test class so that the corresponding CTP test session can be published by the suite listener at the end of the test run
+	private static final Map<String, String> COVERAGE_USER_IDS = new ConcurrentHashMap<>(); 
+	
+	// Maps coverage user ID to SessionInfo relationship, this is used to retrieve the CTP test session ID and DTP session
+	// tag for a given coverage user ID so that coverage can be published for the corresponding CTP test session by the 
+	// suite listener at the end of the test run
+	private static final Map<String, SessionInfo> SESSIONS = new ConcurrentHashMap<>(); 
 
 	private ParasoftTestSessionRegistry() {
 	}
@@ -31,8 +39,8 @@ public final class ParasoftTestSessionRegistry {
 	// owned by a userId. Test sessions are started/stopped using the userId as an
 	// identifier.
 	//
-	// If multiple sessions are being started in parallel, the userId is used to
-	// differentiate between the sessions.
+	// For parallel test execution, the userId is critical to differentiate between
+	// the CTP test sessions.
 	//
 	// - {ctpUsername} is included as a best practice for troubleshooting which CTP
 	// user credential was used for calling the REST API.

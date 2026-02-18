@@ -1,12 +1,12 @@
 package org.springframework.samples.petclinic.selenium;
 
+import java.util.logging.Logger;
+
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import org.openqa.selenium.By;
-
-import java.util.logging.Logger;
 
 public class NavigateIT extends AbstractSeleniumIT {
 	private static final Logger LOGGER = Logger.getLogger(NavigateIT.class.getName());

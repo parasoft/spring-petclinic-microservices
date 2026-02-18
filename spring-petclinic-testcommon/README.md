@@ -19,7 +19,3 @@ This module provides shared test utilities and support classes for the Spring Pe
 ## Additional Notes
 
 The `ParasoftHeaderInjectingSeleniumDevTools.java` class is there for reference only.  Using Selenium DevTools API for injecting headers can be problematic in scenarios like when you are running tests on a Grid, and it only works with Chrome.  Using a proxy server to inject the header is a more generally applicable solution and the recommended option.
-
-## TODO
-
-Parallel test execution, while supported by CTP, has not been validated in this example project yet.  All of the plumbing is here, but a working example of running these tests in parallel in Selenium Grid is still a TODO item.

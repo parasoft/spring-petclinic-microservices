@@ -5,6 +5,8 @@
 
 package org.springframework.samples.petclinic.testcommon;
 
+import java.io.IOException;
+import java.net.SocketException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -12,8 +14,6 @@ import java.net.URI;
 import java.util.Base64;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.io.IOException;
-import java.net.SocketException;
 
 public class ParasoftCTPApiClient {
     private static final Logger LOGGER = Logger.getLogger(ParasoftCTPApiClient.class.getName());

@@ -1,7 +1,7 @@
 /**
- * ParasoftWatcher integrates JUnit test execution with Parasoft CTP for test-level coverage tracking.
+ * ParasoftWatcher integrates Cucumber scenario execution with Parasoft CTP for test-level coverage tracking.
  * <p>
- * Implements BeforeEachCallback and TestWatcher to:
+ * Implements Cucumber Before/After hooks to:
  * <ul>
  *   <li>Tell the CTP coverage agents when a test is starting</li>
  *   <li>Tell the CTP coverage agents when a test has passed or failed</li>
@@ -26,11 +26,12 @@ public class ParasoftWatcherCucumber {
 	public void beforeScenario(Scenario scenario) {
 		String testId = getTestId(scenario);
 		CURRENT_TEST_ID.set(testId);
+		// When in multi-user mode, the coverage user ID is required to associate the test with the correct CTP test session for coverage reporting
 		if (ParasoftSettings.isMultiUserMode()) {
 			ParasoftCTPApiClient.startTest(testId, ParasoftSeleniumContext.getCoverageUserId());
 			return;
 		}
-		ParasoftCTPApiClient.startTest(testId);
+		ParasoftCTPApiClient.startTest(testId); // if not running in multi-user mode, the coverage user ID is not needed
 	}
 
 	@After
@@ -39,6 +40,7 @@ public class ParasoftWatcherCucumber {
 		if (testId == null) {
 			testId = getTestId(scenario);
 		}
+		// When in multi-user mode, the coverage user ID is required to associate the test with the correct CTP test session for coverage reporting
 		if (ParasoftSettings.isMultiUserMode()) {
 			ParasoftCTPApiClient.stopTest(
 					testId,
@@ -51,7 +53,7 @@ public class ParasoftWatcherCucumber {
 		ParasoftCTPApiClient.stopTest(
 				testId,
 				!scenario.isFailed(),
-				scenario.isFailed() ? buildFailureMessage(scenario) : null);
+				scenario.isFailed() ? buildFailureMessage(scenario) : null); // if not running in multi-user mode, the coverage user ID is not needed
 		CURRENT_TEST_ID.remove();
 	}
 

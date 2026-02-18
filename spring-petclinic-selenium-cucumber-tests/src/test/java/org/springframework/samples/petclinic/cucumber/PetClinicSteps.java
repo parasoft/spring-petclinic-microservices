@@ -1,9 +1,15 @@
 package org.springframework.samples.petclinic.cucumber;
 
-import io.cucumber.java.en.Given;
-import io.cucumber.java.en.When;
-import io.cucumber.java.en.Then;
-import io.cucumber.java.After;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.time.Duration;
+import java.util.logging.Logger;
+
+import org.springframework.samples.petclinic.cucumber.util.ParasoftSeleniumContext;
+import org.springframework.samples.petclinic.testcommon.ParasoftHeaderInjectingProxy;
+import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
+
+import org.littleshoot.proxy.HttpProxyServer;
 import org.junit.jupiter.api.Assertions;
 
 import org.openqa.selenium.By;
@@ -15,16 +21,10 @@ import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
-import java.net.URL;
-import java.net.MalformedURLException;
-
-import java.util.logging.Logger;
-import java.time.Duration;
-
-import org.littleshoot.proxy.HttpProxyServer;
-import org.springframework.samples.petclinic.testcommon.ParasoftHeaderInjectingProxy;
-import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
-import org.springframework.samples.petclinic.cucumber.util.ParasoftSeleniumContext;
+import io.cucumber.java.After;
+import io.cucumber.java.en.Given;
+import io.cucumber.java.en.Then;
+import io.cucumber.java.en.When;
 
 public class PetClinicSteps {
 	private static final Logger LOGGER = Logger.getLogger(PetClinicSteps.class.getName());
@@ -54,13 +54,13 @@ public class PetClinicSteps {
         if (ParasoftSettings.isHeadless()) {
             options.addArguments("--headless=new");
         }
-        // Calling code to retrieve the Selenium Grid node ID to dynamically set the CTP coverage user ID
+        // Initialize RemoteWebDriver when running on Selenium Grid; coverage user ID is fixed per suite
 		if (ParasoftSettings.isSeleniumGrid()) {
 			String gridUrl = ParasoftSettings.SELENIUM_GRID_URL;
 			try {
 				driver = new RemoteWebDriver(new URL(gridUrl), options, false);
 				if (ParasoftSettings.CTP_DEBUG) {
-					LOGGER.info("[NavigateIT] Using Selenium Grid at " + gridUrl);
+                    LOGGER.info("[PetClinicSteps] Using Selenium Grid at " + gridUrl);
 				}
 			} catch (MalformedURLException me) {
 				throw new RuntimeException("Failed to connect to Selenium Grid at " + gridUrl, me);

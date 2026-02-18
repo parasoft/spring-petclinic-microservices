@@ -2,6 +2,8 @@
 
 In order to run the tests, CTP must be running and configured for both communicating with DTP and for collecting coverage on a running petclinic application with agents properly configured.
 
+This module assumes sequential test execution.  For an example of a parallel test execution implementation, see the `spring-petclinic-selenium-parallel-tests` module.
+
 First, make sure you've had a successful build, use the command 
 ```
 mvn -ntp clean install -DskipTests

@@ -1,7 +1,7 @@
 /**
- * ParasoftWatcher integrates JUnit test execution with Parasoft CTP for test-level coverage tracking.
+ * ParasoftWatcher integrates TestNG execution with Parasoft CTP for test-level coverage tracking.
  * <p>
- * Implements BeforeEachCallback and TestWatcher to:
+ * Implements TestNG listener callbacks to:
  * <ul>
  *   <li>Tell the CTP coverage agents when a test is starting</li>
  *   <li>Tell the CTP coverage agents when a test has passed or failed</li>
@@ -20,33 +20,36 @@ public class ParasoftWatcher implements ITestListener {
     @Override
     public void onTestStart(ITestResult result) {
         String testId = getTestId(result);
+        // When in multi-user mode, the coverage user ID is required to associate the test with the correct CTP test session for coverage reporting
         if (ParasoftSettings.isMultiUserMode()) {
             ParasoftCTPApiClient.startTest(testId, ParasoftSeleniumContext.getCoverageUserId());
             return;
         }
-        ParasoftCTPApiClient.startTest(testId);
+        ParasoftCTPApiClient.startTest(testId); // if not running in multi-user mode, the coverage user ID is not needed
     }
 
     @Override
     public void onTestSuccess(ITestResult result) {
         String testId = getTestId(result);
+        // When in multi-user mode, the coverage user ID is required to associate the test with the correct CTP test session for coverage reporting
         if (ParasoftSettings.isMultiUserMode()) {
             ParasoftCTPApiClient.stopTest(testId, true, null, ParasoftSeleniumContext.getCoverageUserId());
             return;
         }
-        ParasoftCTPApiClient.stopTest(testId, true, null);
+        ParasoftCTPApiClient.stopTest(testId, true, null); // if not running in multi-user mode, the coverage user ID is not needed
     }
 
     @Override
     public void onTestFailure(ITestResult result) {
         String testId = getTestId(result);
+        // When in multi-user mode, the coverage user ID is required to associate the test with the correct CTP test session for coverage reporting
         if (ParasoftSettings.isMultiUserMode()) {
             ParasoftCTPApiClient.stopTest(testId, false,
                     buildFailureMessage(result.getThrowable()),
                     ParasoftSeleniumContext.getCoverageUserId());
             return;
         }
-        ParasoftCTPApiClient.stopTest(testId, false, buildFailureMessage(result.getThrowable()));
+        ParasoftCTPApiClient.stopTest(testId, false, buildFailureMessage(result.getThrowable())); // if not running in multi-user mode, the coverage user ID is not needed
     }
 
     private static String getTestId(ITestResult result) {
