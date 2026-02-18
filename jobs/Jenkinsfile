@@ -55,7 +55,7 @@ pipeline {
                     env.PUBLIC_IP = sh(script: """curl -s http://checkip.amazonaws.com """, returnStdout: true).trim()
                 }
 
-                sh(script: """mvn -v""", returnStdout: true).trim()
+                sh '''mvn -v'''
                 
                 // startup Selenium Grid
                 sh '''
