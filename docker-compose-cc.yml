@@ -90,7 +90,7 @@ services:
      - 8051:8050 # cov agent
     volumes:
       - type: bind
-        source: ./spring-petclinic-vets-service/src/test/resources/coverage
+        source: ./spring-petclinic-api-gateway/src/test/resources/coverage
         target: /tmp/coverage
     entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "${COV_AGENT_ARGS}", "org.springframework.boot.loader.JarLauncher"]
 
