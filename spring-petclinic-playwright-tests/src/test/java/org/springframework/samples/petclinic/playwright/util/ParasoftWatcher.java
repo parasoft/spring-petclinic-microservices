@@ -17,7 +17,7 @@ public class ParasoftWatcher implements BeforeEachCallback, TestWatcher {
         String testId = getTestId(context);
         // When in multi-user mode, the coverage user ID is required to associate the test with the correct CTP test session for coverage reporting
         if (ParasoftSettings.isMultiUserMode()) {
-            ParasoftCTPApiClient.startTest(testId, ParasoftSeleniumContext.getCoverageUserId());
+            ParasoftCTPApiClient.startTest(testId, ParasoftPlaywrightContext.getCoverageUserId());
             return;
         }
         ParasoftCTPApiClient.startTest(testId); // if not running in multi-user mode, the coverage user ID is not needed
@@ -28,7 +28,7 @@ public class ParasoftWatcher implements BeforeEachCallback, TestWatcher {
         String testId = getTestId(context);
         // When in multi-user mode, the coverage user ID is required to associate the test with the correct CTP test session for coverage reporting
         if (ParasoftSettings.isMultiUserMode()) {
-            ParasoftCTPApiClient.stopTest(testId, true, null, ParasoftSeleniumContext.getCoverageUserId());
+            ParasoftCTPApiClient.stopTest(testId, true, null, ParasoftPlaywrightContext.getCoverageUserId());
             return;
         }
         ParasoftCTPApiClient.stopTest(testId, true, null); // if not running in multi-user mode, the coverage user ID is not needed
@@ -39,7 +39,7 @@ public class ParasoftWatcher implements BeforeEachCallback, TestWatcher {
         String testId = getTestId(context);
         // When in multi-user mode, the coverage user ID is required to associate the test with the correct CTP test session for coverage reporting
         if (ParasoftSettings.isMultiUserMode()) {
-            ParasoftCTPApiClient.stopTest(testId, false, buildFailureMessage(cause), ParasoftSeleniumContext.getCoverageUserId());
+            ParasoftCTPApiClient.stopTest(testId, false, buildFailureMessage(cause), ParasoftPlaywrightContext.getCoverageUserId());
             return;
         }
         ParasoftCTPApiClient.stopTest(testId, false, buildFailureMessage(cause)); // if not running in multi-user mode, the coverage user ID is not needed

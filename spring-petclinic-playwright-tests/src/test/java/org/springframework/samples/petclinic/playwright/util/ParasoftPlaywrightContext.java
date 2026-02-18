@@ -1,18 +1,18 @@
-package org.springframework.samples.petclinic.selenium.util;
+package org.springframework.samples.petclinic.playwright.util;
 
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
 
-// Holds suite-scoped Parasoft metadata for the selenium-testng-tests module.
+// Holds suite-scoped Parasoft metadata for the playwright-tests module.
 // This module uses a fixed coverage user ID per suite: {testFramework}-{ctpUsername}-1.
-public final class ParasoftSeleniumContext {
+public final class ParasoftPlaywrightContext {
     private static final AtomicReference<String> COVERAGE_USER_ID_REF = new AtomicReference<>("");
     private static volatile String coverageUserId = "";
     private static volatile String dtpSessionTag = "";
     private static volatile String ctpSessionId = "";
 
-    private ParasoftSeleniumContext() {
+    private ParasoftPlaywrightContext() {
     }
 
     public static void initForSuite() {

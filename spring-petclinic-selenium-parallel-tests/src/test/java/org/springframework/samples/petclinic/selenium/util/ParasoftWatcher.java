@@ -28,7 +28,7 @@ public class ParasoftWatcher implements BeforeEachCallback, TestWatcher  {
 			ParasoftCTPApiClient.startTest(testId, getCoverageUserId(context)); 
 			return;
 		}
-		ParasoftCTPApiClient.startTest(testId, null); // if not running in multi-user mode, the coverage user ID is not needed 
+		ParasoftCTPApiClient.startTest(testId); // if not running in multi-user mode, the coverage user ID is not needed 
 
 		// *** Leaving this here for reference as an alternative approach to using a proxy server for header injection
 		// Object testInstance = context.getTestInstance().orElse(null);
@@ -55,7 +55,7 @@ public class ParasoftWatcher implements BeforeEachCallback, TestWatcher  {
 			ParasoftCTPApiClient.stopTest(testId, true, null, getCoverageUserId(context)); 
 			return;
 		}
-		ParasoftCTPApiClient.stopTest(testId, true, null, null); // if not running in multi-user mode, the coverage user ID is not needed 
+		ParasoftCTPApiClient.stopTest(testId, true, null); // if not running in multi-user mode, the coverage user ID is not needed 
 	}
 
 	@Override
@@ -66,7 +66,7 @@ public class ParasoftWatcher implements BeforeEachCallback, TestWatcher  {
 			ParasoftCTPApiClient.stopTest(testId, false, buildFailureMessage(cause), getCoverageUserId(context)); 
 			return;
 		}
-		ParasoftCTPApiClient.stopTest(testId, false, buildFailureMessage(cause), null); // if not running in multi-user mode, the coverage user ID is not needed 
+		ParasoftCTPApiClient.stopTest(testId, false, buildFailureMessage(cause)); // if not running in multi-user mode, the coverage user ID is not needed 
 	}
 
 	private static String getTestId(ExtensionContext context) {

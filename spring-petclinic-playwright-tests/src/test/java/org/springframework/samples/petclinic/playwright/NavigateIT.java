@@ -3,7 +3,7 @@ package org.springframework.samples.petclinic.playwright;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.springframework.samples.petclinic.playwright.util.ParasoftSeleniumContext;
+import org.springframework.samples.petclinic.playwright.util.ParasoftPlaywrightContext;
 import org.springframework.samples.petclinic.playwright.util.ParasoftWatcher;
 import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
 
@@ -50,7 +50,7 @@ import com.microsoft.playwright.options.AriaRole;
         // coverage reporting when agents are in multi-user mode
         if (ParasoftSettings.isMultiUserMode()) {
             Map<String, String> headers = new HashMap<>();
-            headers.put("baggage", "test-operator-id=" + ParasoftSeleniumContext.getCoverageUserId());
+            headers.put("baggage", "test-operator-id=" + ParasoftPlaywrightContext.getCoverageUserId());
             context.setExtraHTTPHeaders(headers);
         }
         page = context.newPage();

@@ -16,29 +16,29 @@ public class ParasoftSuiteListener implements TestExecutionListener {
     public void testPlanExecutionStarted(TestPlan testPlan) {
         ParasoftSettings.setTestFramework("playwrightJUnit");
         // This module uses a fixed coverage user ID per suite.
-        ParasoftSeleniumContext.initForSuite();
+        ParasoftPlaywrightContext.initForSuite();
         if (ParasoftSettings.isMultiUserMode()) {
-            sessionId = ParasoftCTPApiClient.startSession(ParasoftSeleniumContext.getCoverageUserId());
+            sessionId = ParasoftCTPApiClient.startSession(ParasoftPlaywrightContext.getCoverageUserId());
         } else {
             sessionId = ParasoftCTPApiClient.startSession();
         }
-        ParasoftSeleniumContext.setCtpSessionId(sessionId);
+        ParasoftPlaywrightContext.setCtpSessionId(sessionId);
     }
 
     @Override
     public void testPlanExecutionFinished(TestPlan testPlan) {
         if (ParasoftSettings.isMultiUserMode()) {
-            ParasoftCTPApiClient.stopSession(ParasoftSeleniumContext.getCoverageUserId());
+            ParasoftCTPApiClient.stopSession(ParasoftPlaywrightContext.getCoverageUserId());
             if (sessionId != null && !sessionId.isBlank()) {
-                ParasoftCTPApiClient.publishCoverage(sessionId, ParasoftSeleniumContext.getDtpSessionTag(),
-                        ParasoftSeleniumContext.getCoverageUserId());
+                ParasoftCTPApiClient.publishCoverage(sessionId, ParasoftPlaywrightContext.getDtpSessionTag(),
+                        ParasoftPlaywrightContext.getCoverageUserId());
             }
             return;
         }
         ParasoftCTPApiClient.stopSession();
 
         if (sessionId != null && !sessionId.isBlank()) {
-            ParasoftCTPApiClient.publishCoverage(sessionId, ParasoftSeleniumContext.getDtpSessionTag());
+            ParasoftCTPApiClient.publishCoverage(sessionId, ParasoftPlaywrightContext.getDtpSessionTag());
         }
     }
 }
