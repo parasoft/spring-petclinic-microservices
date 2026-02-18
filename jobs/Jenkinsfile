@@ -1,0 +1,286 @@
+pipeline {
+    agent any
+    tools {
+        maven 'maven'
+        jdk 'JDK 17'
+    }
+    options {
+        // This is required if you want to clean before build
+        skipDefaultCheckout(true)
+        
+        // Ontly keep 5 jobs history and 2 jobs artifacts
+        buildDiscarder(logRotator(numToKeepStr: '5', artifactNumToKeepStr: '2'))
+    }
+    parameters {
+        string(name: 'LS_URL', defaultValue: '', description: 'Parasoft LS URL')
+        string(name: 'CTP_URL', defaultValue: '', description: 'Parasoft CTP URL')
+        string(name: 'DTP_URL', defaultValue: '', description: 'Parasoft DTP URL')
+        string(name: 'DTP_USER', defaultValue: '', description: 'Parasoft DTP Username')
+        password(name: 'DTP_PASS', defaultValue: '', description: 'Parasoft DTP Password')
+        string(name: 'BUILD_ID', defaultValue: 'baseline', description: 'The build Id of the project in DTP and CTP')
+
+        // Add other parameters as needed
+    }
+    environment {
+        // App Details
+        app_name = 'spring-petclinic-microservices' // top level DTP Project
+        //services_list = "spring-petclinic-api-gateway,spring-petclinic-vets-service,spring-petclinic-visits-service,spring-petclinic-customers-service"
+        
+        // Parasoft Settings
+        envId = '32' // need to be dynamically acquired via curl
+        jtestUTConfig="jtest.builtin://Unit Tests"
+        jtestSAConfig="jtest.builtin://Recommended Rules"
+
+        // Dynamic configs
+        BUILD_TIMESTAMP = "${BUILD_ID}"
+        //BUILD_TIMESTAMP = sh(script: 'date +%Y%m%d%H%M', returnStdout: true).trim()
+
+    }
+
+    stages {
+        stage('Set Up') {
+            steps {
+                // Clean workspace before build
+                cleanWs()
+                // Checkout project
+                checkout([$class: 'GitSCM', 
+                    branches: [[name: 'feature/ctp-integration-enhancements']], 
+                    userRemoteConfigs: [[url: 'https://github.com/parasoft/spring-petclinic-microservices.git']]])
+                
+                // set GID
+                // set PUBLIC_IP
+                script {
+                    env.GID = sh(script: 'id -g jenkins', returnStdout: true).trim()
+                    //env.PUBLIC_IP = sh(script: """curl -s https://httpbin.org/ip | jq -r '.origin'""", returnStdout: true).trim()
+                    env.PUBLIC_IP = sh(script: """curl -s http://checkip.amazonaws.com """, returnStdout: true).trim()
+                }
+
+                
+                // startup Selenium Grid
+                sh '''
+                    # Start Selenium Grid for Selenium test execution
+                    docker run -d --rm \
+                    -p 4444:4444 \
+                    -p 7900:7900 \
+                    --network=demo-net \
+                    --shm-size "2g" \
+                    -e SE_NODE_MAX_SESSIONS=2 \
+                    -e SE_NODE_OVERRIDE_MAX_SESSIONS=true \
+                    --name selenium-grid \
+                    selenium/standalone-chrome:latest
+                    '''
+
+                // set up Parasoft License
+                sh '''
+                    # Set Up and write .properties file
+                    echo $"
+                    parasoft.eula.accepted=true
+                    
+                    jtest.license.use_network=true
+                    jtest.license.network.edition=server_edition
+                    
+                    license.network.use.specified.server=true
+                    license.network.auth.enabled=true
+                    license.network.url=${LS_URL}
+                    license.network.user=${DTP_USER}
+                    license.network.password=${DTP_PASS}
+                    
+                    dtp.url=${DTP_URL}
+                    dtp.user=${DTP_USER}
+                    dtp.password=${DTP_PASS}
+                    
+                    report.scontrol=min
+                    report.coverage.line.hashes=true
+                    report.dtp.publish=true
+                    
+                    console.verbosity.level=high
+                    " >> ./jtest/jtestcli.properties
+                    '''                
+            }
+        }
+        stage('Build: Create Docker Images') {
+            when { equals expected: true, actual: true }
+            steps {
+
+                // build the binaries
+                echo "Building ${env.JOB_NAME}..."
+                sh  '''
+
+                    # Build the Maven package
+                    ./mvnw clean install -P buildDocker -DskipTests=true
+                    '''
+            }
+        }
+        stage('Build: Jtest UT + Static Cov') {
+            when { equals expected: true, actual: true }
+            steps {
+
+                // Run Jtest Unit test with CC
+                script {
+
+                        // Setup stage-specific additional settings
+                        sh '''
+                            # Set Up and write .properties file
+                            echo $"
+                            dtp.project=${app_name}
+                            build.id=${app_name}-${BUILD_TIMESTAMP}
+                            " > ./jtest/jtestcli-sa.properties
+                        '''
+                        
+                        sh '''
+                            # Set Up and write .properties file
+                            echo $"
+                            dtp.project=${app_name}
+                            build.id=${app_name}-${BUILD_TIMESTAMP}
+                            report.coverage.images=${app_name};${app_name}-UT
+                            report.coverage.static.images=${app_name};${app_name}-UT;${app_name}-FT
+                            " >> ./jtest/jtestcli-ut.properties
+                        '''
+                        
+                        sh '''
+                            # Set Up and write .properties file
+                            echo $"
+                            dtp.project=${app_name}
+                            build.id=${app_name}-${BUILD_TIMESTAMP}
+                            report.coverage.images=${app_name};${app_name}-FT
+                            " >> ./jtest/jtestcli-ft.properties
+                        '''
+                        
+                        // Execute the build with Jtest Maven plugin in docker
+                        sh '''
+                            # Run Maven build with Jtest tasks via Docker
+                            docker run \
+                            -u ${UID}:${GID} \
+                            --rm -i \
+                            --name jtest \
+                            --network=demo-net \
+                            -v "$PWD:$PWD" \
+                            -w "$PWD" \
+                            $(docker build --build-arg HOST_UID="$UID" -q ./jtest) /bin/bash -c " \
+                            
+                            # Compile the project and run Jtest Static Analysis
+                            mvn -ntp test-compile \
+                            jtest:jtest \
+                            -DskipTests=true \
+                            -s './jtest/.m2/settings.xml' \
+                            -Djtest.settingsList='./jtest/jtestcli.properties,./jtest/jtestcli-sa.properties' \
+                            -Djtest.config='${jtestSAConfig}' \
+                            -Djtest.report=./target/jtest/sa \
+                            -Djtest.showSettings=true; \
+
+                            # Compile the test sources and run unit tests with Jtest
+                            mvn -ntp jtest:agent \
+                            test \
+                            jtest:jtest \
+                            -s './jtest/.m2/settings.xml' \
+                            -Dmaven.test.failure.ignore=true \
+                            -Djtest.settingsList='./jtest/jtestcli.properties,./jtest/jtestcli-ut.properties' \
+                            -Djtest.config='${jtestUTConfig}' \
+                            -Djtest.report=./target/jtest/ut \
+                            -Djtest.showSettings=true; \
+                            
+                            # Package the application with the Jtest Monitor
+                            #mvn -ntp package jtest:monitor \
+                            #-s './jtest/.m2/settings.xml' \
+                            #-Dmaven.test.skip=true \
+                            #-Djtest.settingsList='./jtest/jtestcli.properties,./jtest/jtestcli-ft.properties' \
+                            #-Djtest.showSettings=true \
+                            "
+                        '''
+                    
+                }
+
+                // Parasoft Findings plugin for Unit Tests Results
+                echo '---> Parsing 10.x unit test reports'
+                script {
+                    step([$class: 'XUnitPublisher', 
+                        // thresholds: [failed(
+                        //     failureNewThreshold: '0', 
+                        //     failureThreshold: '0')
+                        // ],
+                        tools: [[$class: 'ParasoftType', 
+                            deleteOutputFiles: true, 
+                            failIfNotNew: false, 
+                            pattern: '**/target/jtest/ut/*report*.xml', 
+                            skipNoTestFiles: true, 
+                            stopProcessingIfError: false
+                        ]]
+                    ])
+                }
+            }
+        }
+        stage('Deploy: Docker Compose + CTP') {
+            when { equals expected: true, actual: true }
+            steps {
+
+                build job: 'Petclinic-deploy', parameters: [
+                    string(name: 'CTP_URL', value: params.CTP_URL),
+                    string(name: 'DTP_USER', value: params.DTP_USER),
+                    password(name: 'DTP_PASS', value: params.DTP_PASS),
+                    string(name: 'BUILD_TIMESTAMP', value: env.BUILD_TIMESTAMP),
+
+                    // Add other parameters as needed
+                ]
+            }
+        }
+        stage('Test: Full Selenium Suite') {
+            when { equals expected: true, actual: true}
+            steps {
+                // Start Selenium grid
+                // docker run -d -p 4444:4444 -p 7900:7900 selenium/standalone-chrome:latest
+                
+                // run Selenium tests
+                sh """
+                    mvn -ntp verify \
+                    -pl spring-petclinic-selenium-tests \
+                    -am \
+                    -DPETCLINIC_URL='http://${PUBLIC_IP}:8099' \
+                    -DHEADLESS=true \
+                    -DCTP_BASE_URL='${CTP_URL}' \
+                    -DCTP_ENV_ID=${envId} \
+                    -DCTP_USERNAME=${DTP_USER} \
+                    -DCTP_PASSWORD=${DTP_PASS} \
+                    -DCTP_MULTIUSER_MODE=true \
+                    -DCTP_PUBLISH_BASELINE=false \
+                    -DCTP_BASELINE_BUILD_ID=latest \
+                    -DPROXY_HOST=${PUBLIC_IP} \
+                    -DPROXY_BIND_HOST=${PUBLIC_IP} \
+                    -DSELENIUM_GRID=true \
+                    -DSELENIUM_GRID_URL='http://localhost:4444/wd/hub' \
+                    """
+                
+                // Update Baseline build in CTP with latest
+                //sh """
+                //    curl -k -X DELETE -H 'accept: application/json' -u ${DTP_USER}:${DTP_PASS} ${CTP_URL}/em/api/v3/environments/${envId}/coverage/baselines/latest
+                //    curl -k -X POST -H 'accept: application/json' -H 'Content-Type: application/json' -u ${DTP_USER}:${DTP_PASS} ${CTP_URL}/em/api/v3/environments/${envId}/coverage/baselines/latest -d '"string"'
+                //    """
+                
+            } 
+        }
+        stage('Release') {
+            steps {
+                sh 'echo "Release"'
+            }   
+        }
+    }
+    post {
+        // archive jtest Artofacts after success
+        success {
+                archiveArtifacts artifacts: 'target/jtest/ut/*', excludes: 'target/ut/.jtest/cache', followSymlinks: false
+            }
+
+        // Clean after build
+        always {
+            sh 'docker container stop selenium-grid'
+            sh 'docker container prune -f'
+            sh 'docker image prune -f'
+            
+            // delete Cov-tool stuff
+            sh  '''
+                echo "cleaning up..."
+                # rm -rf "jtest_agent"
+                # rm -rf "jtestcov"
+                '''
+        }
+    }
+}

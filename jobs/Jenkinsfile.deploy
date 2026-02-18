@@ -1,0 +1,180 @@
+def ARRAY
+
+pipeline {
+    agent any
+    tools {
+        maven 'maven'
+        jdk 'JDK 17'
+    }
+    options {
+        // This is required if you want to clean before build
+        skipDefaultCheckout(true)
+
+        // Ontly keep 5 jobs history and 2 jobs artifacts
+        buildDiscarder(logRotator(numToKeepStr: '5', artifactNumToKeepStr: '2'))
+    }
+    parameters {
+        string(name: 'CTP_URL', description: 'Parasoft CTP URL')
+        string(name: 'DTP_USER', description: 'Parasoft DTP Username')
+        password(name: 'DTP_PASS', description: 'Parasoft DTP Password')
+        string(name: 'BUILD_TIMESTAMP', description: 'DTP Build Id')
+
+
+        // Add other parameters as needed
+    }
+    environment {
+        // App Settings
+        app_name = 'spring-petclinic-microservices' // top level DTP Project
+        ENV_NAME = 'Local PetClinic' // no longer makes sense
+        ENCODED_ENV_NAME = URLEncoder.encode(ENV_NAME, 'UTF-8')
+
+        // dynamic vars
+        // BUILD_TIMESTAMP = sh(script: 'date +%Y%m%d%H%M%S', returnStdout: true).trim()
+        // PUBLIC_IP = sh(script: """curl -s https://httpbin.org/ip | jq -r '.origin'""", returnStdout: true).trim()
+        PUBLIC_IP = sh(script: """curl -s http://checkip.amazonaws.com """, returnStdout: true).trim()
+
+        envId = '32' // need to be dynamically acquired via curl
+
+
+    }
+
+    stages {
+        stage('Deploy: Set Up') {
+            steps {
+                // Clean before build
+                cleanWs()
+
+                // Checkout project
+                checkout scm
+                
+                // set GID
+                script {
+                    env.GID = sh(script: 'id -g jenkins', returnStdout: true).trim()
+                }
+                
+                // define services
+                script {
+                    ARRAY = [
+                        "spring-petclinic-api-gateway", 
+                        "spring-petclinic-vets-service", 
+                        "spring-petclinic-visits-service", 
+                        "spring-petclinic-customers-service"
+                        ]
+                
+                    NAMES = [
+                        "Local Gateway", 
+                        "Vets Microservice", 
+                        "Visits Microservice", 
+                        "Customers Microservice"
+                    ]
+                }
+                
+ 
+                // downlaod the agent.jar and cov-tool
+                sh '''
+                
+                    curl -kLO -u ${DTP_USER}:${DTP_PASS} ${CTP_URL}/em/coverageagent/java_agent_coverage.zip
+                    unzip java_agent_coverage.zip
+                
+                    '''
+                
+                // copy jars
+                script {
+                    for (service in ARRAY) {
+                        sh "cp jtest_agent/agent.jar ${service}/src/test/resources/coverage/agent.jar"
+                    }
+                }
+
+                // Prepare CTP JSON file
+                script {
+                    // get ctp.json file form CTP
+                    sh '''
+                        ctp_response=$(curl -sk -X 'GET' -H 'accept: application/json' -u ${DTP_USER}:${DTP_PASS} ${CTP_URL}/em/api/v3/environments?name=${ENCODED_ENV_NAME}&limit=50&offset=0)
+                        # envId=$(echo "$ctp_response" | jq -r '.environments[0].id')
+                        echo ${envId}
+                        curl -k -X 'GET' -H 'accept: application/json' -u ${DTP_USER}:${DTP_PASS} ${CTP_URL}/em/api/v3/environments/${envId}/config | jq . > ctp.json
+                        cat ctp.json
+                        '''
+
+                    // Read in ctp.json file
+                    def jsonFile = readFile("ctp.json")
+                    def json = new groovy.json.JsonSlurperClassic().parseText(jsonFile)
+
+                    // debug
+                    echo "${PUBLIC_IP}"
+
+                    // Update the 'buildId' and 'coverageImages' properties
+                    for (service in NAMES) {
+                        echo "service is: ${service}"
+                        def matchingComponent = json.components.find { it.instances.find { it.name == service  } }
+                        if (matchingComponent) {
+                            
+                            // retain ports
+                            def url = new URL(matchingComponent.instances[0].coverage.agentUrl)
+                            def originalPort = url.port
+                            
+                            // Set CTP values for all components
+                            matchingComponent.instances[0].coverage.agentUrl = "http://${PUBLIC_IP}:${originalPort}"
+                            matchingComponent.instances[0].coverage.buildId = "${app_name}-${BUILD_TIMESTAMP}"
+                            matchingComponent.instances[0].coverage.dtpFilter = "${app_name}"    
+                            matchingComponent.instances[0].coverage.coverageImages = "${app_name};${app_name}-FT"
+                            matchingComponent.instances[0].coverage.dtpProject = "${app_name}"
+                        } else {
+                            echo "Something is NULL!"
+                        }
+                    }
+                    // Write the updated JSON back to the file using writeJSON
+                    writeJSON file: "ctp.json", json: json, pretty: 4
+                    sh "cat ctp.json"
+                }     
+
+                
+
+            }
+        }        
+        stage('Deploy: Update CTP') {
+            when { equals expected: true, actual: true }
+            steps {
+
+                // check running containers
+                sh '''
+                    docker-compose -f docker-compose-cc.yml down || true
+                    sleep 10s
+                    '''
+                // deploy the project
+                sh  '''
+                    # Run PetClinic with Jtest coverage agent configured
+                    docker-compose -f docker-compose-cc.yml up -d --force-recreate
+                    sleep 105s
+                    '''
+
+                // Health check coverage agents
+                sh '''
+                    curl -iv --raw http://localhost:8051/status
+
+                    '''
+                // update CTP with yaml script upload
+                sh '''
+                    # upload yaml file to CTP
+                    curl -k -X 'PUT' -u ${DTP_USER}:${DTP_PASS} \
+                        ${CTP_URL}/em/api/v3/environments/${envId}/config \
+                        -H 'accept: application/json' \
+                        -H 'Content-Type: application/json' \
+                        -d @ctp.json
+                    '''
+            
+            }
+        }
+    }
+    post {
+
+        always {
+            sh  '''
+                echo "cleaning up..."
+                rm -rf "jtest_agent"
+                rm -rf "jtestcov"
+
+                '''
+        }
+    }
+}
