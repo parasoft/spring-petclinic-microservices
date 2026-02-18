@@ -15,7 +15,10 @@ Four microservice projects have been configured with Parasoft coverage agent pro
 * spring-petclinic-vets-service
 * spring-petclinic-visits-service
 
-Alternatively, you can run the microservices project with Parasoft coverage agents using docker compose with the following command
+Alternatively, you can run the microservices project with Parasoft coverage agents using docker compose.  First build the images with
+`./mvnw clean install -P buildDocker`
+
+Then start the containers with the following command
 `docker-compose -f docker-compose-cc.yml up -d`
 
 ## Starting services locally without Docker
