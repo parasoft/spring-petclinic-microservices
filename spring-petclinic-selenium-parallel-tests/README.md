@@ -14,7 +14,7 @@ mvn -ntp clean package jtest:monitor -DskipTests=true -Djtest.settings=jtest.set
 
 To run all tests in this module sequentially, use the command
 ```
-mvn -ntp verify -pl spring-petclinic-selenium-parallel-tests -am 
+mvn -ntp verify -pl spring-petclinic-selenium-parallel-tests -am -DCTP_ENV_ID=<CTP ENVIRONMENT ID> -DCTP_BASE_URL=<CTP BASE URL> -DPETCLINIC_URL=<PETCLINIC URL>
 ```
 To run all the tests in this module using JUnit 5 parallel mode, use the command
 ```
@@ -28,8 +28,8 @@ mvn -ntp verify -pl spring-petclinic-selenium-parallel-tests -am -DCTP_ENV_ID=<C
 Notes about Parallel Test Execution:
 - This module is setup with the expectation that parallelism will happen at the test class level, which is a common parallelism strategy for E2E/Web functional tests to avoid flaky behavior (e.g., interleaved clicks, navigation races, shared state).  Method-level parallelism, which has different junit arguments to configure, is not represented in this module and would require refactoring to support.
 - JUnit 5 parallel execution is enabled via the `junit.jupiter.execution.parallel.*` system properties.
-- `junit.jupiter.execution.parallel.enabled=true` enables parallel test execution.
-- `junit.jupiter.execution.parallel.mode.classes.default=concurrent` controls class-level parallelism.
+	- `junit.jupiter.execution.parallel.enabled=true` enables parallel test execution.
+	- `junit.jupiter.execution.parallel.mode.classes.default=concurrent` controls class-level parallelism.
 - If tests still run sequentially, add a fixed parallelism strategy, for example:
 	- `-Djunit.jupiter.execution.parallel.config.strategy=fixed`
 	- `-Djunit.jupiter.execution.parallel.config.fixed.parallelism=2`
