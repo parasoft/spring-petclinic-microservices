@@ -52,13 +52,11 @@ pipeline {
                 script {
                     env.GID = sh(script: 'id -g jenkins', returnStdout: true).trim()
                     env.PUBLIC_IP = sh(script: """curl -s http://checkip.amazonaws.com """, returnStdout: true).trim()
-                    env.PRIVATE_IP = sh(script: """
+                    env.PRIVATE_IP = sh(script: '''
                         TOKEN=$(curl -sX PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
                         curl -sH "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/local-ipv4
-                    """, returnStdout: true).trim()
+                    ''', returnStdout: true).trim()
                 }
-
-                sh '''mvn -v'''
                 
                 // startup Selenium Grid
                 sh '''
