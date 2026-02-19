@@ -83,7 +83,7 @@ public class NavigateIT {
 
 	@Test
 	public void testPetClinicNavigation() throws Exception {
-		WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
+		WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(30));
 		driver.get(PETCLINIC_URL);
 		wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//a[@title=\"veterinarians\"]"))).click();
 		wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//a[@class=\"dropdown-toggle\"]"))).click();

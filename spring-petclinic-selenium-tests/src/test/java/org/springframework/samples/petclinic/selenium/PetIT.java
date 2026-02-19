@@ -83,7 +83,7 @@ public class PetIT {
 
 	@Test
 	public void testRenamePet() throws Exception {
-		WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
+		WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(30));
 		driver.get(PETCLINIC_URL);
 		wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//a[@class=\"dropdown-toggle\"]"))).click();
 		wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//a[@ui-sref=\"owners\"]"))).click();

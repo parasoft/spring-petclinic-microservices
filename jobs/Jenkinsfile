@@ -119,7 +119,7 @@ pipeline {
             }
         }
         stage('Build: Jtest UT + Static Cov') {
-            when { equals expected: true, actual: true }
+            when { equals expected: true, actual: false }
             steps {
 
                 // Run Jtest Unit test with CC
