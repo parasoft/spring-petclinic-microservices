@@ -2,6 +2,7 @@ package org.springframework.samples.petclinic.selenium;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.time.Duration;
 import java.util.logging.Logger;
 
 import org.springframework.samples.petclinic.selenium.util.ParasoftSeleniumContext;
@@ -21,6 +22,8 @@ import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
 
 @ExtendWith(org.springframework.samples.petclinic.selenium.util.ParasoftWatcher.class)
 public class PetIT {
@@ -80,28 +83,19 @@ public class PetIT {
 
 	@Test
 	public void testRenamePet() throws Exception {
+		WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
 		driver.get(PETCLINIC_URL);
-		Thread.sleep(1000);
-		driver.findElement(By.xpath("//a[@class=\"dropdown-toggle\"]")).click();
-		Thread.sleep(1000);
-		driver.findElement(By.xpath("//a[@ui-sref=\"owners\"]")).click();
-		Thread.sleep(1000);
-		driver.findElement(By.xpath("//owner-list/table/tbody/tr[1]/td[1]/a")).click();
-		Thread.sleep(1000);
-		driver.findElement(By.xpath("//dd/a")).click();
-		Thread.sleep(1000);
-		driver.findElement(By.name("name")).clear();
-		driver.findElement(By.name("name")).sendKeys("Lena");
-		Thread.sleep(1000);
-		driver.findElement(By.xpath("//button[@type=\"submit\"]")).click();
-		Thread.sleep(1000);
-		driver.findElement(By.xpath("//dd/a")).click();
-		Thread.sleep(1000);
-		driver.findElement(By.name("name")).clear();
-		driver.findElement(By.name("name")).sendKeys("Leo");
-		Thread.sleep(1000);
-		driver.findElement(By.xpath("//button[@type=\"submit\"]")).click();
-		Thread.sleep(1000);
-		driver.findElement(By.xpath("//a[@title=\"home page\"]")).click();
+		wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//a[@class=\"dropdown-toggle\"]"))).click();
+		wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//a[@ui-sref=\"owners\"]"))).click();
+		wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//owner-list/table/tbody/tr[1]/td[1]/a"))).click();
+		wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//dd/a"))).click();
+		wait.until(ExpectedConditions.visibilityOfElementLocated(By.name("name"))).clear();
+		wait.until(ExpectedConditions.visibilityOfElementLocated(By.name("name"))).sendKeys("Lena");
+		wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//button[@type=\"submit\"]"))).click();
+		wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//dd/a"))).click();
+		wait.until(ExpectedConditions.visibilityOfElementLocated(By.name("name"))).clear();
+		wait.until(ExpectedConditions.visibilityOfElementLocated(By.name("name"))).sendKeys("Leo");
+		wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//button[@type=\"submit\"]"))).click();
+		wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//a[@title=\"home page\"]"))).click();
 	}
 }
