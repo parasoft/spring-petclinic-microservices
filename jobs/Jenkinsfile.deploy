@@ -82,6 +82,8 @@ pipeline {
                 script {
                     for (service in ARRAY) {
                         sh "cp jtest_agent/agent.jar ${service}/src/test/resources/coverage/agent.jar"
+                        sh "cp jtest_agent/jtest-otel-ext.jar ${service}/src/test/resources/coverage/jtest-otel-ext.jar"
+                        sh "cp jtest_agent/opentelemetry-javaagent.jar ${service}/src/test/resources/coverage/opentelemetry-javaagent.jar"
                     }
                 }
 
