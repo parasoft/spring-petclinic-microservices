@@ -242,7 +242,7 @@ pipeline {
                     -pl spring-petclinic-selenium-tests \
                     -am \
                     -DPETCLINIC_URL='http://${PUBLIC_IP}:8099' \
-                    -DHEADLESS=true \
+                    -DHEADLESS=false
                     -DCTP_BASE_URL='${CTP_URL}' \
                     -DCTP_ENV_ID=${envId} \
                     -DCTP_USERNAME=${DTP_USER} \
