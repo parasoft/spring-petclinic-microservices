@@ -88,7 +88,9 @@ public class NavigateIT {
 		wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//a[@title=\"veterinarians\"]"))).click();
 		wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//a[@class=\"dropdown-toggle\"]"))).click();
 		wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//a[@ui-sref=\"owners\"]"))).click();
-		wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//owner-list/table/tbody/tr[1]/td[1]/a"))).click();
+		wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("owner-list table")));
+		wait.until(driverInstance -> driverInstance.findElements(By.cssSelector("owner-list table tbody tr")).size() > 0);
+		wait.until(ExpectedConditions.elementToBeClickable(By.cssSelector("owner-list table tbody tr:first-child td a"))).click();
 		wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//dd/a"))).click();
 		wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//a[@title=\"home page\"]"))).click();
 	}
