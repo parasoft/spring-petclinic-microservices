@@ -147,7 +147,29 @@ pipeline {
                 sh  '''
                     # Run PetClinic with Jtest coverage agent configured
                     docker-compose -f docker-compose-cc.yml up -d --force-recreate
-                    sleep 105s
+
+                    # Allow containers to settle before polling
+                    sleep 15s
+
+                    echo "Waiting for owners API to be ready..."
+                    attempts=60
+                    sleep_seconds=5
+                    i=1
+                    while [ $i -le $attempts ]; do
+                        resp=$(curl -s --max-time 5 http://localhost:8099/api/customer/owners || true)
+                        if echo "$resp" | grep -q '"id"'; then
+                            echo "Owners API ready."
+                            break
+                        fi
+                        echo "Owners API not ready (attempt $i/$attempts)."
+                        i=$((i+1))
+                        sleep $sleep_seconds
+                    done
+                    if [ $i -gt $attempts ]; then
+                        echo "Owners API did not become ready in time."
+                        echo "$resp"
+                        exit 1
+                    fi
                     '''
 
                 // Health check coverage agents
