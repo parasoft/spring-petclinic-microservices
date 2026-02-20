@@ -70,7 +70,11 @@ pipeline {
                     def encodedEnvName = java.net.URLEncoder.encode(envName, 'UTF-8')
 
                     def systemResponse = sh(
-                        script: """curl -sk -u ${DTP_USER}:${DTP_PASS} '${CTP_URL}/em/api/v3/systems?name=${encodedSystemName}&limit=50&offset=0'""",
+                        script: """
+                            set +x
+                            curl -sk -u ${DTP_USER}:${DTP_PASS} '${CTP_URL}/em/api/v3/systems?name=${encodedSystemName}&limit=50&offset=0'
+                            set -x
+                        """,
                         returnStdout: true
                     ).trim()
                     def systemJson = new groovy.json.JsonSlurperClassic().parseText(systemResponse)
@@ -80,7 +84,11 @@ pipeline {
                     }
 
                     def envResponse = sh(
-                        script: """curl -sk -u ${DTP_USER}:${DTP_PASS} '${CTP_URL}/em/api/v3/environments?name=${encodedEnvName}&limit=50&offset=0'""",
+                        script: """
+                            set +x
+                            curl -sk -u ${DTP_USER}:${DTP_PASS} '${CTP_URL}/em/api/v3/environments?name=${encodedEnvName}&limit=50&offset=0'
+                            set -x
+                        """,
                         returnStdout: true
                     ).trim()
                     def envJson = new groovy.json.JsonSlurperClassic().parseText(envResponse)
@@ -108,7 +116,7 @@ pipeline {
                 // set up Parasoft License
                 sh '''
                     # Set Up and write .properties file
-                    # set +x
+                    set +x
                     echo $"
                     parasoft.eula.accepted=true
                     
@@ -136,7 +144,7 @@ pipeline {
                     
                     console.verbosity.level=high
                     " >> ./jtest/jtestcli.properties
-                    # set -x
+                    set -x
                     '''
             }
         }
@@ -162,35 +170,35 @@ pipeline {
                         // Setup stage-specific additional settings
                         sh '''
                             # Set Up and write .properties file
-                            # set +x
+                            set +x
                             echo $"
                             dtp.project=${app_name}
                             build.id=${app_name}-${BUILD_TIMESTAMP}
                             " > ./jtest/jtestcli-sa.properties
-                            # set -x
+                            set -x
                         '''
                         
                         sh '''
                             # Set Up and write .properties file
-                            # set +x
+                            set +x
                             echo $"
                             dtp.project=${app_name}
                             build.id=${app_name}-${BUILD_TIMESTAMP}
                             report.coverage.images=${app_name};${app_name}-UT
                             report.coverage.static.images=${app_name};${app_name}-UT;${app_name}-FT
                             " >> ./jtest/jtestcli-ut.properties
-                            # set -x
+                            set -x
                         '''
                         
                         sh '''
                             # Set Up and write .properties file
-                            # set +x
+                            set +x
                             echo $"
                             dtp.project=${app_name}
                             build.id=${app_name}-${BUILD_TIMESTAMP}
                             report.coverage.images=${app_name};${app_name}-FT
                             " >> ./jtest/jtestcli-ft.properties
-                            # set -x
+                            set -x
                         '''
                         
                         // Execute the build with Jtest Maven plugin in docker
@@ -269,13 +277,14 @@ pipeline {
             steps {
                 // run Selenium tests
                 sh """
+                    set +x
                     mvn -ntp verify \
                     -pl spring-petclinic-selenium-tests \
                     -am \
                     -DPETCLINIC_URL='http://${PUBLIC_IP}:8099' \
                     -DHEADLESS=false \
                     -DCTP_BASE_URL='${CTP_URL}' \
-                    -DCTP_ENV_ID=${envId} \
+                    -DCTP_ENV_ID=${env.CTP_ENV_ID} \
                     -DCTP_USERNAME=${DTP_USER} \
                     -DCTP_PASSWORD=${DTP_PASS} \
                     -DCTP_MULTIUSER_MODE=true \
@@ -285,6 +294,7 @@ pipeline {
                     -DPROXY_BIND_HOST=0.0.0.0 \
                     -DSELENIUM_GRID=true \
                     -DSELENIUM_GRID_URL='http://localhost:4444/wd/hub' \
+                    set -x
                     """
             } 
         }

@@ -26,8 +26,6 @@ pipeline {
     environment {
         // App Settings
         app_name = 'spring-petclinic-microservices' // top level DTP Project
-        ENV_NAME = 'Local PetClinic' // no longer makes sense
-        ENCODED_ENV_NAME = URLEncoder.encode(ENV_NAME, 'UTF-8')
 
         // dynamic vars
         PUBLIC_IP = sh(script: """curl -s http://checkip.amazonaws.com """, returnStdout: true).trim()
@@ -68,10 +66,11 @@ pipeline {
 
                 // download the agent.jar and cov-tool
                 sh '''
-                
+                    set +x
                     curl -kLO -u ${DTP_USER}:${DTP_PASS} ${CTP_URL}/em/coverageagent/java_agent_coverage.zip
+                    set -x
                     unzip java_agent_coverage.zip
-                
+
                     '''
                 
                 // copy jars
@@ -87,10 +86,14 @@ pipeline {
                 script {
                     // get ctp.json file form CTP
                     sh '''
+                        set +x
                         ctp_response=$(curl -sk -X 'GET' -H 'accept: application/json' -u ${DTP_USER}:${DTP_PASS} ${CTP_URL}/em/api/v3/environments?name=${ENCODED_ENV_NAME}&limit=50&offset=0)
+                        set -x
                         # envId=$(echo "$ctp_response" | jq -r '.environments[0].id')
                         echo ${CTP_ENV_ID}
+                        set +x
                         curl -k -X 'GET' -H 'accept: application/json' -u ${DTP_USER}:${DTP_PASS} ${CTP_URL}/em/api/v3/environments/${CTP_ENV_ID}/config | jq . > ctp.json
+                        set -x
                         cat ctp.json
                         '''
 
@@ -173,11 +176,13 @@ pipeline {
                 // update CTP with yaml script upload
                 sh '''
                     # upload yaml file to CTP
+                    set +x
                     curl -k -X 'PUT' -u ${DTP_USER}:${DTP_PASS} \
                         ${CTP_URL}/em/api/v3/environments/${CTP_ENV_ID}/config \
                         -H 'accept: application/json' \
                         -H 'Content-Type: application/json' \
                         -d @ctp.json
+                    set -x
                     '''
             }
         }
