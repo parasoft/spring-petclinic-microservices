@@ -276,26 +276,25 @@ pipeline {
             when { equals expected: true, actual: true}
             steps {
                 // run Selenium tests
-                sh """
+                sh '''
                     set +x
                     mvn -ntp verify \
                     -pl spring-petclinic-selenium-tests \
                     -am \
-                    -DPETCLINIC_URL='http://${PUBLIC_IP}:8099' \
+                    -DPETCLINIC_URL="http://$PUBLIC_IP:8099" \
                     -DHEADLESS=false \
-                    -DCTP_BASE_URL='${CTP_URL}' \
-                    -DCTP_ENV_ID=${env.CTP_ENV_ID} \
-                    -DCTP_USERNAME=${DTP_USER} \
-                    -DCTP_PASSWORD=${DTP_PASS} \
+                    -DCTP_BASE_URL="$CTP_URL" \
+                    -DCTP_ENV_ID=$CTP_ENV_ID \
+                    -DCTP_USERNAME=$DTP_USER \
+                    -DCTP_PASSWORD=$DTP_PASS \
                     -DCTP_MULTIUSER_MODE=true \
                     -DCTP_PUBLISH_BASELINE=false \
                     -DCTP_BASELINE_BUILD_ID=latest \
-                    -DPROXY_HOST=${PRIVATE_IP} \
+                    -DPROXY_HOST=$PRIVATE_IP \
                     -DPROXY_BIND_HOST=0.0.0.0 \
                     -DSELENIUM_GRID=true \
-                    -DSELENIUM_GRID_URL='http://localhost:4444/wd/hub' \
-                    set -x
-                    """
+                    -DSELENIUM_GRID_URL='http://localhost:4444/wd/hub'
+                    '''
             } 
         }
         stage('Release') {
