@@ -149,11 +149,11 @@ pipeline {
                     docker-compose -f docker-compose-cc.yml up -d --force-recreate
 
                     # Allow containers to settle before polling
-                    sleep 15s
+                    sleep 150s
 
                     echo "Waiting for owners API to be ready..."
-                    attempts=60
-                    sleep_seconds=5
+                    attempts=30
+                    sleep_seconds=10
                     i=1
                     while [ $i -le $attempts ]; do
                         resp=$(curl -s --max-time 5 http://localhost:8099/api/customer/owners || true)
