@@ -18,9 +18,10 @@ pipeline {
         string(name: 'DTP_USER', description: 'Parasoft DTP Username')
         password(name: 'DTP_PASS', description: 'Parasoft DTP Password')
         string(name: 'BUILD_TIMESTAMP', description: 'DTP Build Id')
-
+        string(name: 'CTP_ENV_ID', description: 'Parasoft CTP Environment ID')
 
         // Add other parameters as needed
+
     }
     environment {
         // App Settings
@@ -29,13 +30,9 @@ pipeline {
         ENCODED_ENV_NAME = URLEncoder.encode(ENV_NAME, 'UTF-8')
 
         // dynamic vars
-        // BUILD_TIMESTAMP = sh(script: 'date +%Y%m%d%H%M%S', returnStdout: true).trim()
-        // PUBLIC_IP = sh(script: """curl -s https://httpbin.org/ip | jq -r '.origin'""", returnStdout: true).trim()
         PUBLIC_IP = sh(script: """curl -s http://checkip.amazonaws.com """, returnStdout: true).trim()
 
-        envId = '32' // need to be dynamically acquired via curl
-
-
+        CTP_ENV_ID = "${params.CTP_ENV_ID}"
     }
 
     stages {
@@ -60,7 +57,7 @@ pipeline {
                         "spring-petclinic-visits-service", 
                         "spring-petclinic-customers-service"
                         ]
-                
+
                     NAMES = [
                         "Local Gateway", 
                         "Vets Microservice", 
@@ -68,9 +65,8 @@ pipeline {
                         "Customers Microservice"
                     ]
                 }
-                
- 
-                // downlaod the agent.jar and cov-tool
+
+                // download the agent.jar and cov-tool
                 sh '''
                 
                     curl -kLO -u ${DTP_USER}:${DTP_PASS} ${CTP_URL}/em/coverageagent/java_agent_coverage.zip
@@ -93,8 +89,8 @@ pipeline {
                     sh '''
                         ctp_response=$(curl -sk -X 'GET' -H 'accept: application/json' -u ${DTP_USER}:${DTP_PASS} ${CTP_URL}/em/api/v3/environments?name=${ENCODED_ENV_NAME}&limit=50&offset=0)
                         # envId=$(echo "$ctp_response" | jq -r '.environments[0].id')
-                        echo ${envId}
-                        curl -k -X 'GET' -H 'accept: application/json' -u ${DTP_USER}:${DTP_PASS} ${CTP_URL}/em/api/v3/environments/${envId}/config | jq . > ctp.json
+                        echo ${CTP_ENV_ID}
+                        curl -k -X 'GET' -H 'accept: application/json' -u ${DTP_USER}:${DTP_PASS} ${CTP_URL}/em/api/v3/environments/${CTP_ENV_ID}/config | jq . > ctp.json
                         cat ctp.json
                         '''
 
@@ -128,10 +124,7 @@ pipeline {
                     // Write the updated JSON back to the file using writeJSON
                     writeJSON file: "ctp.json", json: json, pretty: 4
                     sh "cat ctp.json"
-                }     
-
-                
-
+                }
             }
         }        
         stage('Deploy: Update CTP') {
@@ -156,18 +149,18 @@ pipeline {
                     sleep_seconds=10
                     i=1
                     while [ $i -le $attempts ]; do
-                        resp=$(curl -s --max-time 5 http://localhost:8099/api/customer/owners || true)
-                        if echo "$resp" | grep -q '"id"'; then
+                        http_code=$(curl -s --max-time 5 -o owners.json -w "%{http_code}" http://localhost:8099/api/customer/owners || true)
+                        if [ "$http_code" = "200" ] && jq -e 'type=="array" and length>0' owners.json > /dev/null 2>&1; then
                             echo "Owners API ready."
                             break
                         fi
-                        echo "Owners API not ready (attempt $i/$attempts)."
+                        echo "Owners API not ready (attempt $i/$attempts, status $http_code)."
                         i=$((i+1))
                         sleep $sleep_seconds
                     done
                     if [ $i -gt $attempts ]; then
                         echo "Owners API did not become ready in time."
-                        echo "$resp"
+                        cat owners.json
                         exit 1
                     fi
                     '''
@@ -181,12 +174,11 @@ pipeline {
                 sh '''
                     # upload yaml file to CTP
                     curl -k -X 'PUT' -u ${DTP_USER}:${DTP_PASS} \
-                        ${CTP_URL}/em/api/v3/environments/${envId}/config \
+                        ${CTP_URL}/em/api/v3/environments/${CTP_ENV_ID}/config \
                         -H 'accept: application/json' \
                         -H 'Content-Type: application/json' \
                         -d @ctp.json
                     '''
-            
             }
         }
     }

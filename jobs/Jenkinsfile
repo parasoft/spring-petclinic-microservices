@@ -15,26 +15,24 @@ pipeline {
         string(name: 'LS_URL', defaultValue: '', description: 'Parasoft LS URL')
         string(name: 'CTP_URL', defaultValue: '', description: 'Parasoft CTP URL')
         string(name: 'DTP_URL', defaultValue: '', description: 'Parasoft DTP URL')
-        string(name: 'DTP_USER', defaultValue: '', description: 'Parasoft DTP Username')
+        string(name: 'DTP_USER', defaultValue: 'demo', description: 'Parasoft DTP Username')
         password(name: 'DTP_PASS', defaultValue: '', description: 'Parasoft DTP Password')
         string(name: 'BUILD_ID', defaultValue: 'baseline', description: 'The build Id of the project in DTP and CTP')
-
+        string(name: 'CTP_SYSTEM_NAME', defaultValue: 'Spring PetClinic', description: 'CTP system name')
+        string(name: 'CTP_ENV_NAME', defaultValue: 'QA', description: 'CTP environment name')
+        
         // Add other parameters as needed
     }
     environment {
         // App Details
         app_name = 'spring-petclinic-microservices' // top level DTP Project
-        //services_list = "spring-petclinic-api-gateway,spring-petclinic-vets-service,spring-petclinic-visits-service,spring-petclinic-customers-service"
         
         // Parasoft Settings
-        envId = '32' // need to be dynamically acquired via curl
         jtestUTConfig="jtest.builtin://Unit Tests"
         jtestSAConfig="jtest.builtin://Recommended Rules"
 
         // Dynamic configs
         BUILD_TIMESTAMP = "${BUILD_ID}"
-        //BUILD_TIMESTAMP = sh(script: 'date +%Y%m%d%H%M', returnStdout: true).trim()
-
     }
 
     stages {
@@ -47,15 +45,50 @@ pipeline {
                     branches: [[name: 'feature/ctp-integration-enhancements']], 
                     userRemoteConfigs: [[url: 'https://github.com/parasoft/spring-petclinic-microservices.git']]])
                 
-                // set GID
+                // set UID, GID
                 // set PUBLIC_IP and PRIVATE_IP
                 script {
+                    env.UID = sh(script: 'id -u jenkins', returnStdout: true).trim()
                     env.GID = sh(script: 'id -g jenkins', returnStdout: true).trim()
                     env.PUBLIC_IP = sh(script: """curl -s http://checkip.amazonaws.com """, returnStdout: true).trim()
                     env.PRIVATE_IP = sh(script: '''
-                        TOKEN=$(curl -sX PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
-                        curl -sH "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/local-ipv4
+                        TOKEN=$(curl -sX PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" || true)
+                        if [ -n "$TOKEN" ]; then
+                            curl -sH "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/local-ipv4
+                        else
+                            curl -s http://169.254.169.254/latest/meta-data/local-ipv4
+                        fi
                     ''', returnStdout: true).trim()
+                    if (!env.PRIVATE_IP) {
+                        error('Failed to resolve PRIVATE_IP from EC2 metadata service.')
+                    }
+
+                    // resolve envId from CTP based on provided system and env names
+                    def systemName = params.CTP_SYSTEM_NAME
+                    def envName = params.CTP_ENV_NAME
+                    def encodedSystemName = java.net.URLEncoder.encode(systemName, 'UTF-8')
+                    def encodedEnvName = java.net.URLEncoder.encode(envName, 'UTF-8')
+
+                    def systemResponse = sh(
+                        script: """curl -sk -u ${DTP_USER}:${DTP_PASS} '${CTP_URL}/em/api/v3/systems?name=${encodedSystemName}&limit=50&offset=0'""",
+                        returnStdout: true
+                    ).trim()
+                    def systemJson = new groovy.json.JsonSlurperClassic().parseText(systemResponse)
+                    def systemId = systemJson.systems?.find { it.name == systemName }?.id
+                    if (!systemId) {
+                        error("Failed to resolve systemId for system '${systemName}'.")
+                    }
+
+                    def envResponse = sh(
+                        script: """curl -sk -u ${DTP_USER}:${DTP_PASS} '${CTP_URL}/em/api/v3/environments?name=${encodedEnvName}&limit=50&offset=0'""",
+                        returnStdout: true
+                    ).trim()
+                    def envJson = new groovy.json.JsonSlurperClassic().parseText(envResponse)
+                    def resolvedEnvId = envJson.environments?.find { it.name == envName && it.systemId == systemId }?.id
+                    if (!resolvedEnvId) {
+                        error("Failed to resolve envId for environment '${envName}' and systemId '${systemId}'.")
+                    }
+                    env.CTP_ENV_ID = resolvedEnvId.toString()
                 }
                 
                 // startup Selenium Grid
@@ -75,6 +108,7 @@ pipeline {
                 // set up Parasoft License
                 sh '''
                     # Set Up and write .properties file
+                    # set +x
                     echo $"
                     parasoft.eula.accepted=true
                     
@@ -102,17 +136,17 @@ pipeline {
                     
                     console.verbosity.level=high
                     " >> ./jtest/jtestcli.properties
-                    '''                
+                    # set -x
+                    '''
             }
         }
         stage('Build: Create Docker Images') {
             when { equals expected: true, actual: true }
             steps {
-
+                
                 // build the binaries
                 echo "Building ${env.JOB_NAME}..."
                 sh  '''
-
                     # Build the Maven package
                     ./mvnw clean install -P buildDocker -DskipTests=true
                     '''
@@ -128,29 +162,35 @@ pipeline {
                         // Setup stage-specific additional settings
                         sh '''
                             # Set Up and write .properties file
+                            # set +x
                             echo $"
                             dtp.project=${app_name}
                             build.id=${app_name}-${BUILD_TIMESTAMP}
                             " > ./jtest/jtestcli-sa.properties
+                            # set -x
                         '''
                         
                         sh '''
                             # Set Up and write .properties file
+                            # set +x
                             echo $"
                             dtp.project=${app_name}
                             build.id=${app_name}-${BUILD_TIMESTAMP}
                             report.coverage.images=${app_name};${app_name}-UT
                             report.coverage.static.images=${app_name};${app_name}-UT;${app_name}-FT
                             " >> ./jtest/jtestcli-ut.properties
+                            # set -x
                         '''
                         
                         sh '''
                             # Set Up and write .properties file
+                            # set +x
                             echo $"
                             dtp.project=${app_name}
                             build.id=${app_name}-${BUILD_TIMESTAMP}
                             report.coverage.images=${app_name};${app_name}-FT
                             " >> ./jtest/jtestcli-ft.properties
+                            # set -x
                         '''
                         
                         // Execute the build with Jtest Maven plugin in docker
@@ -163,7 +203,7 @@ pipeline {
                             --network=demo-net \
                             -v "$PWD:$PWD" \
                             -w "$PWD" \
-                            $(docker build --build-arg HOST_UID="$UID" -q ./jtest) /bin/bash -c " \
+                            $(docker build --build-arg HOST_UID="$UID" --build-arg HOST_GID="$GID" -q ./jtest) /bin/bash -c " \
                             
                             # Compile the project and run Jtest Static Analysis
                             mvn -ntp test-compile \
@@ -175,7 +215,7 @@ pipeline {
                             -Djtest.report=./target/jtest/sa \
                             -Djtest.showSettings=true; \
 
-                            # Compile the test sources and run unit tests with Jtest
+                            # Compile the test sources and run unit tests with Jtest, publishing static coverage for functional testing as well
                             mvn -ntp jtest:agent \
                             test \
                             jtest:jtest \
@@ -185,16 +225,8 @@ pipeline {
                             -Djtest.config='${jtestUTConfig}' \
                             -Djtest.report=./target/jtest/ut \
                             -Djtest.showSettings=true; \
-                            
-                            # Package the application with the Jtest Monitor
-                            #mvn -ntp package jtest:monitor \
-                            #-s './jtest/.m2/settings.xml' \
-                            #-Dmaven.test.skip=true \
-                            #-Djtest.settingsList='./jtest/jtestcli.properties,./jtest/jtestcli-ft.properties' \
-                            #-Djtest.showSettings=true \
                             "
                         '''
-                    
                 }
 
                 // Parasoft Findings plugin for Unit Tests Results
@@ -219,23 +251,22 @@ pipeline {
         stage('Deploy: Docker Compose + CTP') {
             when { equals expected: true, actual: true }
             steps {
-
+                
                 build job: 'Petclinic-deploy', parameters: [
                     string(name: 'CTP_URL', value: params.CTP_URL),
                     string(name: 'DTP_USER', value: params.DTP_USER),
                     password(name: 'DTP_PASS', value: params.DTP_PASS),
                     string(name: 'BUILD_TIMESTAMP', value: env.BUILD_TIMESTAMP),
+                    string(name: 'CTP_ENV_ID', value: env.CTP_ENV_ID),
 
                     // Add other parameters as needed
+
                 ]
             }
         }
         stage('Test: Full Selenium Suite') {
             when { equals expected: true, actual: true}
             steps {
-                // Start Selenium grid
-                // docker run -d -p 4444:4444 -p 7900:7900 selenium/standalone-chrome:latest
-                
                 // run Selenium tests
                 sh """
                     mvn -ntp verify \
@@ -255,13 +286,6 @@ pipeline {
                     -DSELENIUM_GRID=true \
                     -DSELENIUM_GRID_URL='http://localhost:4444/wd/hub' \
                     """
-                
-                // Update Baseline build in CTP with latest
-                //sh """
-                //    curl -k -X DELETE -H 'accept: application/json' -u ${DTP_USER}:${DTP_PASS} ${CTP_URL}/em/api/v3/environments/${envId}/coverage/baselines/latest
-                //    curl -k -X POST -H 'accept: application/json' -H 'Content-Type: application/json' -u ${DTP_USER}:${DTP_PASS} ${CTP_URL}/em/api/v3/environments/${envId}/coverage/baselines/latest -d '"string"'
-                //    """
-                
             } 
         }
         stage('Release') {
