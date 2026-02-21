@@ -24,7 +24,7 @@ public class ParasoftSuiteListener implements TestExecutionListener {
 
     @Override
     public void testPlanExecutionStarted(TestPlan testPlan) {
-        ParasoftSettings.setTestFramework("seleniumJUnit");
+        ParasoftSettings.setTestFramework("seleniumJUnitParallel");
 
         // If the CTP coverage agents are in multi-user mode, then parallel test execution must be handled at the
         // test level (i.e., WebDriver instance).  However, for sequential test execution where the coverage agents
