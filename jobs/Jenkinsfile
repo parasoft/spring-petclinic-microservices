@@ -272,11 +272,12 @@ pipeline {
                 ]
             }
         }
-        stage('Test: Full Selenium Suite') {
+        stage('Test: Full Selenium Suites') {
             when { equals expected: true, actual: true}
             steps {
                 // run Selenium tests
                 sh '''
+                    echo "Running Selenium JUnit 5 module with Selenium Grid, sequential execution, and publishing to DTP/CTP..."
                     set +x
                     mvn -ntp verify \
                     -pl spring-petclinic-selenium-tests \
@@ -294,6 +295,86 @@ pipeline {
                     -DPROXY_BIND_HOST=0.0.0.0 \
                     -DSELENIUM_GRID=true \
                     -DSELENIUM_GRID_URL='http://localhost:4444/wd/hub'
+                    '''
+                sh '''
+                    echo "Running Selenium JUnit5 + Cucumber module with Selenium Grid, sequential execution, and publishing to DTP/CTP..."
+                    set +x
+                    mvn -ntp verify \
+                    -pl spring-petclinic-selenium-cucumber-tests \
+                    -am \
+                    -DPETCLINIC_URL="http://$PUBLIC_IP:8099" \
+                    -DHEADLESS=false \
+                    -DCTP_BASE_URL="$CTP_URL" \
+                    -DCTP_ENV_ID=$CTP_ENV_ID \
+                    -DCTP_USERNAME=$DTP_USER \
+                    -DCTP_PASSWORD=$DTP_PASS \
+                    -DCTP_MULTIUSER_MODE=true \
+                    -DCTP_PUBLISH_BASELINE=false \
+                    -DCTP_BASELINE_BUILD_ID=latest \
+                    -DPROXY_HOST=$PRIVATE_IP \
+                    -DPROXY_BIND_HOST=0.0.0.0 \
+                    -DSELENIUM_GRID=true \
+                    -DSELENIUM_GRID_URL='http://localhost:4444/wd/hub'
+                    '''
+                sh '''
+                    echo "Running Selenium TestNG module with Selenium Grid, sequential execution, and publishing to DTP/CTP..."
+                    set +x
+                    mvn -ntp verify \
+                    -pl spring-petclinic-selenium-testng-tests \
+                    -am \
+                    -DPETCLINIC_URL="http://$PUBLIC_IP:8099" \
+                    -DHEADLESS=false \
+                    -DCTP_BASE_URL="$CTP_URL" \
+                    -DCTP_ENV_ID=$CTP_ENV_ID \
+                    -DCTP_USERNAME=$DTP_USER \
+                    -DCTP_PASSWORD=$DTP_PASS \
+                    -DCTP_MULTIUSER_MODE=true \
+                    -DCTP_PUBLISH_BASELINE=false \
+                    -DCTP_BASELINE_BUILD_ID=latest \
+                    -DPROXY_HOST=$PRIVATE_IP \
+                    -DPROXY_BIND_HOST=0.0.0.0 \
+                    -DSELENIUM_GRID=true \
+                    -DSELENIUM_GRID_URL='http://localhost:4444/wd/hub'
+                    '''
+                sh '''
+                    echo "Running Selenium JUnit 5 parallel module with Selenium Grid, parallel execution, and publishing to DTP/CTP..."
+                    set +x
+                    mvn -ntp verify \
+                    -pl spring-petclinic-selenium-parallel-tests \
+                    -am \
+                    -DPETCLINIC_URL="http://$PUBLIC_IP:8099" \
+                    -DHEADLESS=false \
+                    -DCTP_BASE_URL="$CTP_URL" \
+                    -DCTP_ENV_ID=$CTP_ENV_ID \
+                    -DCTP_USERNAME=$DTP_USER \
+                    -DCTP_PASSWORD=$DTP_PASS \
+                    -DCTP_MULTIUSER_MODE=true \
+                    -DCTP_PUBLISH_BASELINE=false \
+                    -DCTP_BASELINE_BUILD_ID=latest \
+                    -DPROXY_HOST=$PRIVATE_IP \
+                    -DPROXY_BIND_HOST=0.0.0.0 \
+                    -DSELENIUM_GRID=true \
+                    -DSELENIUM_GRID_URL='http://localhost:4444/wd/hub' \
+                    -Djunit.jupiter.execution.parallel.enabled=true \
+                    -Djunit.jupiter.execution.parallel.mode.classes.default=concurrent
+                    '''
+                sh '''
+                    echo "Running Playwright JUnit 5 module, sequential execution, and publishing to DTP/CTP..."
+                    set +x
+                    mvn -ntp verify \
+                    -pl spring-petclinic-playwright-tests \
+                    -am \
+                    -DPETCLINIC_URL="http://$PUBLIC_IP:8099" \
+                    -DHEADLESS=false \
+                    -DCTP_BASE_URL="$CTP_URL" \
+                    -DCTP_ENV_ID=$CTP_ENV_ID \
+                    -DCTP_USERNAME=$DTP_USER \
+                    -DCTP_PASSWORD=$DTP_PASS \
+                    -DCTP_MULTIUSER_MODE=true \
+                    -DCTP_PUBLISH_BASELINE=false \
+                    -DCTP_BASELINE_BUILD_ID=latest \
+                    -DPROXY_HOST=$PRIVATE_IP \
+                    -DPROXY_BIND_HOST=0.0.0.0
                     '''
             } 
         }
