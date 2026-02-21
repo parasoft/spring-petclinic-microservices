@@ -1,11 +1,11 @@
-package org.springframework.samples.petclinic.selenium;
+package org.springframework.samples.petclinic.selenium.testng;
 
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.logging.Logger;
 
-import org.springframework.samples.petclinic.selenium.util.ParasoftSeleniumContext;
-import org.springframework.samples.petclinic.selenium.util.ParasoftWatcher;
+import org.springframework.samples.petclinic.selenium.testng.util.ParasoftSeleniumContext;
+import org.springframework.samples.petclinic.selenium.testng.util.ParasoftWatcher;
 import org.springframework.samples.petclinic.testcommon.ParasoftHeaderInjectingProxy;
 import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
 
@@ -18,17 +18,17 @@ import org.testng.annotations.Listeners;
 import org.testng.annotations.Test;
 
 import org.openqa.selenium.By;
-import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.Proxy;
+import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.remote.RemoteWebDriver;
 
 @Listeners({ParasoftWatcher.class})
-public class PetIT {
-    private static final Logger LOGGER = Logger.getLogger(PetIT.class.getName());
-	private static String PETCLINIC_URL = System.getProperty("PETCLINIC_URL", "http://localhost:8099/");
-    
+public class NavigateIT {
+    private static final Logger LOGGER = Logger.getLogger(NavigateIT.class.getName());
+    private static String PETCLINIC_URL = System.getProperty("PETCLINIC_URL", "http://localhost:8099");
+
     private static WebDriver driver;
     private static HttpProxyServer proxy;
 
@@ -53,21 +53,21 @@ public class PetIT {
             options.addArguments("--headless=new");
         }
         // Initialize RemoteWebDriver when running on Selenium Grid; coverage user ID is fixed per suite
-		if (ParasoftSettings.isSeleniumGrid()) {
-			String gridUrl = ParasoftSettings.SELENIUM_GRID_URL;
-			try {
-				driver = new RemoteWebDriver(new URL(gridUrl), options, false);
-				if (ParasoftSettings.CTP_DEBUG) {
-					LOGGER.info("[PetIT] Using Selenium Grid at " + gridUrl);
-				}
-			} catch (MalformedURLException me) {
-				throw new RuntimeException("Failed to connect to Selenium Grid at " + gridUrl, me);
-			} catch (Exception e) {
-				throw new RuntimeException("General failure to initialize RemoteWebDriver for Selenium Grid at " + gridUrl, e);
-			}
-		} else {
-			driver = new ChromeDriver(options);
-		}
+        if (ParasoftSettings.isSeleniumGrid()) {
+            String gridUrl = ParasoftSettings.SELENIUM_GRID_URL;
+            try {
+                driver = new RemoteWebDriver(new URL(gridUrl), options, false);
+                if (ParasoftSettings.CTP_DEBUG) {
+                    LOGGER.info("[NavigateIT] Using Selenium Grid at " + gridUrl);
+                }
+            } catch (MalformedURLException me) {
+                throw new RuntimeException("Failed to connect to Selenium Grid at " + gridUrl, me);
+            } catch (Exception e) {
+                throw new RuntimeException("General failure to initialize RemoteWebDriver for Selenium Grid at " + gridUrl, e);
+            }
+        } else {
+            driver = new ChromeDriver(options);
+        }
     }
 
     @AfterClass
@@ -81,8 +81,10 @@ public class PetIT {
     }
 
     @Test
-    public void testRenamePet() throws Exception {
+    public void testPetClinicNavigation() throws Exception {
         driver.get(PETCLINIC_URL);
+        Thread.sleep(1000);
+        driver.findElement(By.xpath("//a[@title=\"veterinarians\"]")).click();
         Thread.sleep(1000);
         driver.findElement(By.xpath("//a[@class=\"dropdown-toggle\"]")).click();
         Thread.sleep(1000);
@@ -92,19 +94,7 @@ public class PetIT {
         Thread.sleep(1000);
         driver.findElement(By.xpath("//dd/a")).click();
         Thread.sleep(1000);
-        driver.findElement(By.name("name")).clear();
-        driver.findElement(By.name("name")).sendKeys("Lena");
-        Thread.sleep(1000);
-        driver.findElement(By.xpath("//button[@type=\"submit\"]")).click();
-        Thread.sleep(1000);
-        driver.findElement(By.xpath("//dd/a")).click();
-        Thread.sleep(1000);
-        driver.findElement(By.name("name")).clear();
-        driver.findElement(By.name("name")).sendKeys("Leo");
-        Thread.sleep(1000);
-        driver.findElement(By.xpath("//button[@type=\"submit\"]")).click();
-        Thread.sleep(1000);
         driver.findElement(By.xpath("//a[@title=\"home page\"]")).click();
-        Assert.assertTrue(true, "Pet rename test completed");
+        Assert.assertTrue(true, "Navigation test completed");
     }
 }

@@ -1,1 +1,1 @@
-org.springframework.samples.petclinic.selenium.util.ParasoftSuiteListener
+org.springframework.samples.petclinic.selenium.tests.util.ParasoftSuiteListener

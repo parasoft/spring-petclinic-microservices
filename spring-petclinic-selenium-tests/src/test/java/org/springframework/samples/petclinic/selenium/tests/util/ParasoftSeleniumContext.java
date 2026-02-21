@@ -1,4 +1,4 @@
-package org.springframework.samples.petclinic.selenium.util;
+package org.springframework.samples.petclinic.selenium.tests.util;
 
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -19,7 +19,7 @@ public final class ParasoftSeleniumContext {
         if (!ParasoftSettings.isMultiUserMode()) {
             return;
         }
-        
+
         // coverageUserId convention: {testFramework}-{ctpUsername}-{sessionId}
         // When coverage agents are deployed in multi-user mode, CTP test sessions are
         // owned by a userId. Test sessions are started/stopped using the userId as an

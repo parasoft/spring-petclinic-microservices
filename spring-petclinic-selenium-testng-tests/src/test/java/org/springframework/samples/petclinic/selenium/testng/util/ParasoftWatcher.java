@@ -9,7 +9,7 @@
  * Handles authentication, error logging, and multi-user mode support.
  */
 
-package org.springframework.samples.petclinic.selenium.util;
+package org.springframework.samples.petclinic.selenium.testng.util;
 
 import org.springframework.samples.petclinic.testcommon.ParasoftCTPApiClient;
 import org.springframework.samples.petclinic.testcommon.ParasoftSettings;

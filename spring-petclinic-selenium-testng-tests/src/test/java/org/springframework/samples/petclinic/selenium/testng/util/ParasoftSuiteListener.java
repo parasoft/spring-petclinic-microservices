@@ -1,7 +1,7 @@
 /**
  * ParasoftSuiteListener integrates with Parasoft CTP and DTP during test execution.
  * <p>
- * This class implements the JUnit Platform TestExecutionListener interface to automate
+ * This class implements the TestNG ISuiteListener interface to automate
  * the following actions:
  * <ul>
  *   <li>Starts a coverage session in Parasoft CTP when the test plan begins</li>
@@ -10,20 +10,20 @@
  * </ul>
  * It handles REST API calls, authentication, and error logging for these operations.
  */
-package org.springframework.samples.petclinic.selenium.util;
+
+package org.springframework.samples.petclinic.selenium.testng.util;
 
 import org.springframework.samples.petclinic.testcommon.ParasoftCTPApiClient;
 import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
+import org.testng.ISuite;
+import org.testng.ISuiteListener;
 
-import org.junit.platform.launcher.TestExecutionListener;
-import org.junit.platform.launcher.TestPlan;
-
-public class ParasoftSuiteListener implements TestExecutionListener {
+public class ParasoftSuiteListener implements ISuiteListener {
     private String sessionId;
 
     @Override
-    public void testPlanExecutionStarted(TestPlan testPlan) {
-        ParasoftSettings.setTestFramework("seleniumJUnit");
+    public void onStart(ISuite suite) {
+        ParasoftSettings.setTestFramework("seleniumTestNG");
         // This module uses a fixed coverage user ID per suite.
         ParasoftSeleniumContext.initForSuite();
         if (ParasoftSettings.isMultiUserMode()) {
@@ -35,7 +35,7 @@ public class ParasoftSuiteListener implements TestExecutionListener {
     }
 
     @Override
-    public void testPlanExecutionFinished(TestPlan testPlan) {
+    public void onFinish(ISuite suite) {
         if (ParasoftSettings.isMultiUserMode()) {
             ParasoftCTPApiClient.stopSession(ParasoftSeleniumContext.getCoverageUserId());
             if (sessionId != null && !sessionId.isBlank()) {

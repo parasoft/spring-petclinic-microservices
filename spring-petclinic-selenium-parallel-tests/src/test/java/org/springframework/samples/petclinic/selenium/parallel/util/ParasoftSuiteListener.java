@@ -10,7 +10,7 @@
  * </ul>
  * It handles REST API calls, authentication, and error logging for these operations.
  */
-package org.springframework.samples.petclinic.selenium.util;
+package org.springframework.samples.petclinic.selenium.parallel.util;
 
 import org.springframework.samples.petclinic.testcommon.ParasoftCTPApiClient;
 import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
@@ -25,13 +25,13 @@ public class ParasoftSuiteListener implements TestExecutionListener {
     @Override
     public void testPlanExecutionStarted(TestPlan testPlan) {
         ParasoftSettings.setTestFramework("seleniumJUnit");
-		
+
         // If the CTP coverage agents are in multi-user mode, then parallel test execution must be handled at the
         // test level (i.e., WebDriver instance).  However, for sequential test execution where the coverage agents
         // are not in multi-user mode, a single CTP test session can be created for the entire suite here in the suite listener
         if (!ParasoftSettings.isMultiUserMode()) {
-			ctpTestSessionId = ParasoftCTPApiClient.startSession();
-		}
+            ctpTestSessionId = ParasoftCTPApiClient.startSession();
+        }
     }
 
     @Override

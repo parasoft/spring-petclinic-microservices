@@ -374,7 +374,8 @@ pipeline {
                     -DCTP_PUBLISH_BASELINE=false \
                     -DCTP_BASELINE_BUILD_ID=latest \
                     -DPROXY_HOST=$PRIVATE_IP \
-                    -DPROXY_BIND_HOST=0.0.0.0
+                    -DPROXY_BIND_HOST=0.0.0.0 \
+                    -DHEADLESS=true
                     '''
             } 
         }
