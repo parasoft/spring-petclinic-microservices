@@ -309,7 +309,7 @@ pipeline {
                     -DCTP_PASSWORD=$DTP_PASS \
                     -DCTP_MULTIUSER_MODE=true \
                     -DCTP_PUBLISH_BASELINE=true \
-                    -DCTP_BASELINE_BUILD_ID=latest \
+                    -DCTP_BASELINE_BUILD_ID=${app_name}-${BUILD_TIMESTAMP} \
                     -DCTP_DEBUG=${CTP_DEBUG} \
                     -DPROXY_HOST=$PRIVATE_IP \
                     -DPROXY_BIND_HOST=0.0.0.0 \
@@ -332,7 +332,7 @@ pipeline {
                     -DCTP_PASSWORD=$DTP_PASS \
                     -DCTP_MULTIUSER_MODE=true \
                     -DCTP_PUBLISH_BASELINE=true \
-                    -DCTP_BASELINE_BUILD_ID=latest \
+                    -DCTP_BASELINE_BUILD_ID=${app_name}-${BUILD_TIMESTAMP} \
                     -DCTP_DEBUG=${CTP_DEBUG} \
                     -DPROXY_HOST=$PRIVATE_IP \
                     -DPROXY_BIND_HOST=0.0.0.0 \
@@ -355,7 +355,7 @@ pipeline {
                     -DCTP_PASSWORD=$DTP_PASS \
                     -DCTP_MULTIUSER_MODE=true \
                     -DCTP_PUBLISH_BASELINE=true \
-                    -DCTP_BASELINE_BUILD_ID=latest \
+                    -DCTP_BASELINE_BUILD_ID=${app_name}-${BUILD_TIMESTAMP} \
                     -DCTP_DEBUG=${CTP_DEBUG} \
                     -DPROXY_HOST=$PRIVATE_IP \
                     -DPROXY_BIND_HOST=0.0.0.0 \
@@ -378,7 +378,7 @@ pipeline {
                     -DCTP_PASSWORD=$DTP_PASS \
                     -DCTP_MULTIUSER_MODE=true \
                     -DCTP_PUBLISH_BASELINE=true \
-                    -DCTP_BASELINE_BUILD_ID=latest \
+                    -DCTP_BASELINE_BUILD_ID=${app_name}-${BUILD_TIMESTAMP} \
                     -DCTP_DEBUG=${CTP_DEBUG} \
                     -DPROXY_HOST=$PRIVATE_IP \
                     -DPROXY_BIND_HOST=0.0.0.0 \
@@ -403,7 +403,7 @@ pipeline {
                     -DCTP_PASSWORD=$DTP_PASS \
                     -DCTP_MULTIUSER_MODE=true \
                     -DCTP_PUBLISH_BASELINE=true \
-                    -DCTP_BASELINE_BUILD_ID=latest \
+                    -DCTP_BASELINE_BUILD_ID=${app_name}-${BUILD_TIMESTAMP} \
                     -DCTP_DEBUG=${CTP_DEBUG} \
                     -DPROXY_HOST=$PRIVATE_IP \
                     -DPROXY_BIND_HOST=0.0.0.0 \
