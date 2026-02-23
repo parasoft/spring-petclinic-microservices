@@ -20,7 +20,8 @@ pipeline {
         string(name: 'BUILD_ID', defaultValue: 'baseline', description: 'The build Id of the project in DTP and CTP')
         string(name: 'CTP_SYSTEM_NAME', defaultValue: 'Spring PetClinic', description: 'CTP system name')
         string(name: 'CTP_ENV_NAME', defaultValue: 'QA', description: 'CTP environment name')
-        
+        string(name: 'CTP_DEBUG', defaultValue: 'false', description: 'Enable debug logging for Jenkins pipeline')
+
         // Add other parameters as needed
     }
     environment {
@@ -71,9 +72,9 @@ pipeline {
 
                     def systemResponse = sh(
                         script: """
-                            set +x
+                            #set +x
                             curl -sk -u ${DTP_USER}:${DTP_PASS} '${CTP_URL}/em/api/v3/systems?name=${encodedSystemName}&limit=50&offset=0'
-                            set -x
+                            #set -x
                         """,
                         returnStdout: true
                     ).trim()
@@ -85,9 +86,9 @@ pipeline {
 
                     def envResponse = sh(
                         script: """
-                            set +x
+                            #set +x
                             curl -sk -u ${DTP_USER}:${DTP_PASS} '${CTP_URL}/em/api/v3/environments?name=${encodedEnvName}&limit=50&offset=0'
-                            set -x
+                            #set -x
                         """,
                         returnStdout: true
                     ).trim()
@@ -116,7 +117,9 @@ pipeline {
                 // set up Parasoft License
                 sh '''
                     # Set Up and write .properties file
-                    set +x
+                    if [ "${CTP_DEBUG}" != "true" ]; then
+                        set +x
+                    fi
                     echo $"
                     parasoft.eula.accepted=true
                     
@@ -144,7 +147,9 @@ pipeline {
                     
                     console.verbosity.level=high
                     " >> ./jtest/jtestcli.properties
-                    set -x
+                    if [ "${CTP_DEBUG}" != "true" ]; then
+                        set -x
+                    fi
                     '''
             }
         }
@@ -170,35 +175,47 @@ pipeline {
                         // Setup stage-specific additional settings
                         sh '''
                             # Set Up and write .properties file
-                            set +x
+                            if [ "${CTP_DEBUG}" != "true" ]; then
+                                set +x
+                            fi
                             echo $"
                             dtp.project=${app_name}
                             build.id=${app_name}-${BUILD_TIMESTAMP}
                             " > ./jtest/jtestcli-sa.properties
-                            set -x
+                            if [ "${CTP_DEBUG}" != "true" ]; then
+                                set -x
+                            fi
                         '''
                         
                         sh '''
                             # Set Up and write .properties file
-                            set +x
+                            if [ "${CTP_DEBUG}" != "true" ]; then
+                                set +x
+                            fi
                             echo $"
                             dtp.project=${app_name}
                             build.id=${app_name}-${BUILD_TIMESTAMP}
                             report.coverage.images=${app_name};${app_name}-UT
                             report.coverage.static.images=${app_name};${app_name}-UT;${app_name}-FT
                             " >> ./jtest/jtestcli-ut.properties
-                            set -x
+                            if [ "${CTP_DEBUG}" != "true" ]; then
+                                set -x
+                            fi
                         '''
                         
                         sh '''
                             # Set Up and write .properties file
-                            set +x
+                            if [ "${CTP_DEBUG}" != "true" ]; then
+                                set +x
+                            fi
                             echo $"
                             dtp.project=${app_name}
                             build.id=${app_name}-${BUILD_TIMESTAMP}
                             report.coverage.images=${app_name};${app_name}-FT
                             " >> ./jtest/jtestcli-ft.properties
-                            set -x
+                            if [ "${CTP_DEBUG}" != "true" ]; then
+                                set -x
+                            fi
                         '''
                         
                         // Execute the build with Jtest Maven plugin in docker
@@ -278,7 +295,9 @@ pipeline {
                 // run Selenium tests
                 sh '''
                     echo "Running Selenium JUnit 5 module with Selenium Grid, sequential execution, and publishing to DTP/CTP..."
-                    set +x
+                    if [ "${CTP_DEBUG}" != "true" ]; then
+                        set +x
+                    fi
                     mvn -ntp verify \
                     -pl spring-petclinic-selenium-tests \
                     -am \
@@ -291,6 +310,7 @@ pipeline {
                     -DCTP_MULTIUSER_MODE=true \
                     -DCTP_PUBLISH_BASELINE=false \
                     -DCTP_BASELINE_BUILD_ID=latest \
+                    -DCTP_DEBUG=${CTP_DEBUG} \
                     -DPROXY_HOST=$PRIVATE_IP \
                     -DPROXY_BIND_HOST=0.0.0.0 \
                     -DSELENIUM_GRID=true \
@@ -298,7 +318,9 @@ pipeline {
                     '''
                 sh '''
                     echo "Running Selenium JUnit5 + Cucumber module with Selenium Grid, sequential execution, and publishing to DTP/CTP..."
-                    set +x
+                    if [ "${CTP_DEBUG}" != "true" ]; then
+                        set +x
+                    fi
                     mvn -ntp verify \
                     -pl spring-petclinic-selenium-cucumber-tests \
                     -am \
@@ -311,6 +333,7 @@ pipeline {
                     -DCTP_MULTIUSER_MODE=true \
                     -DCTP_PUBLISH_BASELINE=false \
                     -DCTP_BASELINE_BUILD_ID=latest \
+                    -DCTP_DEBUG=${CTP_DEBUG} \
                     -DPROXY_HOST=$PRIVATE_IP \
                     -DPROXY_BIND_HOST=0.0.0.0 \
                     -DSELENIUM_GRID=true \
@@ -318,7 +341,9 @@ pipeline {
                     '''
                 sh '''
                     echo "Running Selenium TestNG module with Selenium Grid, sequential execution, and publishing to DTP/CTP..."
-                    set +x
+                    if [ "${CTP_DEBUG}" != "true" ]; then
+                        set +x
+                    fi
                     mvn -ntp verify \
                     -pl spring-petclinic-selenium-testng-tests \
                     -am \
@@ -331,6 +356,7 @@ pipeline {
                     -DCTP_MULTIUSER_MODE=true \
                     -DCTP_PUBLISH_BASELINE=false \
                     -DCTP_BASELINE_BUILD_ID=latest \
+                    -DCTP_DEBUG=${CTP_DEBUG} \
                     -DPROXY_HOST=$PRIVATE_IP \
                     -DPROXY_BIND_HOST=0.0.0.0 \
                     -DSELENIUM_GRID=true \
@@ -338,7 +364,9 @@ pipeline {
                     '''
                 sh '''
                     echo "Running Selenium JUnit 5 parallel module with Selenium Grid, parallel execution, and publishing to DTP/CTP..."
-                    set +x
+                    if [ "${CTP_DEBUG}" != "true" ]; then
+                        set +x
+                    fi
                     mvn -ntp verify \
                     -pl spring-petclinic-selenium-parallel-tests \
                     -am \
@@ -351,6 +379,7 @@ pipeline {
                     -DCTP_MULTIUSER_MODE=true \
                     -DCTP_PUBLISH_BASELINE=false \
                     -DCTP_BASELINE_BUILD_ID=latest \
+                    -DCTP_DEBUG=${CTP_DEBUG} \
                     -DPROXY_HOST=$PRIVATE_IP \
                     -DPROXY_BIND_HOST=0.0.0.0 \
                     -DSELENIUM_GRID=true \
@@ -360,7 +389,9 @@ pipeline {
                     '''
                 sh '''
                     echo "Running Playwright JUnit 5 module, sequential execution, and publishing to DTP/CTP..."
-                    set +x
+                    if [ "${CTP_DEBUG}" != "true" ]; then
+                        set +x
+                    fi
                     mvn -ntp verify \
                     -pl spring-petclinic-playwright-tests \
                     -am \
@@ -373,6 +404,7 @@ pipeline {
                     -DCTP_MULTIUSER_MODE=true \
                     -DCTP_PUBLISH_BASELINE=true \
                     -DCTP_BASELINE_BUILD_ID=latest \
+                    -DCTP_DEBUG=${CTP_DEBUG} \
                     -DPROXY_HOST=$PRIVATE_IP \
                     -DPROXY_BIND_HOST=0.0.0.0 \
                     -DHEADLESS=true
