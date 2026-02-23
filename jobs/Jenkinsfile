@@ -308,7 +308,7 @@ pipeline {
                     -DCTP_USERNAME=$DTP_USER \
                     -DCTP_PASSWORD=$DTP_PASS \
                     -DCTP_MULTIUSER_MODE=true \
-                    -DCTP_PUBLISH_BASELINE=false \
+                    -DCTP_PUBLISH_BASELINE=true \
                     -DCTP_BASELINE_BUILD_ID=latest \
                     -DCTP_DEBUG=${CTP_DEBUG} \
                     -DPROXY_HOST=$PRIVATE_IP \
@@ -331,7 +331,7 @@ pipeline {
                     -DCTP_USERNAME=$DTP_USER \
                     -DCTP_PASSWORD=$DTP_PASS \
                     -DCTP_MULTIUSER_MODE=true \
-                    -DCTP_PUBLISH_BASELINE=false \
+                    -DCTP_PUBLISH_BASELINE=true \
                     -DCTP_BASELINE_BUILD_ID=latest \
                     -DCTP_DEBUG=${CTP_DEBUG} \
                     -DPROXY_HOST=$PRIVATE_IP \
@@ -354,7 +354,7 @@ pipeline {
                     -DCTP_USERNAME=$DTP_USER \
                     -DCTP_PASSWORD=$DTP_PASS \
                     -DCTP_MULTIUSER_MODE=true \
-                    -DCTP_PUBLISH_BASELINE=false \
+                    -DCTP_PUBLISH_BASELINE=true \
                     -DCTP_BASELINE_BUILD_ID=latest \
                     -DCTP_DEBUG=${CTP_DEBUG} \
                     -DPROXY_HOST=$PRIVATE_IP \
@@ -377,7 +377,7 @@ pipeline {
                     -DCTP_USERNAME=$DTP_USER \
                     -DCTP_PASSWORD=$DTP_PASS \
                     -DCTP_MULTIUSER_MODE=true \
-                    -DCTP_PUBLISH_BASELINE=false \
+                    -DCTP_PUBLISH_BASELINE=true \
                     -DCTP_BASELINE_BUILD_ID=latest \
                     -DCTP_DEBUG=${CTP_DEBUG} \
                     -DPROXY_HOST=$PRIVATE_IP \
