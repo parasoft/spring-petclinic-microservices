@@ -425,6 +425,12 @@ pipeline {
 
         // Clean after build
         always {
+            sh '''
+                if [ "${CTP_DEBUG}" = "true" ]; then
+                    echo "--- selenium-grid logs (CTP_DEBUG=true) ---"
+                    docker logs selenium-grid || true
+                fi
+                '''
             sh 'docker container stop selenium-grid'
             sh 'docker container prune -f'
             sh 'docker image prune -f'
