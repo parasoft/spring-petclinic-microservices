@@ -7,7 +7,7 @@ pipeline {
     options {
         // This is required if you want to clean before build
         skipDefaultCheckout(true)
-        
+
         // Ontly keep 5 jobs history and 2 jobs artifacts
         buildDiscarder(logRotator(numToKeepStr: '5', artifactNumToKeepStr: '2'))
     }
@@ -15,25 +15,28 @@ pipeline {
         string(name: 'LS_URL', defaultValue: '', description: 'Parasoft LS URL')
         string(name: 'CTP_URL', defaultValue: '', description: 'Parasoft CTP URL')
         string(name: 'DTP_URL', defaultValue: '', description: 'Parasoft DTP URL')
-        string(name: 'DTP_USER', defaultValue: '', description: 'Parasoft DTP Username')
+        string(name: 'DTP_USER', defaultValue: 'demo', description: 'Parasoft DTP Username')
         password(name: 'DTP_PASS', defaultValue: '', description: 'Parasoft DTP Password')
         string(name: 'BUILD_ID', defaultValue: 'baseline-tia', description: 'The build Id of the project in DTP and CTP')
+        string(name: 'CTP_SYSTEM_NAME', defaultValue: 'Spring PetClinic', description: 'CTP system name')
+        string(name: 'CTP_ENV_NAME', defaultValue: 'QA', description: 'CTP environment name')
+        string(name: 'CTP_DEBUG', defaultValue: 'false', description: 'Enable debug logging for Jenkins pipeline')
 
-        // Add other parameters as needed
+    // Add other parameters as needed
     }
     environment {
         // App Details
         app_name = 'spring-petclinic-microservices' // top level DTP Project
         //services_list = "spring-petclinic-api-gateway,spring-petclinic-vets-service,spring-petclinic-visits-service,spring-petclinic-customers-service"
-        
+
         // Parasoft Settings
-        envId = '32' // need to be dynamically acquired via curl
-        jtestUTConfig="jtest.builtin://Unit Tests"
-        jtestSAConfig="jtest.builtin://Recommended Rules"
+        jtestUTConfig = 'jtest.builtin://Unit Tests'
+        jtestSAConfig = 'jtest.builtin://Recommended Rules'
 
         // Dynamic configs
         BUILD_TIMESTAMP = "${BUILD_ID}"
         // BUILD_TIMESTAMP = sh(script: 'date +%Y%m%d%H%M', returnStdout: true).trim()
+        BASELINE_ID = "${app_name}-baseline2"
     }
 
     stages {
@@ -42,16 +45,62 @@ pipeline {
                 // Clean workspace before build
                 cleanWs()
                 // Checkout project
-                checkout([$class: 'GitSCM', 
-                    branches: [[name: 'master']], 
-                    userRemoteConfigs: [[url: 'https://github.com/Parasoft-TS/spring-petclinic-microservices.git']]])
-                
-                // set GID
-                // set PUBLIC_IP
+                checkout([$class: 'GitSCM',
+                    branches: [[name: 'feature/tia-demo']],
+                    userRemoteConfigs: [[url: 'https://github.com/parasoft/spring-petclinic-microservices.git']]])
+
+                // set UID, GID
+                // set PUBLIC_IP and PRIVATE_IP
                 script {
+                    env.UID = sh(script: 'id -u jenkins', returnStdout: true).trim()
                     env.GID = sh(script: 'id -g jenkins', returnStdout: true).trim()
-                    //env.PUBLIC_IP = sh(script: """curl -s https://httpbin.org/ip | jq -r '.origin'""", returnStdout: true).trim()
-                    env.PUBLIC_IP = sh(script: """curl -s http://checkip.amazonaws.com """, returnStdout: true).trim()
+                    env.PUBLIC_IP = sh(script: '''curl -s http://checkip.amazonaws.com ''', returnStdout: true).trim()
+                    env.PRIVATE_IP = sh(script: '''
+                        TOKEN=$(curl -sX PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" || true)
+                        if [ -n "$TOKEN" ]; then
+                            curl -sH "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/local-ipv4
+                        else
+                            curl -s http://169.254.169.254/latest/meta-data/local-ipv4
+                        fi
+                    ''', returnStdout: true).trim()
+                    if (!env.PRIVATE_IP) {
+                        error('Failed to resolve PRIVATE_IP from EC2 metadata service.')
+                    }
+
+                    // resolve envId from CTP based on provided system and env names
+                    def systemName = params.CTP_SYSTEM_NAME
+                    def envName = params.CTP_ENV_NAME
+                    def encodedSystemName = java.net.URLEncoder.encode(systemName, 'UTF-8')
+                    def encodedEnvName = java.net.URLEncoder.encode(envName, 'UTF-8')
+
+                    def systemResponse = sh(
+                        script: """
+                            #set +x
+                            curl -sk -u ${DTP_USER}:${DTP_PASS} '${CTP_URL}/em/api/v3/systems?name=${encodedSystemName}&limit=50&offset=0'
+                            #set -x
+                        """,
+                        returnStdout: true
+                    ).trim()
+                    def systemJson = new groovy.json.JsonSlurperClassic().parseText(systemResponse)
+                    def systemId = systemJson.systems?.find { it.name == systemName }?.id
+                    if (!systemId) {
+                        error("Failed to resolve systemId for system '${systemName}'.")
+                    }
+
+                    def envResponse = sh(
+                        script: """
+                            #set +x
+                            curl -sk -u ${DTP_USER}:${DTP_PASS} '${CTP_URL}/em/api/v3/environments?name=${encodedEnvName}&limit=50&offset=0'
+                            #set -x
+                        """,
+                        returnStdout: true
+                    ).trim()
+                    def envJson = new groovy.json.JsonSlurperClassic().parseText(envResponse)
+                    def resolvedEnvId = envJson.environments?.find { it.name == envName && it.systemId == systemId }?.id
+                    if (!resolvedEnvId) {
+                        error("Failed to resolve envId for environment '${envName}' and systemId '${systemId}'.")
+                    }
+                    env.CTP_ENV_ID = resolvedEnvId.toString()
                 }
 
                 // startup Selenium Grid
@@ -63,35 +112,48 @@ pipeline {
                 // set up Parasoft License
                 sh '''
                     # Set Up and write .properties file
+                    if [ "${CTP_DEBUG}" != "true" ]; then
+                        set +x
+                    fi
                     echo $"
                     parasoft.eula.accepted=true
-                    
+
                     jtest.license.use_network=true
                     jtest.license.network.edition=server_edition
-                    
+
                     license.network.use.specified.server=true
                     license.network.auth.enabled=true
                     license.network.url=${LS_URL}
                     license.network.user=${DTP_USER}
                     license.network.password=${DTP_PASS}
-                    
+
                     dtp.url=${DTP_URL}
                     dtp.user=${DTP_USER}
                     dtp.password=${DTP_PASS}
-                    
+
+                    scontrol.git.exec=git
+                    scontrol.rep1.git.branch=feature/demo-tia
+                    scontrol.rep1.git.url=https://github.com/parasoft/spring-petclinic-microservices.git
+                    scontrol.rep1.type=git
+
                     report.scontrol=min
                     report.coverage.line.hashes=true
-                    report.dtp.publish=true
-                    
+                    report.dtp.publish=false
+
                     console.verbosity.level=high
                     " >> ./jtest/jtestcli.properties
-                    '''                
+                    if [ "${CTP_DEBUG}" != "true" ]; then
+                        set -x
+                    fi
+                    '''
+
+                // copy artfoacts from latest successful baseline
+                copyArtifacts projectName: 'Petclinic-baseline', selector: lastSuccessful(), target: './baseline-artifacts'
             }
         }
         stage('Build: Create Docker Images') {
             when { equals expected: true, actual: true }
             steps {
-
                 // build the binaries
                 echo "Building ${env.JOB_NAME}..."
                 sh  '''
@@ -104,39 +166,54 @@ pipeline {
         stage('Build: Jtest UT + Static Cov') {
             when { equals expected: true, actual: true }
             steps {
-                // copy artfoacts from latest successful baseline
-                copyArtifacts projectName: "Petclinic-baseline", selector: lastSuccessful()
-
                 // Run Jtest Unit test with CC
                 script {
-
                         // Setup stage-specific additional settings
                         sh '''
                             # Set Up and write .properties file
+                            if [ "${CTP_DEBUG}" != "true" ]; then
+                                set +x
+                            fi
                             echo $"
                             dtp.project=${app_name}
                             build.id=${app_name}-${BUILD_TIMESTAMP}
                             " > ./jtest/jtestcli-sa.properties
+                            if [ "${CTP_DEBUG}" != "true" ]; then
+                                set -x
+                            fi
                         '''
-                        
+
                         sh '''
                             # Set Up and write .properties file
+                            if [ "${CTP_DEBUG}" != "true" ]; then
+                                set +x
+                            fi
                             echo $"
                             dtp.project=${app_name}
                             build.id=${app_name}-${BUILD_TIMESTAMP}
                             report.coverage.images=${app_name};${app_name}-UT
+                            report.coverage.static.images=${app_name};${app_name}-UT;${app_name}-FT
                             " >> ./jtest/jtestcli-ut.properties
+                            if [ "${CTP_DEBUG}" != "true" ]; then
+                                set -x
+                            fi
                         '''
-                        
+
                         sh '''
                             # Set Up and write .properties file
+                            if [ "${CTP_DEBUG}" != "true" ]; then
+                                set +x
+                            fi
                             echo $"
                             dtp.project=${app_name}
                             build.id=${app_name}-${BUILD_TIMESTAMP}
                             report.coverage.images=${app_name};${app_name}-FT
                             " >> ./jtest/jtestcli-ft.properties
+                            if [ "${CTP_DEBUG}" != "true" ]; then
+                                set -x
+                            fi
                         '''
-                        
+
                         // Execute the build with Jtest Maven plugin in docker
                         sh '''
                             # Run Maven build with Jtest tasks via Docker
@@ -147,11 +224,11 @@ pipeline {
                             --network=demo-net \
                             -v "$PWD:$PWD" \
                             -w "$PWD" \
-                            $(docker build --build-arg HOST_UID="$UID" -q ./jtest) /bin/bash -c " \
-                            
+                            $(docker build --build-arg HOST_UID="$UID" --build-arg HOST_GID="$GID" -q ./jtest) /bin/bash -c " \
+
                             # Compile the project and run Jtest Static Analysis
-                            mvn -ntp test-compile \
-                            jtest:jtest \
+                            mvn -ntp \
+                            test-compile jtest:jtest \
                             -DskipTests=true \
                             -s './jtest/.m2/settings.xml' \
                             -Djtest.settingsList='./jtest/jtestcli.properties,./jtest/jtestcli-sa.properties' \
@@ -160,44 +237,42 @@ pipeline {
                             -Djtest.showSettings=true; \
 
                             # Compile the test sources and run unit tests with Jtest
-                            mvn -ntp tia:affected-tests \
-                            jtest:agent \
-                            test \
-                            jtest:jtest \
+                            mvn -ntp \
+                            tia:affected-tests jtest:agent test jtest:jtest \
                             -s './jtest/.m2/settings.xml' \
                             -Dmaven.test.failure.ignore=true \
                             -Djtest.settingsList='./jtest/jtestcli.properties,./jtest/jtestcli-ut.properties' \
                             -Djtest.config='${jtestUTConfig}' \
-                            -Djtest.referenceCoverageFile=./target/jtest/ut/coverage.xml \
-                            -Djtest.referenceReportFile=./target/jtest/ut/report.xml \
+                            -Djtest.referenceCoverageFile=./baseline-artifacts/target/jtest/ut/coverage.xml \
+                            -Djtest.referenceReportFile=./baseline-artifacts/target/jtest/ut/report.xml \
                             -Dparasoft.runModifiedTests=true \
                             -Djtest.report=./target/jtest/ut \
-                            -Djtest.showSettings=true; \
-                            
+                            -Djtest.showSettings=true;
+
                             # Package the application with the Jtest Monitor
-                            mvn -ntp package jtest:monitor \
+                            mvn -ntp clean install jtest:monitor \
                             -s './jtest/.m2/settings.xml' \
-                            -Dmaven.test.skip=true \
-                            -Djtest.settingsList='./jtest/jtestcli.properties,./jtest/jtestcli-ft.properties' \
+                            -DskipTests=true \
+                            -Djtest.settingsList='./jtest/jtestcli.properties,./jtest/jtestcli-ut.properties' \
                             -Djtest.showSettings=true \
+                            -Dproperty.report.dtp.publish=true
                             "
                         '''
-                    
                 }
 
                 // Parasoft Findings plugin for Unit Tests Results
                 echo '---> Parsing 10.x unit test reports'
                 script {
-                    step([$class: 'XUnitPublisher', 
+                    step([$class: 'XUnitPublisher',
                         // thresholds: [failed(
-                        //     failureNewThreshold: '0', 
+                        //     failureNewThreshold: '0',
                         //     failureThreshold: '0')
                         // ],
-                        tools: [[$class: 'ParasoftType', 
-                            deleteOutputFiles: true, 
-                            failIfNotNew: false, 
-                            pattern: '**/target/jtest/ut/*report*.xml', 
-                            skipNoTestFiles: true, 
+                        tools: [[$class: 'ParasoftType',
+                            deleteOutputFiles: true,
+                            failIfNotNew: false,
+                            pattern: '**/target/jtest/ut/*report*.xml',
+                            skipNoTestFiles: true,
                             stopProcessingIfError: false
                         ]]
                     ])
@@ -207,53 +282,92 @@ pipeline {
         stage('Deploy: Docker Compose + CTP') {
             when { equals expected: true, actual: true }
             steps {
-
                 build job: 'Petclinic-deploy', parameters: [
                     string(name: 'CTP_URL', value: params.CTP_URL),
                     string(name: 'DTP_USER', value: params.DTP_USER),
                     password(name: 'DTP_PASS', value: params.DTP_PASS),
                     string(name: 'BUILD_TIMESTAMP', value: env.BUILD_TIMESTAMP),
+                    string(name: 'CTP_ENV_ID', value: env.CTP_ENV_ID),
 
-                    // Add other parameters as needed
+                // Add other parameters as needed
                 ]
             }
         }
-        stage('Test: Full Selenium Suite') {
-            when { equals expected: true, actual: true}
+        stage('Test: TIA Optimized UI Test Suite') {
+            when { equals expected: true, actual: true }
             steps {
                 script {
-                    
                     // get Impacted Tests for current deployment and baseline build
-                    sh """
-                        curl -X 'GET' \
-                        -u '${DTP_USER}:${DTP_PASS}' \
-                        -H 'accept: application/json' \
-                        ${CTP_URL}/em/api/v3/environments/${envId}/coverage/impactedTests?baselineBuildId=latest  > impactedTests.json || true
-                        """
+                    sh '''
+                        if [ "${CTP_DEBUG}" != "true" ]; then
+                                set +x
+                        fi
+                        response=$(curl -sk -X 'GET' -u ${DTP_USER}:${DTP_PASS} -H 'accept: application/json' ${CTP_URL}/em/api/v3/environments/${CTP_ENV_ID}/coverage/impactedTests?baselineBuildId=${BASELINE_ID})
+                        if [ "${CTP_DEBUG}" != "true" ]; then
+                            set -x
+                        fi
+                        echo "$response"
+                        echo "$response" > impactedTests.json
+                        '''
 
                     def testNames = sh(script: "jq -r '.[] | select(.analysisType == \"FT\") | .testName' impactedTests.json | paste -sd \",\" -", returnStdout: true).trim()
-                    
-                    // Run Selenium tests with Maven using impactedTests as parameters
+                    echo "${testNames}"
+
+                    // Run Web UI tests with Maven using impactedTests as parameters
                     sh """
-                        echo ${testNames}
-                        cd spring-petclinic-selenium-tests
-                        mvn -ntp clean test \
-                        -DbaseUrl='http://${PUBLIC_IP}:8099' \
-                        -DgridUrl='http://${PUBLIC_IP}:4444/wd/hub' \
-                        -DenvId=${envId} \
-                        -DctpUrl='${CTP_URL}' \
-                        -Dtest='${testNames}'
+                        if [ "${CTP_DEBUG}" != "true" ]; then
+                        set +x
+                        fi
+                        # Playwright config - Run integration tests parameterized with impacted tests from CTP
+                        mvn -ntp verify \
+                        -pl spring-petclinic-playwright-tests \
+                        -am \
+                        -DPETCLINIC_URL="http://${PUBLIC_IP}:8099" \
+                        -DHEADLESS=true \
+                        -DCTP_BASE_URL="${CTP_URL}" \
+                        -DCTP_ENV_ID=${CTP_ENV_ID} \
+                        -DCTP_USERNAME=${DTP_USER} \
+                        -DCTP_PASSWORD=${DTP_PASS} \
+                        -DCTP_MULTIUSER_MODE=true \
+                        -DCTP_PUBLISH_BASELINE=false \
+                        -DCTP_BASELINE_BUILD_ID=${app_name}-${BUILD_TIMESTAMP} \
+                        -DCTP_DEBUG=${CTP_DEBUG} \
+                        -DPROXY_HOST=${PRIVATE_IP} \
+                        -DPROXY_BIND_HOST=0.0.0.0 \
+                        -Dit.test='${testNames}' \
+                        -Dfailsafe.failIfNoSpecifiedTests=false \
+
+                        # Selenium config - Run integration tests parameterized with impacted tests from CTP
+                        mvn -ntp verify \
+                        -pl spring-petclinic-selenium-cucumber-tests,spring-petclinic-selenium-parallel-tests,spring-petclinic-selenium-testng-tests,spring-petclinic-selenium-tests \
+                        -am \
+                        -DPETCLINIC_URL="http://${PUBLIC_IP}:8099" \
+                        -DHEADLESS=false \
+                        -DCTP_BASE_URL="${CTP_URL}" \
+                        -DCTP_ENV_ID=${CTP_ENV_ID} \
+                        -DCTP_USERNAME=${DTP_USER} \
+                        -DCTP_PASSWORD=${DTP_PASS} \
+                        -DCTP_MULTIUSER_MODE=true \
+                        -DCTP_PUBLISH_BASELINE=false \
+                        -DCTP_BASELINE_BUILD_ID=${app_name}-${BUILD_TIMESTAMP} \
+                        -DCTP_DEBUG=${CTP_DEBUG} \
+                        -DPROXY_HOST=${PRIVATE_IP} \
+                        -DPROXY_BIND_HOST=0.0.0.0 \
+                        -DSELENIUM_GRID=true \
+                        -DSELENIUM_GRID_URL='http://localhost:4444/wd/hub' \
+                        -Dit.test='${testNames}' \
+                        -Dfailsafe.failIfNoSpecifiedTests=false
                     """
-                }                
+                }
             }
         }
         stage('Release') {
             steps {
                 sh 'echo "Release"'
-                //copyArtifacts(projectName: 'master/Petclinic-build', selector: lastSuccessful())
-                //copyArtifacts(projectName: 'master/Petclinic-jtest', selector: lastSuccessful())
-                //recordParasoftCoverage pattern: '**/target/jtest/ut/coverage.xml'
-            }   
+            //copyArtifacts(projectName: 'master/Petclinic-build', selector: lastSuccessful())
+            //copyArtifacts(projectName: 'master/Petclinic-jtest', selector: lastSuccessful())
+            //recordParasoftCoverage pattern: '**/target/jtest/ut/coverage.xml'
+            }
         }
     }
     post {
