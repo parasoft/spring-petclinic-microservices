@@ -23,7 +23,6 @@ public class ParasoftSuiteListenerCucumber {
 
     @BeforeAll
     public static void testPlanExecutionStarted() {
-        ParasoftSettings.setTestFramework("seleniumCucumberJUnit");
         // This module uses a fixed coverage user ID per suite.
         ParasoftSeleniumContext.initForSuite();
         if (ParasoftSettings.isMultiUserMode()) {
@@ -38,7 +37,7 @@ public class ParasoftSuiteListenerCucumber {
     public static void testPlanExecutionFinished() {
         if (ParasoftSettings.isMultiUserMode()) {
             ParasoftCTPApiClient.stopSession(ParasoftSeleniumContext.getCoverageUserId());
-            if (sessionId != null && !sessionId.isBlank()) {
+            if (sessionId != null && !sessionId.isBlank() && ParasoftSettings.CTP_PUBLISH_COVERAGE) {
                 ParasoftCTPApiClient.publishCoverage(sessionId, ParasoftSeleniumContext.getDtpSessionTag(),
                         ParasoftSeleniumContext.getCoverageUserId());
             }

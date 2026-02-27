@@ -38,7 +38,7 @@ public class ParasoftSuiteListener implements TestExecutionListener {
     public void testPlanExecutionFinished(TestPlan testPlan) {
         if (ParasoftSettings.isMultiUserMode()) {
             ParasoftCTPApiClient.stopSession(ParasoftSeleniumContext.getCoverageUserId());
-            if (sessionId != null && !sessionId.isBlank()) {
+            if (sessionId != null && !sessionId.isBlank() && ParasoftSettings.CTP_PUBLISH_COVERAGE) {
                 ParasoftCTPApiClient.publishCoverage(sessionId, ParasoftSeleniumContext.getDtpSessionTag(),
                         ParasoftSeleniumContext.getCoverageUserId());
             }

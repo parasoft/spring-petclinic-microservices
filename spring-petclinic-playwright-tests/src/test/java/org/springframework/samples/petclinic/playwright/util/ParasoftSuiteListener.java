@@ -14,7 +14,6 @@ public class ParasoftSuiteListener implements TestExecutionListener {
 
     @Override
     public void testPlanExecutionStarted(TestPlan testPlan) {
-        ParasoftSettings.setTestFramework("playwrightJUnit");
         // This module uses a fixed coverage user ID per suite.
         ParasoftPlaywrightContext.initForSuite();
         if (ParasoftSettings.isMultiUserMode()) {
@@ -29,7 +28,7 @@ public class ParasoftSuiteListener implements TestExecutionListener {
     public void testPlanExecutionFinished(TestPlan testPlan) {
         if (ParasoftSettings.isMultiUserMode()) {
             ParasoftCTPApiClient.stopSession(ParasoftPlaywrightContext.getCoverageUserId());
-            if (sessionId != null && !sessionId.isBlank()) {
+            if (sessionId != null && !sessionId.isBlank() && ParasoftSettings.CTP_PUBLISH_COVERAGE) {
                 ParasoftCTPApiClient.publishCoverage(sessionId, ParasoftPlaywrightContext.getDtpSessionTag(),
                         ParasoftPlaywrightContext.getCoverageUserId());
             }

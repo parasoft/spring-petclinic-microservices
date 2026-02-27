@@ -24,8 +24,6 @@ public class ParasoftSuiteListener implements TestExecutionListener {
 
     @Override
     public void testPlanExecutionStarted(TestPlan testPlan) {
-        ParasoftSettings.setTestFramework("seleniumJUnitParallel");
-
         // If the CTP coverage agents are in multi-user mode, then parallel test execution must be handled at the
         // test level (i.e., WebDriver instance).  However, for sequential test execution where the coverage agents
         // are not in multi-user mode, a single CTP test session can be created for the entire suite here in the suite listener
@@ -43,17 +41,17 @@ public class ParasoftSuiteListener implements TestExecutionListener {
         // pushes coverage publishing for all test sessions to the end of the suite execution.
         if (ParasoftSettings.isMultiUserMode()) {
             for (var session : ParasoftTestSessionRegistry.getSessionInfos()) {
-                if (session.ctpTestSessionId == null || session.ctpTestSessionId.isBlank()) {
-                    continue;
+                if (session.ctpTestSessionId != null && !session.ctpTestSessionId.isBlank() && ParasoftSettings.CTP_PUBLISH_COVERAGE) {
+                    ParasoftCTPApiClient.publishCoverage(session.ctpTestSessionId, session.dtpSessionTag, session.coverageUserId);
                 }
-                ParasoftCTPApiClient.publishCoverage(session.ctpTestSessionId, session.dtpSessionTag, session.coverageUserId);
+                continue;
             }
             return;
         }
 
         // If not running in multi-user mode, there will be a single CTP test session for the entire suite that can be
         //  stopped and published here.
-        if (ctpTestSessionId != null && !ctpTestSessionId.isBlank()) {
+        if (ctpTestSessionId != null && !ctpTestSessionId.isBlank() && ParasoftSettings.CTP_PUBLISH_COVERAGE) {
             ParasoftCTPApiClient.stopSession();
             ParasoftCTPApiClient.publishCoverage(ctpTestSessionId, dtpSessionTag);
         }

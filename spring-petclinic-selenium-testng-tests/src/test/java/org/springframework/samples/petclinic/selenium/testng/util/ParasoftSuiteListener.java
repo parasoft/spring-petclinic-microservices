@@ -23,7 +23,6 @@ public class ParasoftSuiteListener implements ISuiteListener {
 
     @Override
     public void onStart(ISuite suite) {
-        ParasoftSettings.setTestFramework("seleniumTestNG");
         // This module uses a fixed coverage user ID per suite.
         ParasoftSeleniumContext.initForSuite();
         if (ParasoftSettings.isMultiUserMode()) {
@@ -38,7 +37,7 @@ public class ParasoftSuiteListener implements ISuiteListener {
     public void onFinish(ISuite suite) {
         if (ParasoftSettings.isMultiUserMode()) {
             ParasoftCTPApiClient.stopSession(ParasoftSeleniumContext.getCoverageUserId());
-            if (sessionId != null && !sessionId.isBlank()) {
+            if (sessionId != null && !sessionId.isBlank() && ParasoftSettings.CTP_PUBLISH_COVERAGE) {
                 ParasoftCTPApiClient.publishCoverage(sessionId, ParasoftSeleniumContext.getDtpSessionTag(),
                         ParasoftSeleniumContext.getCoverageUserId());
             }

@@ -10,36 +10,96 @@
  */
 package org.springframework.samples.petclinic.testcommon;
 
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Properties;
+
+
+// Documentation:
+// Configuration values are resolved in the following order:
+// 1. System property (e.g., -DCTP_BASE_URL)
+// 2. parasoft-settings.properties file (classpath src/test/resources, or path specified by -DPARASOFT_SETTINGS_FILE)
+// 3. Hardcoded default value
+//
+// Example parasoft-settings.properties:
+//   CTP_BASE_URL=http://ctp-server:8070
+//   CTP_USERNAME=admin
+//   CTP_PASSWORD=admin
+//   ...
 public class ParasoftSettings {
+    private static final Properties fileProperties = new Properties();
+    static {
+        // Try to load from system property first
+        String filePath = System.getProperty("PARASOFT_SETTINGS_FILE");
+        boolean loaded = false;
+        if (filePath != null && !filePath.isBlank()) {
+            try (InputStream in = new FileInputStream(filePath)) {
+                fileProperties.load(in);
+                loaded = true;
+            } catch (IOException ignored) {}
+        }
+        if (!loaded) {
+            // Try to load from classpath (src/test/resources)
+            try (InputStream in = ParasoftSettings.class.getClassLoader().getResourceAsStream("parasoft-settings.properties")) {
+                if (in != null) {
+                    fileProperties.load(in);
+                }
+            } catch (IOException ignored) {}
+        }
+    }
+
+    private static String getSetting(String key, String def) {
+        return System.getProperty(key, fileProperties.getProperty(key, def));
+    }
+    private static boolean getBoolSetting(String key, String def) {
+        return Boolean.parseBoolean(getSetting(key, def));
+    }
+    private static int getIntSetting(String key, String def) {
+        try {
+            return Integer.parseInt(getSetting(key, def));
+        } catch (NumberFormatException e) {
+            return Integer.parseInt(def);
+        }
+    }
     // System variables for CTP integration
-    public static final String CTP_BASE_URL = System.getProperty("CTP_BASE_URL", "http://localhost:8070");
-    public static final int CTP_ENV_ID = Integer.parseInt(System.getProperty("CTP_ENV_ID", "4"));
-    public static final String CTP_USERNAME = System.getProperty("CTP_USERNAME", "admin");
-    public static final String CTP_PASSWORD = System.getProperty("CTP_PASSWORD", "admin");
-    
-    public static final boolean CTP_MULTI_USER_MODE = Boolean.parseBoolean(System.getProperty("CTP_MULTI_USER_MODE", "true"));
-    public static final String PROXY_HOST = System.getProperty("PROXY_HOST", "localhost");
-    public static final String PROXY_BIND_HOST = System.getProperty("PROXY_BIND_HOST", "0.0.0.0");
-    
-    public static final boolean CTP_DEBUG = Boolean.parseBoolean(System.getProperty("CTP_DEBUG", "true"));
+    // System variables for CTP integration (now support file-based config)
+    public static final boolean CTP_ENABLED = getBoolSetting("CTP_ENABLED", "false");
+    public static final String CTP_BASE_URL = getSetting("CTP_BASE_URL", "http://localhost:8080");
+    public static final int CTP_ENV_ID = getIntSetting("CTP_ENV_ID", "1");
+    public static final String CTP_USERNAME = getSetting("CTP_USERNAME", "admin");
+    public static final String CTP_PASSWORD = getSetting("CTP_PASSWORD", "admin");
+    public static final boolean CTP_DEBUG = getBoolSetting("CTP_DEBUG", "false");
+
+    // CTP_MULTI_USER_MODE controls whether tests are executed in an environment where the coverage agents are setup for multi-user
+    public static final boolean CTP_MULTI_USER_MODE = getBoolSetting("CTP_MULTI_USER_MODE", "true");
+
+    // The PROXY variables are used to configure the proxy server for injecting the baggage header into the test requests
+    public static final String PROXY_HOST = getSetting("PROXY_HOST", "localhost");
+    public static final String PROXY_BIND_HOST = getSetting("PROXY_BIND_HOST", "0.0.0.0");
+
+    // publishCoverage controls whether this test run should publish coverage and test result data to DTP.
+    public static final boolean CTP_PUBLISH_COVERAGE = getBoolSetting("CTP_PUBLISH_COVERAGE", "false");
+
     // publishBaseline controls whether this test run should set a baselineBuildId to be used as a reference point for Test Impact Analysis.
-    public static final boolean CTP_PUBLISH_BASELINE = Boolean.parseBoolean(System.getProperty("CTP_PUBLISH_BASELINE", "false"));
-    public static final String CTP_BASELINE_BUILD_ID = System.getProperty("CTP_BASELINE_BUILD_ID", "spring-petclinic-baseline");
+    public static final boolean CTP_PUBLISH_BASELINE = getBoolSetting("CTP_PUBLISH_BASELINE", "false");
+    public static final String CTP_BASELINE_BUILD_ID = getSetting("CTP_BASELINE_BUILD_ID", "spring-petclinic-baseline");
 
-    public static final boolean HEADLESS = Boolean.parseBoolean(System.getProperty("HEADLESS", "false"));
-    public static final boolean SELENIUM_GRID = Boolean.parseBoolean(System.getProperty("SELENIUM_GRID", "false"));
-    public static final String SELENIUM_GRID_URL = System.getProperty("SELENIUM_GRID_URL", "http://localhost:4444/wd/hub");
+    // Selenium Grid and Headless system variables for configuring the test execution environment
+    public static final boolean HEADLESS = getBoolSetting("HEADLESS", "false");
+    public static final boolean SELENIUM_GRID = getBoolSetting("SELENIUM_GRID", "false");
+    public static final String SELENIUM_GRID_URL = getSetting("SELENIUM_GRID_URL", "http://localhost:4444/wd/hub");
 
-    private static volatile String testFramework = "defaultTestFramework";
+    private static volatile String TESTFRAMEWORK = getSetting("TESTFRAMEWORK", "defaultTestFramework");
 
     public static void setTestFramework(String framework) {
         if (framework != null && !framework.isBlank()) {
-            testFramework = framework;
+            TESTFRAMEWORK = framework;
         }
     }
 
     public static String getTestFramework() {
-        return testFramework;
+        return TESTFRAMEWORK;
     }
 
     public static Boolean isMultiUserMode() {
@@ -53,4 +113,5 @@ public class ParasoftSettings {
     public static boolean isSeleniumGrid() {
         return SELENIUM_GRID;
     }
+
 }

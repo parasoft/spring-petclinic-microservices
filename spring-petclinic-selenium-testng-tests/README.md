@@ -16,11 +16,11 @@ mvn -ntp clean package jtest:monitor -DskipTests=true -Djtest.settings=jtest.set
 
 To run all tests in this module, use the command
 ```
-mvn verify -pl spring-petclinic-selenium-testng-tests -am -DCTP_ENV_ID=<CTP ENVIRONMENT ID> -DCTP_BASE_URL=<CTP BASE URL> -DPETCLINIC_URL=<PETCLINIC URL>
+mvn verify -pl spring-petclinic-selenium-testng-tests -am -DPETCLINIC_URL=<PETCLINIC URL>
 ```
 To run all the tests in this module with Selenium Grid, use the command
 ```
-mvn -ntp verify -pl spring-petclinic-selenium-testng-tests -am -DCTP_ENV_ID=<CTP ENVIRONMENT ID> -DCTP_BASE_URL=<CTP BASE URL> -DPETCLINIC_URL=<PETCLINIC URL> -DSELENIUM_GRID=true -DPROXY_HOST=<PROXY HOST>
+mvn -ntp verify -pl spring-petclinic-selenium-testng-tests -am -DSELENIUM_GRID=true -DPROXY_HOST=<PROXY HOST> -DPETCLINIC_URL=<PETCLINIC URL>
 ```
 
 Notes about Selenium Grid:
@@ -34,21 +34,31 @@ If you want to run the tests in headless mode so the browser does not become vis
 
 If your CTP instance uses non-default credentials, set `-DCTP_USERNAME=<USERNAME>` and `-DCTP_PASSWORD=<PASSWORD>`.
 
-## System Properties
+## Configuring Settings
 
-These tests use the shared Parasoft settings from testcommon. You can override the following system properties when running Maven:
+The Parasoft-related settings can be read from a properties file on the classpath with the name `parasoft-settings.properties`, see [spring-petclinic-selenium-testng-tests/src/test/resources/parasoft-settings.properties](spring-petclinic-selenium-testng-tests/src/test/resources/parasoft-settings.properties).  You will want to configure these settings to point to your instance of CTP with the correct environment ID.  These settings can also be overridden with equivalently named System variables on the Maven commandline with -D, like: `-DCTPBASEURL=http://localhost:8080`
 
-For additional context and comments about these settings, see [spring-petclinic-testcommon/src/main/java/org/springframework/samples/petclinic/testcommon/ParasoftSettings.java](spring-petclinic-testcommon/src/main/java/org/springframework/samples/petclinic/testcommon/ParasoftSettings.java).
+The Petclinic BASEURL must be set via System variable, using `-DPETCLINIC_URL=<url>` for example: `-DPETCLINIC_URL=http://localhost:8099`
 
-- `PETCLINIC_URL` (default: `http://localhost:8099`)
+For additional context and comments about these settings, see [spring-petclinic-testcommon/src/test/java/org/springframework/samples/petclinic/testcommon/ParasoftSettings.java](spring-petclinic-testcommon/src/test/java/org/springframework/samples/petclinic/testcommon/ParasoftSettings.java).
+
 - `HEADLESS` (default: `false`)
-- `CTP_BASE_URL` (default: `http://localhost:8070/em`)
-- `CTP_ENV_ID` (default: `4`)
+- `SELENIUM_GRID` (default: `false`)
+- `SELENIUM_GRID_URL` (default: `http://localhost:4444/wd/hub`)
+
+- `CTP_ENABLED` (default: `false`)
+- `CTP_BASE_URL` (default: `http://localhost:8080/em`)
+- `CTP_ENV_ID` (default: `1`)
 - `CTP_USERNAME` (default: `admin`)
 - `CTP_PASSWORD` (default: `admin`)
-- `CTP_MULTI_USER_MODE` (default: `true`)
 - `CTP_DEBUG` (default: `true`)
-- `PUBLISH_BASELINE` (default: `false`)
-- `BASELINE_BUILD_ID` (default: `spring-petclinic-baseline`)
 
-When `CTP_MULTI_USER_MODE` is `true`, the tests generate a coverage user ID using the format `{testFramework}-{ctpUsername}-{nodeId}`.
+- `CTP_MULTI_USER_MODE` (default: `true`)
+
+- `PROXY_HOST` (default: `localhost`)
+- `PROXY_BIND_HOST` (default: `0.0.0.0`)
+
+- `CTP_PUBLISH_BASELINE` (default: `false`)
+- `CTP_BASELINE_BUILD_ID` (default: `spring-petclinic-baseline`)
+
+When `CTP_MULTI_USER_MODE` is `true`, this module uses a fixed coverage user ID format of `{testFramework}-{ctpUsername}-1`.
