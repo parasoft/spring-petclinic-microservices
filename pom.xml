@@ -25,7 +25,6 @@
         <module>spring-petclinic-api-gateway</module>
         <module>spring-petclinic-testcommon</module>
         <module>spring-petclinic-selenium-tests</module>
-        <module>spring-petclinic-selenium-parallel-tests</module>
         <module>spring-petclinic-selenium-testng-tests</module>
         <module>spring-petclinic-selenium-cucumber-tests</module>
         <module>spring-petclinic-playwright-tests</module>

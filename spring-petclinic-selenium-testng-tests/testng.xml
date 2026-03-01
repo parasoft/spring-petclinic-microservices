@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd" >
-<suite name="PetClinic Selenium TestNG Suite">
+<!-- Switch which suite element is commented to enable parallel or sequential test execution -->
+<suite name="PetClinic Selenium TestNG Suite" parallel="tests" thread-count="2">
+<!--suite name="PetClinic Selenium TestNG Suite"-->
     <listeners>
-        <listener class-name="org.springframework.samples.petclinic.selenium.testng.util.ParasoftSuiteListener"/>
+        <listener class-name="org.springframework.samples.petclinic.testcommon.testng.ParasoftSuiteListenerTestNG"/>
     </listeners>
     <test name="NavigateIT">
         <classes>

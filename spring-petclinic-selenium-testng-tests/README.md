@@ -1,64 +1,145 @@
-# Selenium TestNG Web Functional Tests with CTP
+# spring-petclinic-selenium-testng-tests
 
-In order to run the tests, CTP must be running and configured for both communicating with DTP and for collecting coverage on a running petclinic application with agents properly configured.
+Selenium + TestNG functional tests for the Spring Petclinic application, with Parasoft CTP integration for code coverage collection, test result reporting, and Test Impact Analysis.
 
-This module assumes sequential test execution.  For an example of a parallel test execution implementation, see the `spring-petclinic-selenium-parallel-tests` module.
+By default this module runs tests sequentially. It also supports parallel test execution — see [Parallel Test Execution](#parallel-test-execution) below.
 
-First, make sure you've had a successful build, use the command
+## Prerequisites
+
+- The Petclinic application must be running and accessible.
+- Parasoft CTP must be running and configured with coverage agents deployed on the Petclinic services.
+- The project must be built before running tests:
+
 ```
 mvn -ntp clean install -DskipTests
 ```
 
-Or if you need to publish static coverage to DTP with Jtest, you can use the command (ensure jtest.settings file exists and has correct path)
+If you need to publish static coverage to DTP with Jtest, use (ensure `jtest.settings` exists with correct paths):
+
 ```
 mvn -ntp clean package jtest:monitor -DskipTests=true -Djtest.settings=jtest.settings -Djtest.showSettings=true -Dproperty.report.dtp.publish=true
 ```
 
-To run all tests in this module, use the command
+## Running Tests
+
+**Basic execution:**
+
 ```
-mvn verify -pl spring-petclinic-selenium-testng-tests -am -DPETCLINIC_URL=<PETCLINIC URL>
+mvn -ntp verify -pl spring-petclinic-selenium-testng-tests -am -DPETCLINIC_URL=<PETCLINIC URL>
 ```
-To run all the tests in this module with Selenium Grid, use the command
+
+`PETCLINIC_URL` defaults to `http://localhost:8099` if not provided.
+
+**With Selenium Grid:**
+
 ```
 mvn -ntp verify -pl spring-petclinic-selenium-testng-tests -am -DSELENIUM_GRID=true -DPROXY_HOST=<PROXY HOST> -DPETCLINIC_URL=<PETCLINIC URL>
 ```
 
-Notes about Selenium Grid:
-- If Selenium Grid is running in a container (e.g., Docker Desktop) and the TestNG test runner is on the host, then the host.docker.internal convention may not work.
-- Use your host's ip address and set both `-DPROXY_HOST` and `-DPROXY_BIND_HOST` to that ip address.
-- If Selenium Grid is not running in a container, then you only need to provide -DPROXY_HOST to where Selenium Grid is located. If Selenium Grid is running on the cloud, extra considerations (e.g., VPC) may be necessary to ensure connectivity between the test runner + local proxy and grid service.
+**Headless mode:** Add `-DHEADLESS=true` to run without a visible browser window.
 
-By default, PETCLINIC_URL will be set to http://localhost:8099 if not provided.
+**Non-default CTP credentials:** Add `-DCTP_USERNAME=<USERNAME> -DCTP_PASSWORD=<PASSWORD>`.
 
-If you want to run the tests in headless mode so the browser does not become visible during test execution, add the option `-DHEADLESS=true`.
+### Parallel Test Execution
 
-If your CTP instance uses non-default credentials, set `-DCTP_USERNAME=<USERNAME>` and `-DCTP_PASSWORD=<PASSWORD>`.
+To run tests in parallel, two changes are required:
+
+1. **Enable parallel execution in `testng.xml`** — swap the `<suite>` element to use `parallel="tests"` and set the desired `thread-count`:
+
+```xml
+<!-- Sequential (default): -->
+<suite name="PetClinic Selenium TestNG Suite">
+
+<!-- Parallel: -->
+<suite name="PetClinic Selenium TestNG Suite" parallel="tests" thread-count="2">
+```
+
+2. **Set `CTP_PARALLEL_TEST_EXECUTION=true`** — either in `parasoft-settings.properties` or on the command line:
+
+```
+mvn -ntp verify -pl spring-petclinic-selenium-testng-tests -am -DCTP_PARALLEL_TEST_EXECUTION=true -DPETCLINIC_URL=<PETCLINIC URL>
+```
+
+When parallel execution is enabled, `CTP_MULTI_USER_MODE` must also be `true` (the default). Each test class gets its own WebDriver instance, header-injecting proxy, and CTP session, so coverage is tracked independently per thread.
+
+### Selenium Grid Notes
+
+- If Selenium Grid is running in a container (e.g., Docker Desktop) and the TestNG test runner is on the host, the `host.docker.internal` convention may not work. Use your host's IP address and set both `-DPROXY_HOST` and `-DPROXY_BIND_HOST` to that address.
+- If Selenium Grid is not running in a container, you only need to provide `-DPROXY_HOST` to where Selenium Grid is located.
+- If Selenium Grid is running in the cloud, extra considerations (e.g., VPC) may be necessary to ensure connectivity between the test runner + local proxy and the grid service.
+
+## How This Module Uses testcommon
+
+This module depends on `spring-petclinic-testcommon` for all Parasoft CTP integration. See the [testcommon README](../spring-petclinic-testcommon/README.md) for full details.
+
+### Dependency
+
+The testcommon module is consumed as a `test-jar` in `pom.xml`:
+
+```xml
+<dependency>
+    <groupId>org.springframework.samples.petclinic.testcommon</groupId>
+    <artifactId>spring-petclinic-testcommon</artifactId>
+    <version>1.0.0</version>
+    <type>test-jar</type>
+    <scope>test</scope>
+</dependency>
+```
+
+### SuiteListener
+
+Registered in `testng.xml` via the `<listeners>` element:
+
+```xml
+<suite name="PetClinic Selenium TestNG Suite">
+    <listeners>
+        <listener class-name="org.springframework.samples.petclinic.testcommon.testng.ParasoftSuiteListenerTestNG"/>
+    </listeners>
+    <!-- ... -->
+</suite>
+```
+
+This starts/stops the CTP session at the suite level and publishes coverage and baseline data at suite end.
+
+### Watcher
+
+Each test class uses `@Listeners` to register the per-test watcher:
+
+```java
+@Listeners(org.springframework.samples.petclinic.testcommon.testng.ParasoftWatcherTestNG.class)
+public class NavigateIT { ... }
+```
+
+This reports individual test start/stop events (with PASS/FAIL results) to CTP.
+
+### WebDriverFactory
+
+Test classes create a `ParasoftWebDriverResource` in `@BeforeClass` and close it in `@AfterClass`:
+
+```java
+@BeforeClass
+public void openBrowser() {
+    driverResource = WebDriverFactory.create(
+            BrowserType.CHROME,
+            new BasicWebDriverConfigurator("960,1080", "0,0"),
+            new ParasoftWebDriverConfigurator(NavigateIT.class.getName()));
+    driver = driverResource.getDriver();
+}
+
+@AfterClass
+public void closeBrowser() {
+    if (driverResource != null) {
+        driverResource.close();
+    }
+}
+```
+
+The `ParasoftWebDriverConfigurator` takes the test class name as the `testContextKey`, which associates the WebDriver session with a `coverageUserId` in `ParasoftSessionManager`. It also starts the header-injecting proxy when multi-user mode is enabled.
 
 ## Configuring Settings
 
-The Parasoft-related settings can be read from a properties file on the classpath with the name `parasoft-settings.properties`, see [spring-petclinic-selenium-testng-tests/src/test/resources/parasoft-settings.properties](spring-petclinic-selenium-testng-tests/src/test/resources/parasoft-settings.properties).  You will want to configure these settings to point to your instance of CTP with the correct environment ID.  These settings can also be overridden with equivalently named System variables on the Maven commandline with -D, like: `-DCTPBASEURL=http://localhost:8080`
+Settings are resolved in order: **system property** (`-D`) → **`parasoft-settings.properties`** → **hardcoded default**.
 
-The Petclinic BASEURL must be set via System variable, using `-DPETCLINIC_URL=<url>` for example: `-DPETCLINIC_URL=http://localhost:8099`
+Edit [`src/test/resources/parasoft-settings.properties`](src/test/resources/parasoft-settings.properties) to configure your CTP environment. Any setting can be overridden on the Maven command line, e.g. `-DCTP_BASE_URL=http://ctp-server:8080`.
 
-For additional context and comments about these settings, see [spring-petclinic-testcommon/src/test/java/org/springframework/samples/petclinic/testcommon/ParasoftSettings.java](spring-petclinic-testcommon/src/test/java/org/springframework/samples/petclinic/testcommon/ParasoftSettings.java).
-
-- `HEADLESS` (default: `false`)
-- `SELENIUM_GRID` (default: `false`)
-- `SELENIUM_GRID_URL` (default: `http://localhost:4444/wd/hub`)
-
-- `CTP_ENABLED` (default: `false`)
-- `CTP_BASE_URL` (default: `http://localhost:8080/em`)
-- `CTP_ENV_ID` (default: `1`)
-- `CTP_USERNAME` (default: `admin`)
-- `CTP_PASSWORD` (default: `admin`)
-- `CTP_DEBUG` (default: `true`)
-
-- `CTP_MULTI_USER_MODE` (default: `true`)
-
-- `PROXY_HOST` (default: `localhost`)
-- `PROXY_BIND_HOST` (default: `0.0.0.0`)
-
-- `CTP_PUBLISH_BASELINE` (default: `false`)
-- `CTP_BASELINE_BUILD_ID` (default: `spring-petclinic-baseline`)
-
-When `CTP_MULTI_USER_MODE` is `true`, this module uses a fixed coverage user ID format of `{testFramework}-{ctpUsername}-1`.
+For the full list of available settings and their defaults, see the [testcommon README](../spring-petclinic-testcommon/README.md#available-settings) and [ParasoftSettings.java](../spring-petclinic-testcommon/src/test/java/org/springframework/samples/petclinic/testcommon/ParasoftSettings.java).

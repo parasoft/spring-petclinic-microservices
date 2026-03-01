@@ -9,16 +9,26 @@ and the Eureka Service Discovery from the [Spring Cloud Netflix](https://github.
 
 ## Starting services with Parasoft coverage agent for Java
 
-Four microservice projects have been configured with Parasoft coverage agent properties.  All you need to do is copy the agent.jar, opentelemetry-javaagent.jar and   jtest-otel-ext.jar files into the src/test/resources/coverage/ folder along side the existing agent.properties.  Maven will automatically pick up the Java agent and inject it into the Spring Boot runtime.  Coverage agent port numbers for each microservice are configured in src/test/resources/coverage/agent.properties files.  Follow the instructions below to start each microservice using `..\mvnw spring-boot:run` command in a separate terminal and in the correct order to run them with the coverage agent.  The four microservice projects configured for coverage are:
-* spring-petclinic-api-gateway
-* spring-petclinic-customers-service
-* spring-petclinic-vets-service
-* spring-petclinic-visits-service
+Four microservice projects have been configured with Parasoft coverage agent properties:
 
-Alternatively, you can run the microservices project with Parasoft coverage agents using docker compose.  First build the images with
+* `spring-petclinic-api-gateway`
+* `spring-petclinic-customers-service`
+* `spring-petclinic-vets-service`
+* `spring-petclinic-visits-service`
+
+To run locally with coverage agents:
+
+1. Copy `agent.jar`, `opentelemetry-javaagent.jar`, and `jtest-otel-ext.jar` into each project's `src/test/resources/coverage/` folder alongside the existing `agent.properties`.
+2. Maven will automatically pick up the Java agent and inject it into the Spring Boot runtime.
+3. Coverage agent port numbers are configured in each project's `src/test/resources/coverage/agent.properties`.
+4. Start each microservice using `../mvnw spring-boot:run` in a separate terminal. Start the Config Server and Discovery Server first, then the remaining services (see [Starting services locally without Docker](#starting-services-locally-without-docker)).
+
+Alternatively, you can run with coverage agents using Docker Compose. First build the images:
+
 `./mvnw clean install -P buildDocker`
 
-Then start the containers with the following command
+Then start the containers:
+
 `docker-compose -f docker-compose-cc.yml up -d`
 
 ## Starting services locally without Docker
@@ -79,10 +89,16 @@ You can then access petclinic here: http://localhost:8080/
 
 Import `ctp-system.zip` from this Git repo into your CTP to quickly set up the above diagram.
 
-## Selenium web functional tests integrated with CTP
+## Web functional tests integrated with CTP
 
-See the `spring-petclinic-selenium-tests` project for sample Selenium tests configured to report test results and associated coverage to the CTP REST API at http://localhost:8081/em/api
-For parallel execution experiments, see the `spring-petclinic-selenium-parallel-tests` module.
+Several test modules are included for running web functional tests that report test results and coverage data to Parasoft CTP. Each module has its own README with detailed usage instructions:
+
+* [`spring-petclinic-selenium-tests`](spring-petclinic-selenium-tests/) — Selenium with JUnit 5
+* [`spring-petclinic-selenium-cucumber-tests`](spring-petclinic-selenium-cucumber-tests/) — Selenium with Cucumber and JUnit 5
+* [`spring-petclinic-selenium-testng-tests`](spring-petclinic-selenium-testng-tests/) — Selenium with TestNG
+* [`spring-petclinic-playwright-tests`](spring-petclinic-playwright-tests/) — Playwright with JUnit 5
+
+These modules share common Parasoft integration logic from [`spring-petclinic-testcommon`](spring-petclinic-testcommon/). See the [testcommon README](spring-petclinic-testcommon/README.md) for configuration details.
 
 
 ## In case you find a bug/suggested improvement for Spring Petclinic Microservices

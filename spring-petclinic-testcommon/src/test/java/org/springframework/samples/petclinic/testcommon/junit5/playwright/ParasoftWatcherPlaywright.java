@@ -1,6 +1,7 @@
-package org.springframework.samples.petclinic.playwright.util;
+package org.springframework.samples.petclinic.testcommon.junit5.playwright;
 
 import org.springframework.samples.petclinic.testcommon.ParasoftCTPApiClient;
+import org.springframework.samples.petclinic.testcommon.ParasoftSessionManager;
 import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
 
 import org.junit.jupiter.api.extension.BeforeEachCallback;
@@ -8,16 +9,18 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.TestWatcher;
 
 /**
- * JUnit 5 extension to integrate Playwright tests with Parasoft CTP via shared testcommon utilities.
+ * JUnit 5 extension that reports individual test start and stop events to Parasoft CTP
+ * for per-test coverage tracking in Playwright-based tests.
  */
-public class ParasoftWatcher implements BeforeEachCallback, TestWatcher {
+public class ParasoftWatcherPlaywright implements BeforeEachCallback, TestWatcher {
 
     @Override
     public void beforeEach(ExtensionContext context) {
         String testId = getTestId(context);
-        // When in multi-user mode, the coverage user ID is required to associate the test with the correct CTP test session for coverage reporting
+
+        // If multi-user mode, the coverage user ID is retrieved from the Session Manager
         if (ParasoftSettings.isMultiUserMode()) {
-            ParasoftCTPApiClient.startTest(testId, ParasoftPlaywrightContext.getCoverageUserId());
+            ParasoftCTPApiClient.startTest(testId, getCoverageUserId(context));
             return;
         }
         ParasoftCTPApiClient.startTest(testId); // if not running in multi-user mode, the coverage user ID is not needed
@@ -26,9 +29,10 @@ public class ParasoftWatcher implements BeforeEachCallback, TestWatcher {
     @Override
     public void testSuccessful(ExtensionContext context) {
         String testId = getTestId(context);
-        // When in multi-user mode, the coverage user ID is required to associate the test with the correct CTP test session for coverage reporting
+
+        // If multi-user mode, the coverage user ID is retrieved from the Session Manager
         if (ParasoftSettings.isMultiUserMode()) {
-            ParasoftCTPApiClient.stopTest(testId, true, null, ParasoftPlaywrightContext.getCoverageUserId());
+            ParasoftCTPApiClient.stopTest(testId, true, null, getCoverageUserId(context));
             return;
         }
         ParasoftCTPApiClient.stopTest(testId, true, null); // if not running in multi-user mode, the coverage user ID is not needed
@@ -37,9 +41,10 @@ public class ParasoftWatcher implements BeforeEachCallback, TestWatcher {
     @Override
     public void testFailed(ExtensionContext context, Throwable cause) {
         String testId = getTestId(context);
-        // When in multi-user mode, the coverage user ID is required to associate the test with the correct CTP test session for coverage reporting
+
+        // If multi-user mode, the coverage user ID is retrieved from the Session Manager
         if (ParasoftSettings.isMultiUserMode()) {
-            ParasoftCTPApiClient.stopTest(testId, false, buildFailureMessage(cause), ParasoftPlaywrightContext.getCoverageUserId());
+            ParasoftCTPApiClient.stopTest(testId, false, buildFailureMessage(cause), getCoverageUserId(context));
             return;
         }
         ParasoftCTPApiClient.stopTest(testId, false, buildFailureMessage(cause)); // if not running in multi-user mode, the coverage user ID is not needed
@@ -84,5 +89,12 @@ public class ParasoftWatcher implements BeforeEachCallback, TestWatcher {
             normalized = normalized.replace("  ", " ");
         }
         return normalized.trim();
+    }
+
+    private static String getCoverageUserId(ExtensionContext context) {
+        String testClassName = context.getTestClass().map(Class::getName).orElse(null);
+        String coverageUserId = ParasoftSessionManager.getCoverageUserId(testClassName); // retrieve the coverage user ID for this test class from the Session Manager Map, which was set when the WebDriver instance was created
+
+        return coverageUserId;
     }
 }

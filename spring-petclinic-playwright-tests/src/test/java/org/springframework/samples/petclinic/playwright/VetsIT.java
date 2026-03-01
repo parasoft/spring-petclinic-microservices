@@ -3,8 +3,7 @@ package org.springframework.samples.petclinic.playwright;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.springframework.samples.petclinic.playwright.util.ParasoftPlaywrightContext;
-import org.springframework.samples.petclinic.playwright.util.ParasoftWatcher;
+import org.springframework.samples.petclinic.testcommon.ParasoftSessionManager;
 import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
 
 import org.junit.jupiter.api.AfterAll;
@@ -21,7 +20,7 @@ import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.options.AriaRole;
 
-@ExtendWith(ParasoftWatcher.class)
+@ExtendWith(org.springframework.samples.petclinic.testcommon.junit5.playwright.ParasoftWatcherPlaywright.class)
 public class VetsIT {
     static Playwright playwright;
     static Browser browser;
@@ -50,7 +49,7 @@ public class VetsIT {
         // coverage reporting when agents are in multi-user mode
         if (ParasoftSettings.isMultiUserMode()) {
             Map<String, String> headers = new HashMap<>();
-            headers.put("baggage", "test-operator-id=" + ParasoftPlaywrightContext.getCoverageUserId());
+            headers.put("baggage", "test-operator-id=" + ParasoftSessionManager.getCoverageUserId());
             context.setExtraHTTPHeaders(headers);
         }
         page = context.newPage();

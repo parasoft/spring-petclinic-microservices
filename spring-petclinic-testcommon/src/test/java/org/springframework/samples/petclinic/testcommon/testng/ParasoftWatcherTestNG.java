@@ -1,28 +1,27 @@
-/**
- * ParasoftWatcher integrates TestNG execution with Parasoft CTP for test-level coverage tracking.
- * <p>
- * Implements TestNG listener callbacks to:
- * <ul>
- *   <li>Tell the CTP coverage agents when a test is starting</li>
- *   <li>Tell the CTP coverage agents when a test has passed or failed</li>
- * </ul>
- * Handles authentication, error logging, and multi-user mode support.
- */
-
-package org.springframework.samples.petclinic.selenium.testng.util;
+package org.springframework.samples.petclinic.testcommon.testng;
 
 import org.springframework.samples.petclinic.testcommon.ParasoftCTPApiClient;
+import org.springframework.samples.petclinic.testcommon.ParasoftSessionManager;
 import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
+
 import org.testng.ITestListener;
 import org.testng.ITestResult;
 
-public class ParasoftWatcher implements ITestListener {
+/**
+ * TestNG test listener that reports individual test start and stop events to Parasoft CTP
+ * for per-test coverage tracking.
+ * <p>
+ * This is the TestNG equivalent of
+ * {@link org.springframework.samples.petclinic.testcommon.junit5.ParasoftWatcher ParasoftWatcher}.
+ */
+public class ParasoftWatcherTestNG implements ITestListener {
     @Override
     public void onTestStart(ITestResult result) {
         String testId = getTestId(result);
-        // When in multi-user mode, the coverage user ID is required to associate the test with the correct CTP test session for coverage reporting
+
+        // If multi-user mode, the coverage user ID is retrieved from the Session Manager
         if (ParasoftSettings.isMultiUserMode()) {
-            ParasoftCTPApiClient.startTest(testId, ParasoftSeleniumContext.getCoverageUserId());
+            ParasoftCTPApiClient.startTest(testId, getCoverageUserId(result));
             return;
         }
         ParasoftCTPApiClient.startTest(testId); // if not running in multi-user mode, the coverage user ID is not needed
@@ -31,9 +30,10 @@ public class ParasoftWatcher implements ITestListener {
     @Override
     public void onTestSuccess(ITestResult result) {
         String testId = getTestId(result);
-        // When in multi-user mode, the coverage user ID is required to associate the test with the correct CTP test session for coverage reporting
+
+        // If multi-user mode, the coverage user ID is retrieved from the Session Manager
         if (ParasoftSettings.isMultiUserMode()) {
-            ParasoftCTPApiClient.stopTest(testId, true, null, ParasoftSeleniumContext.getCoverageUserId());
+            ParasoftCTPApiClient.stopTest(testId, true, null, getCoverageUserId(result));
             return;
         }
         ParasoftCTPApiClient.stopTest(testId, true, null); // if not running in multi-user mode, the coverage user ID is not needed
@@ -42,11 +42,10 @@ public class ParasoftWatcher implements ITestListener {
     @Override
     public void onTestFailure(ITestResult result) {
         String testId = getTestId(result);
-        // When in multi-user mode, the coverage user ID is required to associate the test with the correct CTP test session for coverage reporting
+
+        // If multi-user mode, the coverage user ID is retrieved from the Session Manager
         if (ParasoftSettings.isMultiUserMode()) {
-            ParasoftCTPApiClient.stopTest(testId, false,
-                    buildFailureMessage(result.getThrowable()),
-                    ParasoftSeleniumContext.getCoverageUserId());
+            ParasoftCTPApiClient.stopTest(testId, false, buildFailureMessage(result.getThrowable()), getCoverageUserId(result));
             return;
         }
         ParasoftCTPApiClient.stopTest(testId, false, buildFailureMessage(result.getThrowable())); // if not running in multi-user mode, the coverage user ID is not needed
@@ -79,5 +78,12 @@ public class ParasoftWatcher implements ITestListener {
                 .replace("\t", " ");
         int maxLength = 500;
         return sanitized.length() <= maxLength ? sanitized : sanitized.substring(0, maxLength);
+    }
+
+    private static String getCoverageUserId(ITestResult result) {
+        String testClassName = result.getTestClass().getName();
+        String coverageUserId = ParasoftSessionManager.getCoverageUserId(testClassName); // retrieve the coverage user ID for this test class from the Session Manager Map, which was set when the WebDriver instance was created
+
+        return coverageUserId;
     }
 }

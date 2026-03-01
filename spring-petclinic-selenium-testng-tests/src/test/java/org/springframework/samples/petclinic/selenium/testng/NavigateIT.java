@@ -1,15 +1,13 @@
 package org.springframework.samples.petclinic.selenium.testng;
 
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.logging.Logger;
+import org.springframework.samples.petclinic.testcommon.selenium.BasicWebDriverConfigurator;
+import org.springframework.samples.petclinic.testcommon.selenium.BrowserType;
+import org.springframework.samples.petclinic.testcommon.selenium.ParasoftWebDriverConfigurator;
+import org.springframework.samples.petclinic.testcommon.selenium.ParasoftWebDriverResource;
+import org.springframework.samples.petclinic.testcommon.selenium.WebDriverFactory;
 
-import org.springframework.samples.petclinic.selenium.testng.util.ParasoftSeleniumContext;
-import org.springframework.samples.petclinic.selenium.testng.util.ParasoftWatcher;
-import org.springframework.samples.petclinic.testcommon.ParasoftHeaderInjectingProxy;
-import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
-
-import org.littleshoot.proxy.HttpProxyServer;
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
 
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -17,66 +15,26 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Listeners;
 import org.testng.annotations.Test;
 
-import org.openqa.selenium.By;
-import org.openqa.selenium.Proxy;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.chrome.ChromeOptions;
-import org.openqa.selenium.remote.RemoteWebDriver;
-
-@Listeners({ParasoftWatcher.class})
+@Listeners(org.springframework.samples.petclinic.testcommon.testng.ParasoftWatcherTestNG.class)
 public class NavigateIT {
-    private static final Logger LOGGER = Logger.getLogger(NavigateIT.class.getName());
     private static String PETCLINIC_URL = System.getProperty("PETCLINIC_URL", "http://localhost:8099");
 
+    private static ParasoftWebDriverResource driverResource;
     private static WebDriver driver;
-    private static HttpProxyServer proxy;
 
     @BeforeClass
     public void openBrowser() {
-        ChromeOptions options = new ChromeOptions();
-
-        // Using LittleProxy for request header injection, required for Parasoft
-        // coverage reporting when agents are in multi-user mode
-        if (ParasoftSettings.isMultiUserMode()) {
-            proxy = ParasoftHeaderInjectingProxy.startProxy(ParasoftSeleniumContext.getCoverageUserIdRef());
-            int proxyPort = proxy.getListenAddress().getPort();
-
-            Proxy seleniumProxy = new Proxy();
-            seleniumProxy.setHttpProxy(ParasoftSettings.PROXY_HOST + ":" + proxyPort);
-            seleniumProxy.setSslProxy(ParasoftSettings.PROXY_HOST + ":" + proxyPort);
-            seleniumProxy.setNoProxy("<-loopback>");
-
-            options.setProxy(seleniumProxy);
-        }
-        if (ParasoftSettings.isHeadless()) {
-            options.addArguments("--headless=new");
-        }
-        // Initialize RemoteWebDriver when running on Selenium Grid; coverage user ID is fixed per suite
-        if (ParasoftSettings.isSeleniumGrid()) {
-            String gridUrl = ParasoftSettings.SELENIUM_GRID_URL;
-            try {
-                driver = new RemoteWebDriver(new URL(gridUrl), options, false);
-                if (ParasoftSettings.CTP_DEBUG) {
-                    LOGGER.info("[NavigateIT] Using Selenium Grid at " + gridUrl);
-                }
-            } catch (MalformedURLException me) {
-                throw new RuntimeException("Failed to connect to Selenium Grid at " + gridUrl, me);
-            } catch (Exception e) {
-                throw new RuntimeException("General failure to initialize RemoteWebDriver for Selenium Grid at " + gridUrl, e);
-            }
-        } else {
-            driver = new ChromeDriver(options);
-        }
+        driverResource = WebDriverFactory.create(
+                BrowserType.CHROME,
+                new BasicWebDriverConfigurator("960,1080", "0,0"),
+                new ParasoftWebDriverConfigurator(NavigateIT.class.getName()));
+        driver = driverResource.getDriver();
     }
 
     @AfterClass
     public void closeBrowser() {
-        if (driver != null) {
-            driver.quit();
-        }
-        if (proxy != null) {
-            proxy.stop();
+        if (driverResource != null) {
+            driverResource.close();
         }
     }
 

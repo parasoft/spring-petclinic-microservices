@@ -17,6 +17,7 @@
     <properties>
         <junit.version>5.14.2</junit.version>
         <selenium.version>4.40.0</selenium.version>
+        <opentelemetry.version>1.59.0</opentelemetry.version>
     </properties>
 
     <dependencies>
@@ -40,7 +41,14 @@
             <artifactId>selenium-devtools-v142</artifactId>
             <version>${selenium.version}</version>
         </dependency>
-
+        <!-- adding otel dependency for Selenium 4 RemoteWebDriver runtime -->
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-common</artifactId>
+            <version>${opentelemetry.version}</version>
+            <scope>test</scope>
+        </dependency>
+        
         <!-- Test Framework -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -57,6 +65,7 @@
             <artifactId>junit-platform-launcher</artifactId>
             <scope>test</scope>
         </dependency>
+        
     </dependencies>
 
     <dependencyManagement>

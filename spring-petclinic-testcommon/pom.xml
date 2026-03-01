@@ -16,9 +16,13 @@
     </parent>
 
     <properties>
+        <cucumber.version>7.34.2</cucumber.version>
+        <junit.version>5.14.2</junit.version>
+        <testng.version>7.12.0</testng.version>
         <littleproxy.version>1.1.2</littleproxy.version>
         <netty.version>4.2.10.Final</netty.version>
         <selenium.version>4.40.0</selenium.version>
+        <opentelemetry.version>1.59.0</opentelemetry.version>
     </properties>
 
     <dependencies>
@@ -28,6 +32,43 @@
             <version>1.2</version>
             <scope>test</scope>
         </dependency>
+        <!-- JUnit Test Framework -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-launcher</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Cucumber Test Framework -->
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-java</artifactId>
+            <version>${cucumber.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-junit-platform-engine</artifactId>
+            <version>${cucumber.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- TestNG Test Framework -->
+        <dependency>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+            <version>${testng.version}</version>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Utility for HTTP proxying -->
         <dependency>
             <groupId>org.littleshoot</groupId>
@@ -45,15 +86,34 @@
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>
             <version>${selenium.version}</version>
-            <optional>true</optional>
+            <!--optional>true</optional-->
         </dependency>
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-devtools-v142</artifactId>
             <version>${selenium.version}</version>
-            <optional>true</optional>
+            <!--optional>true</optional-->
+        </dependency>
+        <!-- adding otel dependency for Selenium 4 RemoteWebDriver runtime -->
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-common</artifactId>
+            <version>${opentelemetry.version}</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.junit</groupId>
+                <artifactId>junit-bom</artifactId>
+                <version>${junit.version}</version>
+                <scope>import</scope>
+                <type>pom</type>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <build>
         <plugins>

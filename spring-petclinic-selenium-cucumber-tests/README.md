@@ -1,64 +1,114 @@
-# Selenium Cucumber-JUnit Web Functional Tests with CTP
+# spring-petclinic-selenium-cucumber-tests
 
-In order to run the tests, CTP must be running and configured for both communicating with DTP and for collecting coverage on a running petclinic application with agents properly configured.
+Selenium + Cucumber + JUnit Platform functional tests for the Spring Petclinic application, with Parasoft CTP integration for code coverage collection, test result reporting, and Test Impact Analysis.
 
-This module assumes sequential test execution.  For an example of a parallel test execution implementation, see the `spring-petclinic-selenium-parallel-tests` module.
+This module only supports sequential test execution. Cucumber-JUnit does not natively support parallel execution the way vanilla JUnit 5 does, so `CTP_PARALLEL_TEST_EXECUTION` must remain `false`.
 
-First, make sure you've had a successful build, use the command
+## Prerequisites
+
+- The Petclinic application must be running and accessible.
+- Parasoft CTP must be running and configured with coverage agents deployed on the Petclinic services.
+- The project must be built before running tests:
+
 ```
 mvn -ntp clean install -DskipTests
 ```
 
-Or if you need to publish static coverage to DTP with Jtest, you can use the command (ensure jtest.settings file exists and has correct path)
+If you need to publish static coverage to DTP with Jtest, use (ensure `jtest.settings` exists with correct paths):
+
 ```
 mvn -ntp clean package jtest:monitor -DskipTests=true -Djtest.settings=jtest.settings -Djtest.showSettings=true -Dproperty.report.dtp.publish=true
 ```
 
-To run all tests in this module, use the command
+## Running Tests
+
+**Basic execution:**
+
 ```
-mvn verify -pl spring-petclinic-selenium-cucumber-tests -am -DPETCLINIC_URL=<PETCLINIC URL>
+mvn -ntp verify -pl spring-petclinic-selenium-cucumber-tests -am -DPETCLINIC_URL=<PETCLINIC URL>
 ```
-To run all the tests in this module with Selenium Grid, use the command
+
+`PETCLINIC_URL` defaults to `http://localhost:8099` if not provided.
+
+**With Selenium Grid:**
+
 ```
 mvn -ntp verify -pl spring-petclinic-selenium-cucumber-tests -am -DSELENIUM_GRID=true -DPROXY_HOST=<PROXY HOST> -DPETCLINIC_URL=<PETCLINIC URL>
 ```
 
-Notes about Selenium Grid:
-- If Selenium Grid is running in a container (e.g., Docker Desktop) and the JUnit test runner is on the host, then the host.docker.internal convention may not work.
-- Use your host's ip address and set both `-DPROXY_HOST` and `-DPROXY_BIND_HOST` to that ip address.
-- If Selenium Grid is not running in a container, then you only need to provide -DPROXY_HOST to where Selenium Grid is located. If Selenium Grid is running on the cloud, extra considerations (e.g., VPC) may be necessary to ensure connectivity between the test runner + local proxy and grid service.
+**Headless mode:** Add `-DHEADLESS=true` to run without a visible browser window.
 
-By default, PETCLINIC_URL will be set to http://localhost:8099 if not provided.
+**Non-default CTP credentials:** Add `-DCTP_USERNAME=<USERNAME> -DCTP_PASSWORD=<PASSWORD>`.
 
-If you want to run the tests in headless mode so the browser does not become visible during test execution, add the option `-DHEADLESS=true`.
+### Selenium Grid Notes
 
-If your CTP instance uses non-default credentials, set `-DCTP_USERNAME=<USERNAME>` and `-DCTP_PASSWORD=<PASSWORD>`.
+- If Selenium Grid is running in a container (e.g., Docker Desktop) and the JUnit test runner is on the host, the `host.docker.internal` convention may not work. Use your host's IP address and set both `-DPROXY_HOST` and `-DPROXY_BIND_HOST` to that address.
+- If Selenium Grid is not running in a container, you only need to provide `-DPROXY_HOST` to where Selenium Grid is located.
+- If Selenium Grid is running in the cloud, extra considerations (e.g., VPC) may be necessary to ensure connectivity between the test runner + local proxy and the grid service.
+
+## How This Module Uses testcommon
+
+This module depends on `spring-petclinic-testcommon` for all Parasoft CTP integration. See the [testcommon README](../spring-petclinic-testcommon/README.md) for full details.
+
+### Dependency
+
+The testcommon module is consumed as a `test-jar` in `pom.xml`:
+
+```xml
+<dependency>
+    <groupId>org.springframework.samples.petclinic.testcommon</groupId>
+    <artifactId>spring-petclinic-testcommon</artifactId>
+    <version>1.0.0</version>
+    <type>test-jar</type>
+    <scope>test</scope>
+</dependency>
+```
+
+### SuiteListener and Watcher
+
+Both the `ParasoftSuiteListenerCucumber` and `ParasoftWatcherCucumber` are Cucumber hook classes that are automatically discovered via the Cucumber glue path. The `@Suite` runner class includes the testcommon Cucumber package in its glue configuration:
+
+```java
+@Suite
+@SelectClasspathResource("features/petclinic.feature")
+@ConfigurationParameter(
+    key = GLUE_PROPERTY_NAME,
+    value = "org.springframework.samples.petclinic.cucumber,org.springframework.samples.petclinic.testcommon.junit5.cucumber")
+public class RunCucumberIT { }
+```
+
+This causes Cucumber to discover:
+- `ParasoftSuiteListenerCucumber` — uses `@BeforeAll`/`@AfterAll` hooks to start/stop the CTP session and publish coverage and baseline data at suite end.
+- `ParasoftWatcherCucumber` — uses `@Before`/`@After` hooks to report individual scenario start/stop events (with PASS/FAIL results) to CTP.
+
+### WebDriverFactory
+
+Step definition classes create a `ParasoftWebDriverResource` and close it per scenario:
+
+```java
+@Given("the browser is open")
+public void the_browser_is_open() {
+    driverResource = WebDriverFactory.create(
+            BrowserType.CHROME,
+            new BasicWebDriverConfigurator(),
+            new ParasoftWebDriverConfigurator(ParasoftCucumberUtil.getTestId(scenario)));
+    driver = driverResource.getDriver();
+}
+
+@After
+public void cleanup() {
+    if (driverResource != null) {
+        driverResource.close();
+    }
+}
+```
+
+The `ParasoftWebDriverConfigurator` takes the Cucumber test ID (derived from `ParasoftCucumberUtil.getTestId(scenario)`) as the `testContextKey`, which associates the WebDriver session with a `coverageUserId` in `ParasoftSessionManager`. It also starts the header-injecting proxy when multi-user mode is enabled.
 
 ## Configuring Settings
 
-The Parasoft-related settings can be read from a properties file on the classpath with the name `parasoft-settings.properties`, see [spring-petclinic-selenium-cucumber-tests/src/test/resources/parasoft-settings.properties](spring-petclinic-selenium-cucumber-tests/src/test/resources/parasoft-settings.properties).  You will want to configure these settings to point to your instance of CTP with the correct environment ID.  These settings can also be overridden with equivalently named System variables on the Maven commandline with -D, like: `-DCTPBASEURL=http://localhost:8080`
+Settings are resolved in order: **system property** (`-D`) → **`parasoft-settings.properties`** → **hardcoded default**.
 
-The Petclinic BASEURL must be set via System variable, using `-DPETCLINIC_URL=<url>` for example: `-DPETCLINIC_URL=http://localhost:8099`
+Edit [`src/test/resources/parasoft-settings.properties`](src/test/resources/parasoft-settings.properties) to configure your CTP environment. Any setting can be overridden on the Maven command line, e.g. `-DCTP_BASE_URL=http://ctp-server:8080`.
 
-For additional context and comments about these settings, see [spring-petclinic-testcommon/src/test/java/org/springframework/samples/petclinic/testcommon/ParasoftSettings.java](spring-petclinic-testcommon/src/test/java/org/springframework/samples/petclinic/testcommon/ParasoftSettings.java).
-
-- `HEADLESS` (default: `false`)
-- `SELENIUM_GRID` (default: `false`)
-- `SELENIUM_GRID_URL` (default: `http://localhost:4444/wd/hub`)
-
-- `CTP_ENABLED` (default: `false`)
-- `CTP_BASE_URL` (default: `http://localhost:8080/em`)
-- `CTP_ENV_ID` (default: `1`)
-- `CTP_USERNAME` (default: `admin`)
-- `CTP_PASSWORD` (default: `admin`)
-- `CTP_DEBUG` (default: `true`)
-
-- `CTP_MULTI_USER_MODE` (default: `true`)
-
-- `PROXY_HOST` (default: `localhost`)
-- `PROXY_BIND_HOST` (default: `0.0.0.0`)
-
-- `CTP_PUBLISH_BASELINE` (default: `false`)
-- `CTP_BASELINE_BUILD_ID` (default: `spring-petclinic-baseline`)
-
-When `CTP_MULTI_USER_MODE` is `true`, this module uses a fixed coverage user ID format of `{testFramework}-{ctpUsername}-1`.
+For the full list of available settings and their defaults, see the [testcommon README](../spring-petclinic-testcommon/README.md#available-settings) and [ParasoftSettings.java](../spring-petclinic-testcommon/src/test/java/org/springframework/samples/petclinic/testcommon/ParasoftSettings.java).

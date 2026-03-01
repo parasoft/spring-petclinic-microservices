@@ -1,13 +1,3 @@
-/**
- * ParasoftSettings centralizes configuration and utility methods for Parasoft CTP and DTP integration.
- * <p>
- * This class provides:
- * <ul>
- *   <li>Static fields for system properties controlling CTP environment, authentication, debug mode, and baseline publishing</li>
- *   <li>Conventions for multi-user mode, parallel test execution, and test impact analysis</li>
- * </ul>
- * Used by other classes to access configuration and generate identifiers for REST API calls.
- */
 package org.springframework.samples.petclinic.testcommon;
 
 import java.io.FileInputStream;
@@ -15,18 +5,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
-
-// Documentation:
-// Configuration values are resolved in the following order:
-// 1. System property (e.g., -DCTP_BASE_URL)
-// 2. parasoft-settings.properties file (classpath src/test/resources, or path specified by -DPARASOFT_SETTINGS_FILE)
-// 3. Hardcoded default value
-//
-// Example parasoft-settings.properties:
-//   CTP_BASE_URL=http://ctp-server:8070
-//   CTP_USERNAME=admin
-//   CTP_PASSWORD=admin
-//   ...
+/**
+ * Centralizes configuration for Parasoft CTP and DTP integration.
+ * <p>
+ * Configuration values are resolved in the following order:
+ * <ol>
+ *   <li>System property (e.g., {@code -DCTP_BASE_URL})</li>
+ *   <li>{@code parasoft-settings.properties} file (classpath {@code src/test/resources},
+ *       or path specified by {@code -DPARASOFT_SETTINGS_FILE})</li>
+ *   <li>Hardcoded default value</li>
+ * </ol>
+ */
 public class ParasoftSettings {
     private static final Properties fileProperties = new Properties();
     static {
@@ -48,6 +37,40 @@ public class ParasoftSettings {
             } catch (IOException ignored) {}
         }
     }
+    
+    // System variables for CTP integration (now support file-based config)
+    public static final String CTP_BASE_URL = getSetting("CTP_BASE_URL", "http://localhost:8080");
+    public static final int CTP_ENV_ID = getIntSetting("CTP_ENV_ID", "1");
+    public static final String CTP_USERNAME = getSetting("CTP_USERNAME", "admin");
+    public static final String CTP_PASSWORD = getSetting("CTP_PASSWORD", "admin");
+    
+    // CTP_LOG_LEVEL controls the verbosity of Parasoft logging (ERROR < WARN < INFO < DEBUG < TRACE)
+    public static final String CTP_LOG_LEVEL = getSetting("CTP_LOG_LEVEL", "WARN");
+
+    // CTP_MULTI_USER_MODE controls whether tests are executed in an environment where the coverage agents are setup for multi-user
+    public static final boolean CTP_MULTI_USER_MODE = getBoolSetting("CTP_MULTI_USER_MODE", "true");
+
+    // CTP_PARALLEL_TEST_EXECUTION controls whether tests are executed in parallel, which requires a different implementation in the test framework
+    // CTP_MULTI_USER_MODE must be true for parallel test execution to work
+    public static final boolean CTP_PARALLEL_TEST_EXECUTION = getBoolSetting("CTP_PARALLEL_TEST_EXECUTION", "false");
+
+    // publishCoverage controls whether this test run should publish coverage and test result data to DTP.
+    public static final boolean CTP_PUBLISH_COVERAGE = getBoolSetting("CTP_PUBLISH_COVERAGE", "false");
+
+    // publishBaseline controls whether this test run should set a baselineBuildId to be used as a reference point for Test Impact Analysis.
+    public static final boolean CTP_PUBLISH_BASELINE = getBoolSetting("CTP_PUBLISH_BASELINE", "false");
+    public static final String CTP_BASELINE_BUILD_ID = getSetting("CTP_BASELINE_BUILD_ID", "spring-petclinic-baseline");
+
+    // The PROXY variables are used to configure the proxy server for injecting the baggage header into the test requests
+    public static final String PROXY_HOST = getSetting("PROXY_HOST", "localhost");
+    public static final String PROXY_BIND_HOST = getSetting("PROXY_BIND_HOST", "0.0.0.0");
+    
+    // Selenium Grid and Headless system variables for configuring the test execution environment
+    public static final boolean HEADLESS = getBoolSetting("HEADLESS", "false");
+    public static final boolean SELENIUM_GRID = getBoolSetting("SELENIUM_GRID", "false");
+    public static final String SELENIUM_GRID_URL = getSetting("SELENIUM_GRID_URL", "http://localhost:4444/wd/hub");
+
+    private static volatile String TESTFRAMEWORK = getSetting("TESTFRAMEWORK", "defaultTestFramework");
 
     private static String getSetting(String key, String def) {
         return System.getProperty(key, fileProperties.getProperty(key, def));
@@ -62,35 +85,6 @@ public class ParasoftSettings {
             return Integer.parseInt(def);
         }
     }
-    // System variables for CTP integration
-    // System variables for CTP integration (now support file-based config)
-    public static final boolean CTP_ENABLED = getBoolSetting("CTP_ENABLED", "false");
-    public static final String CTP_BASE_URL = getSetting("CTP_BASE_URL", "http://localhost:8080");
-    public static final int CTP_ENV_ID = getIntSetting("CTP_ENV_ID", "1");
-    public static final String CTP_USERNAME = getSetting("CTP_USERNAME", "admin");
-    public static final String CTP_PASSWORD = getSetting("CTP_PASSWORD", "admin");
-    public static final boolean CTP_DEBUG = getBoolSetting("CTP_DEBUG", "false");
-
-    // CTP_MULTI_USER_MODE controls whether tests are executed in an environment where the coverage agents are setup for multi-user
-    public static final boolean CTP_MULTI_USER_MODE = getBoolSetting("CTP_MULTI_USER_MODE", "true");
-
-    // The PROXY variables are used to configure the proxy server for injecting the baggage header into the test requests
-    public static final String PROXY_HOST = getSetting("PROXY_HOST", "localhost");
-    public static final String PROXY_BIND_HOST = getSetting("PROXY_BIND_HOST", "0.0.0.0");
-
-    // publishCoverage controls whether this test run should publish coverage and test result data to DTP.
-    public static final boolean CTP_PUBLISH_COVERAGE = getBoolSetting("CTP_PUBLISH_COVERAGE", "false");
-
-    // publishBaseline controls whether this test run should set a baselineBuildId to be used as a reference point for Test Impact Analysis.
-    public static final boolean CTP_PUBLISH_BASELINE = getBoolSetting("CTP_PUBLISH_BASELINE", "false");
-    public static final String CTP_BASELINE_BUILD_ID = getSetting("CTP_BASELINE_BUILD_ID", "spring-petclinic-baseline");
-
-    // Selenium Grid and Headless system variables for configuring the test execution environment
-    public static final boolean HEADLESS = getBoolSetting("HEADLESS", "false");
-    public static final boolean SELENIUM_GRID = getBoolSetting("SELENIUM_GRID", "false");
-    public static final String SELENIUM_GRID_URL = getSetting("SELENIUM_GRID_URL", "http://localhost:4444/wd/hub");
-
-    private static volatile String TESTFRAMEWORK = getSetting("TESTFRAMEWORK", "defaultTestFramework");
 
     public static void setTestFramework(String framework) {
         if (framework != null && !framework.isBlank()) {
@@ -102,8 +96,25 @@ public class ParasoftSettings {
         return TESTFRAMEWORK;
     }
 
+    /**
+     * Returns true if the requested log level is enabled according to the configured CTP_LOG_LEVEL.
+     * Levels: ERROR < WARN < INFO < DEBUG < TRACE
+     */
+    public static boolean isLogLevelEnabled(String level) {
+        String[] levels = {"ERROR", "WARN", "INFO", "DEBUG", "TRACE"};
+        int configured = java.util.Arrays.asList(levels).indexOf(CTP_LOG_LEVEL.toUpperCase());
+        int requested = java.util.Arrays.asList(levels).indexOf(level.toUpperCase());
+        if (configured == -1) configured = 2; // Default to INFO
+        if (requested == -1) requested = 2; // Default to INFO
+        return requested <= configured;
+    }
+
     public static Boolean isMultiUserMode() {
         return CTP_MULTI_USER_MODE;
+    }
+
+    public static Boolean isParallelTestExecution() {
+        return CTP_PARALLEL_TEST_EXECUTION;
     }
 
     public static boolean isHeadless() {
@@ -113,5 +124,4 @@ public class ParasoftSettings {
     public static boolean isSeleniumGrid() {
         return SELENIUM_GRID;
     }
-
 }
