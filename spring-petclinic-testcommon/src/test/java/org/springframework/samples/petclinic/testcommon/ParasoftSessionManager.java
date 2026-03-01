@@ -53,6 +53,12 @@ public class ParasoftSessionManager {
                 // For parallel test execution, coverageUserIdRef is passed to this method from the ParasoftWebDriverResource
                 // Note: the coverageUserIdRef and accompanying session info will be registered for this testContextKey to publish coverage at suite end
                 // Start a CTP session for this coverageUserIdRef
+                if (coverageUserIdRef == null || coverageUserIdRef.get() == null || coverageUserIdRef.get().isBlank()) {
+                    if (ParasoftSettings.isLogLevelEnabled("WARN")) {
+                        LOGGER.warning("[ParasoftSessionManager] startSession(): Skipping starting CTP session due to missing coverageUserIdRef for test execution with multi-user mode and parallel test execution");
+                    }
+                    return;
+                }
                 coverageUserIdRef = setExistingCoverageUserIdRef(coverageUserIdRef, webDriverSessionId);
                 registerCoverageUserId(testContextKey, coverageUserIdRef, dtpSessionTag);
                 String ctpTestSessionId = ParasoftCTPApiClient.startSession(coverageUserIdRef.get());
@@ -103,14 +109,14 @@ public class ParasoftSessionManager {
     public static AtomicReference<String> getCoverageUserIdRef(String testContextKey) {
         if (ParasoftSettings.isParallelTestExecution() && ParasoftSettings.isMultiUserMode()) {
             if (testContextKey == null || testContextKey.isBlank()) {
-                if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
-                    LOGGER.info("getCoverageUserIdRef: Bad testContextKey");
+                if (ParasoftSettings.isLogLevelEnabled("WARN")) {
+                    LOGGER.warning("[ParasoftSessionManager] getCoverageUserIdRef(): testContextKey should not be null or blank for parallel test execution with multi-user mode");
                 }
                 return null;
             }
             return COVERAGE_USER_IDS.get(testContextKey);
         } else {
-            return sequentialCoverageUserIdRef;
+            return sequentialCoverageUserIdRef; // sequential test execution provides a null testContextKey, so return the shared sequentialCoverageUserIdRef
         }
     }
 
@@ -120,21 +126,47 @@ public class ParasoftSessionManager {
             if (ParasoftSettings.isParallelTestExecution()) {
                 // multi-user parallel: publishing coverage for all sessions that are started with WebDriver lifecycle at suite end
                 Collection<SessionInfo> sessions = getSessionInfos();
+                if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
+                    LOGGER.info("[ParasoftSessionManager] publishCoverageAtSuiteEnd(): Publishing multi-user parallel coverage for " + sessions.size() + " sessions at suite end");
+                }
                 for (SessionInfo session : sessions) {
-                    if (session.ctpTestSessionId != null && !session.ctpTestSessionId.isBlank()) {
-                        ParasoftCTPApiClient.publishCoverage(session.ctpTestSessionId, session.dtpSessionTag,
-                                session.coverageUserId);
+                    if (session.ctpTestSessionId != null && !session.ctpTestSessionId.isBlank()
+                        && session.coverageUserId != null && !session.coverageUserId.isBlank()
+                        && session.dtpSessionTag != null && !session.dtpSessionTag.isBlank()) {
+                        ParasoftCTPApiClient.publishCoverage(session.ctpTestSessionId, session.dtpSessionTag,session.coverageUserId);
+                    } else {
+                        if (ParasoftSettings.isLogLevelEnabled("WARN")) {
+                            LOGGER.warning("[ParasoftSessionManager] publishCoverageAtSuiteEnd(): Skipping publishing coverage for multi-user parallel session with missing information: coverageUserId=" + session.coverageUserId + ", ctpTestSessionId=" + session.ctpTestSessionId + ", dtpSessionTag=" + session.dtpSessionTag);
+                        }
                     }
                 }
             } else {
                 // multi-user sequential: coverageUserId is needed for publishing coverage
-                ParasoftCTPApiClient.publishCoverage(sequentialCtpTestSessionId, sequentialDtpSessionTag, sequentialCoverageUserIdRef.get());
+                if (sequentialCtpTestSessionId != null && !sequentialCtpTestSessionId.isBlank()
+                    && sequentialCoverageUserIdRef != null && sequentialCoverageUserIdRef.get() != null && !sequentialCoverageUserIdRef.get().isBlank()
+                    && sequentialDtpSessionTag != null && !sequentialDtpSessionTag.isBlank()) {
+                    if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
+                        LOGGER.info("[ParasoftSessionManager] publishCoverageAtSuiteEnd(): Publishing multi-user sequential coverage for " + sequentialCtpTestSessionId + " at suite end");
+                    }
+                    ParasoftCTPApiClient.publishCoverage(sequentialCtpTestSessionId, sequentialDtpSessionTag, sequentialCoverageUserIdRef.get());
+                } else {
+                    if (ParasoftSettings.isLogLevelEnabled("WARN")) {
+                        LOGGER.warning("[ParasoftSessionManager] publishCoverageAtSuiteEnd(): Skipping publishing coverage for multi-user sequential session with missing information: coverageUserId=" + (sequentialCoverageUserIdRef != null ? sequentialCoverageUserIdRef.get() : null) + ", ctpTestSessionId=" + sequentialCtpTestSessionId + ", dtpSessionTag=" + sequentialDtpSessionTag);
+                    }
+                }
             }
         } else {
             // single-user: coverageUserId is not needed
             if (sequentialCtpTestSessionId != null && !sequentialCtpTestSessionId.isBlank()
-                    && sequentialDtpSessionTag != null && !sequentialDtpSessionTag.isBlank()) {
+                && sequentialDtpSessionTag != null && !sequentialDtpSessionTag.isBlank()) {
+                if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
+                    LOGGER.info("[ParasoftSessionManager] publishCoverageAtSuiteEnd(): Publishing single-user sequential coverage for " + sequentialCtpTestSessionId + " at suite end");
+                }
                 ParasoftCTPApiClient.publishCoverage(sequentialCtpTestSessionId, sequentialDtpSessionTag);
+            } else {
+                if (ParasoftSettings.isLogLevelEnabled("WARN")) {
+                    LOGGER.warning("[ParasoftSessionManager] publishCoverageAtSuiteEnd(): Skipping publishing coverage for single-user sequential session with missing information: ctpTestSessionId=" + sequentialCtpTestSessionId + ", dtpSessionTag=" + sequentialDtpSessionTag);
+                }
             }
         }
     }
@@ -152,14 +184,8 @@ public class ParasoftSessionManager {
     /** Registers a coverage user ID for parallel test execution sessions. */
     private static void registerCoverageUserId(String testContextKey, AtomicReference<String> coverageUserIdRef, String dtpSessionTag) {
         if (testContextKey == null || testContextKey.isBlank()) {
-            if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
-                LOGGER.info("[ParasoftSessionManager] registerCoverageUserId(): Bad testContextKey");
-            }
-            return;
-        }
-        if (coverageUserIdRef == null || coverageUserIdRef.get() == null || coverageUserIdRef.get().isBlank()) {
-            if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
-                LOGGER.info("[ParasoftSessionManager] registerCoverageUserId(): Bad coverageUserIdRef");
+            if (ParasoftSettings.isLogLevelEnabled("WARN")) {
+                LOGGER.warning("[ParasoftSessionManager] registerCoverageUserId(): Skipping registration due to bad testContextKey");
             }
             return;
         }
@@ -173,17 +199,11 @@ public class ParasoftSessionManager {
     /** Registers a CTP test session ID for parallel test execution sessions. */
     private static void registerCtpTestSession(String ctpTestSessionId, String coverageUserId) {
         if (ctpTestSessionId == null || ctpTestSessionId.isBlank()) {
-            if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
-                LOGGER.info("[ParasoftSessionManager] registerCtpTestSession(): Bad ctpTestSessionId");
+            if (ParasoftSettings.isLogLevelEnabled("WARN")) {
+                LOGGER.warning("[ParasoftSessionManager] registerCtpTestSession(): Skipping registration due to bad ctpTestSessionId");
             }
             return;
         }   
-        if (coverageUserId == null || coverageUserId.isBlank()) {
-            if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
-                LOGGER.info("[ParasoftSessionManager] registerCtpTestSession(): Bad coverageUserId");
-            }
-            return;
-        }
         if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
             LOGGER.info("[ParasoftSessionManager] registerCtpTestSession(): For parallel test execution, registering CTP test session: " + ctpTestSessionId);
         }
@@ -192,12 +212,6 @@ public class ParasoftSessionManager {
 
     /** Registers session info for parallel test execution sessions. */
     private static void registerSessionInfo(String coverageUserId, String ctpTestSessionId, String dtpSessionTag) {
-        if (coverageUserId == null || coverageUserId.isBlank()) {
-            if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
-                LOGGER.info("[ParasoftSessionManager] registerSessionInfo(): Bad coverageUserId");
-            }
-            return;
-        }
         if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
             LOGGER.info("[ParasoftSessionManager] registerSessionInfo(): For parallel test execution, registering session info: coverageUserId=" + coverageUserId + ", ctpTestSessionId=" + ctpTestSessionId + ", dtpSessionTag=" + dtpSessionTag);
         }

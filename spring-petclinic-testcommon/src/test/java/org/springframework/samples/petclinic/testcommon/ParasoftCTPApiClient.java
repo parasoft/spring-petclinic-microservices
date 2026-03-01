@@ -7,7 +7,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Base64;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -61,14 +60,16 @@ public class ParasoftCTPApiClient {
                 return responseBody.substring(start, end);
             }
         } catch (SocketException ce) {
-            LOGGER.log(Level.SEVERE, "[ParasoftCTPApiClient] Connection error during API call: " + ce.getMessage(), ce);
+            if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
+                LOGGER.severe("[ParasoftCTPApiClient] Connection error during API call: " + ce.getMessage());
+            }
         } catch (IOException ioe) {
             if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
-                LOGGER.log(Level.SEVERE, "[ParasoftCTPApiClient] IO error during API call: " + ioe.getMessage(), ioe);
+                LOGGER.severe("[ParasoftCTPApiClient] IO error during API call: " + ioe.getMessage());
             }
         } catch (Exception e) {
             if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
-                LOGGER.log(Level.SEVERE, "[ParasoftCTPApiClient] Unexpected error during API call", e);
+                LOGGER.severe("[ParasoftCTPApiClient] Unexpected error during API call: " + e.getMessage());
             }
         }
         return null;
@@ -334,8 +335,8 @@ public class ParasoftCTPApiClient {
     /** Resolves the DTP session tag, falling back to a placeholder if not provided. */
     private static String resolveDtpSessionTag(String dtpSessionTag) {
        if (dtpSessionTag == null || dtpSessionTag.isBlank()) {
-            if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
-                LOGGER.info("[ParasoftCTPApiClient] No DTP session tag provided. Assuming default session tag.");
+            if (ParasoftSettings.isLogLevelEnabled("WARN")) {
+                LOGGER.warning("[ParasoftCTPApiClient] No DTP session tag provided. Assuming default session tag.");
             }
             return "NoDTPSessionTagProvided";
         }
