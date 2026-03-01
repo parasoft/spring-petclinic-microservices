@@ -88,11 +88,6 @@ public class ParasoftSessionManager {
         }
     }
 
-    /** Used by the Playwright module, which operates in sequential mode without a testContextKey. */
-    public static String getCoverageUserId() {
-        return sequentialCoverageUserIdRef.get();
-    }
-
     /**
      * Retrieves the coverage user ID for the given test context key in parallel test execution,
      * or the sequential coverage user ID for sequential test execution.

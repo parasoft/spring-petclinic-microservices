@@ -2,6 +2,8 @@ package org.springframework.samples.petclinic.playwright;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.springframework.samples.petclinic.testcommon.ParasoftSessionManager;
 import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
@@ -28,19 +30,27 @@ public class VisitIT {
 
     private static final String PETCLINIC_URL = System.getProperty("PETCLINIC_URL", "http://localhost:8099");
 
+    private static String playwrightSessionId;
     BrowserContext context;
     Page page;
 
     @BeforeAll
     static void launchBrowser() {
+        playwrightSessionId = UUID.randomUUID().toString();
         playwright = Playwright.create();
         browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(ParasoftSettings.isHeadless()).setSlowMo(500));
+        if (ParasoftSettings.isParallelTestExecution()) {
+            ParasoftSessionManager.startSession(VisitIT.class.getName(), playwrightSessionId, new AtomicReference<String>(""));
+        }
     }
 
     @AfterAll
     static void closeBrowser() {
         browser.close();
         playwright.close();
+        if (ParasoftSettings.isParallelTestExecution()) {
+            ParasoftSessionManager.stopSession(VisitIT.class.getName());
+        }
     }
 
     @BeforeEach
@@ -50,7 +60,7 @@ public class VisitIT {
         // coverage reporting when agents are in multi-user mode
         if (ParasoftSettings.isMultiUserMode()) {
             Map<String, String> headers = new HashMap<>();
-            headers.put("baggage", "test-operator-id=" + ParasoftSessionManager.getCoverageUserId());
+            headers.put("baggage", "test-operator-id=" + ParasoftSessionManager.getCoverageUserId(VisitIT.class.getName()));
             context.setExtraHTTPHeaders(headers);
         }
         page = context.newPage();
