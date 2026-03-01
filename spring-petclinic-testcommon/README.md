@@ -191,6 +191,7 @@ The properties file is loaded from the classpath (`src/test/resources/parasoft-s
 | Property | Default | Description |
 |---|---|---|
 | `CTP_BASE_URL` | `http://localhost:8080` | CTP server URL |
+| `CTP_CONTEXT_PATH` | `/em` | Optional: Specify custom CTP context path if non-standard |
 | `CTP_ENV_ID` | `1` | CTP environment ID |
 | `CTP_USERNAME` | `admin` | CTP authentication username |
 | `CTP_PASSWORD` | `admin` | CTP authentication password |

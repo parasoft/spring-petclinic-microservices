@@ -40,6 +40,7 @@ public class ParasoftSettings {
     
     // System variables for CTP integration (now support file-based config)
     public static final String CTP_BASE_URL = getSetting("CTP_BASE_URL", "http://localhost:8080");
+    public static final String CTP_CONTEXT_PATH = getSetting("CTP_CONTEXT_PATH", "/em"); // Optional setting if CTP is deployed to custom context path
     public static final int CTP_ENV_ID = getIntSetting("CTP_ENV_ID", "1");
     public static final String CTP_USERNAME = getSetting("CTP_USERNAME", "admin");
     public static final String CTP_PASSWORD = getSetting("CTP_PASSWORD", "admin");

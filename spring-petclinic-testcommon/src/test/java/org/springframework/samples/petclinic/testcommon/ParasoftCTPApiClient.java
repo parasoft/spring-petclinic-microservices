@@ -40,7 +40,7 @@ public class ParasoftCTPApiClient {
             payload.append('}');
         }
         HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create(ParasoftSettings.CTP_BASE_URL + "/em/api/v3/environments/" + ParasoftSettings.CTP_ENV_ID + "/agents/session/start"))
+            .uri(URI.create(ParasoftSettings.CTP_BASE_URL + ParasoftSettings.CTP_CONTEXT_PATH + "/api/v3/environments/" + ParasoftSettings.CTP_ENV_ID + "/agents/session/start"))
             .header("Content-Type", "application/json")
             .header("Authorization", "Basic " + Base64.getEncoder().encodeToString(basicAuth.getBytes()))
             .POST(HttpRequest.BodyPublishers.ofString(payload.toString()))
@@ -96,7 +96,7 @@ public class ParasoftCTPApiClient {
         }
         payload.append('}');
         HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create(ParasoftSettings.CTP_BASE_URL + "/em/api/v3/environments/" + ParasoftSettings.CTP_ENV_ID + "/agents/test/start"))
+            .uri(URI.create(ParasoftSettings.CTP_BASE_URL + ParasoftSettings.CTP_CONTEXT_PATH + "/api/v3/environments/" + ParasoftSettings.CTP_ENV_ID + "/agents/test/start"))
             .header("Content-Type", "application/json")
             .header("Authorization", "Basic " + Base64.getEncoder().encodeToString(basicAuth.getBytes()))
             .POST(HttpRequest.BodyPublishers.ofString(payload.toString()))
@@ -152,7 +152,7 @@ public class ParasoftCTPApiClient {
         }
         payload.append('}');
         HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create(ParasoftSettings.CTP_BASE_URL + "/em/api/v3/environments/" + ParasoftSettings.CTP_ENV_ID + "/agents/test/stop"))
+            .uri(URI.create(ParasoftSettings.CTP_BASE_URL + ParasoftSettings.CTP_CONTEXT_PATH + "/api/v3/environments/" + ParasoftSettings.CTP_ENV_ID + "/agents/test/stop"))
             .header("Content-Type", "application/json")
             .header("Authorization", "Basic " + Base64.getEncoder().encodeToString(basicAuth.getBytes()))
             .POST(HttpRequest.BodyPublishers.ofString(payload.toString()))
@@ -198,7 +198,7 @@ public class ParasoftCTPApiClient {
             payload.append('}');
         }
         HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create(ParasoftSettings.CTP_BASE_URL + "/em/api/v3/environments/" + ParasoftSettings.CTP_ENV_ID + "/agents/session/stop"))
+            .uri(URI.create(ParasoftSettings.CTP_BASE_URL + ParasoftSettings.CTP_CONTEXT_PATH + "/api/v3/environments/" + ParasoftSettings.CTP_ENV_ID + "/agents/session/stop"))
             .header("Content-Type", "application/json")
             .header("Authorization", "Basic " + Base64.getEncoder().encodeToString(basicAuth.getBytes()))
             .POST(HttpRequest.BodyPublishers.ofString(payload.toString()))
@@ -251,9 +251,9 @@ public class ParasoftCTPApiClient {
         // Only include userId if the coverage agents are configured in multi-user mode
         URI coverageUri;
         if (ParasoftSettings.isMultiUserMode()) {
-            coverageUri = URI.create(ParasoftSettings.CTP_BASE_URL + "/em/api/v3/environments/" + ParasoftSettings.CTP_ENV_ID + "/coverage/" + sessionId + "?userId=" + resolvedCoverageUserId);
+            coverageUri = URI.create(ParasoftSettings.CTP_BASE_URL + ParasoftSettings.CTP_CONTEXT_PATH + "/api/v3/environments/" + ParasoftSettings.CTP_ENV_ID + "/coverage/" + sessionId + "?userId=" + resolvedCoverageUserId);
         } else {
-            coverageUri = URI.create(ParasoftSettings.CTP_BASE_URL + "/em/api/v3/environments/" + ParasoftSettings.CTP_ENV_ID + "/coverage/" + sessionId);
+            coverageUri = URI.create(ParasoftSettings.CTP_BASE_URL + ParasoftSettings.CTP_CONTEXT_PATH + "/api/v3/environments/" + ParasoftSettings.CTP_ENV_ID + "/coverage/" + sessionId);
         }
         HttpRequest request = HttpRequest.newBuilder()
             .uri(coverageUri)
@@ -292,7 +292,7 @@ public class ParasoftCTPApiClient {
         }
         
         HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create(ParasoftSettings.CTP_BASE_URL + "/em/api/v3/environments/" + ParasoftSettings.CTP_ENV_ID+ "/coverage/baselines/" + ParasoftSettings.CTP_BASELINE_BUILD_ID))
+            .uri(URI.create(ParasoftSettings.CTP_BASE_URL + ParasoftSettings.CTP_CONTEXT_PATH + "/api/v3/environments/" + ParasoftSettings.CTP_ENV_ID+ "/coverage/baselines/" + ParasoftSettings.CTP_BASELINE_BUILD_ID))
             .header("Content-Type", "application/json")
             .header("Authorization", "Basic " + Base64.getEncoder().encodeToString(basicAuth.getBytes()))
             .POST(HttpRequest.BodyPublishers.noBody())
