@@ -22,5 +22,6 @@ settings.json
 generated/
 
 jtest.settings
+.jtest
 
 /*/*/*/resources/coverage

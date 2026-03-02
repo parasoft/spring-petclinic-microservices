@@ -39,7 +39,7 @@ public class VetsIT {
         playwright = Playwright.create();
         browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(ParasoftSettings.isHeadless()).setSlowMo(500));
         if (ParasoftSettings.isParallelTestExecution()) {
-            ParasoftSessionManager.startSession(VetsIT.class.getName(), playwrightSessionId, new AtomicReference<String>(""));
+            ParasoftSessionManager.startSession(VetsIT.class.getName(), playwrightSessionId, new AtomicReference<String>("__UNINITIALIZED__"));
         }
     }
 

@@ -39,7 +39,7 @@ public class RegisterOwnerAndPetIT {
         playwright = Playwright.create();
         browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(ParasoftSettings.isHeadless()).setSlowMo(500));
         if (ParasoftSettings.isParallelTestExecution()) {
-            ParasoftSessionManager.startSession(RegisterOwnerAndPetIT.class.getName(), playwrightSessionId, new AtomicReference<String>(""));
+            ParasoftSessionManager.startSession(RegisterOwnerAndPetIT.class.getName(), playwrightSessionId, new AtomicReference<String>("__UNINITIALIZED__"));
         }
     }
 
