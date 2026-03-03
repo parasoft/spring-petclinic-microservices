@@ -50,11 +50,8 @@ public class ParasoftCTPApiClient {
             }
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             String responseBody = response.body();
-            if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
-                LOGGER.info("[ParasoftCTPApiClient] API call response: " + response.statusCode() + " - " + responseBody);
-            }
             int sessionIndex = responseBody.indexOf("\"session\":");
-            if (sessionIndex != -1) {
+            if (sessionIndex != -1 && response.statusCode() == 200) {
                 int start = responseBody.indexOf('"', sessionIndex + 10) + 1;
                 int end = responseBody.indexOf('"', start);
                 String sessionId =  responseBody.substring(start, end);
@@ -62,6 +59,10 @@ public class ParasoftCTPApiClient {
                     LOGGER.info("[ParasoftCTPApiClient] CTP session started successfully. Session ID: " + sessionId);
                 }
                 return sessionId;
+            } else {
+                if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
+                    LOGGER.severe("[ParasoftCTPApiClient] Failed to start CTP session. Response: " + response.statusCode() + " - " + responseBody);
+                }
             }
         } catch (SocketException ce) {
             if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
@@ -111,8 +112,10 @@ public class ParasoftCTPApiClient {
                 LOGGER.info("[ParasoftCTPApiClient] Sending API call: " + request.uri());
             }
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
-                LOGGER.info("[ParasoftCTPApiClient] API call response: " + response.statusCode() + " - " + response.body());
+            if (response.statusCode() != 200) {
+                if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
+                    LOGGER.severe("[ParasoftCTPApiClient] Failed to start CTP test. Response: " + response.statusCode() + " - " + response.body());
+                }
             }
         } catch (SocketException ce) {
             if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
@@ -164,8 +167,10 @@ public class ParasoftCTPApiClient {
             .build();
         try {
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
-                LOGGER.info("[ParasoftCTPApiClient] API call response: " + response.statusCode() + " - " + response.body());
+            if (response.statusCode() != 200) {
+                if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
+                    LOGGER.severe("[ParasoftCTPApiClient] Failed to stop CTP test. Response: " + response.statusCode() + " - " + response.body());
+                }
             }
         } catch (SocketException ce) {
             if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
@@ -213,8 +218,10 @@ public class ParasoftCTPApiClient {
                 LOGGER.info("[ParasoftCTPApiClient] Sending API call: " + request.uri());
             }
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
-                LOGGER.info("[ParasoftCTPApiClient] API call response: " + response.statusCode() + " - " + response.body());
+            if (response.statusCode() != 200) {
+                if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
+                    LOGGER.severe("[ParasoftCTPApiClient] Failed to stop CTP session. Response: " + response.statusCode() + " - " + response.body());
+                }
             }
         } catch (SocketException ce) {
             if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
@@ -271,8 +278,10 @@ public class ParasoftCTPApiClient {
                 LOGGER.info("[ParasoftCTPApiClient] Sending API call: " + request.uri());
             }
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
-                LOGGER.info("[ParasoftCTPApiClient] API call response: " + response.statusCode() + " - " + response.body());
+            if (response.statusCode() != 200) {
+                if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
+                    LOGGER.severe("[ParasoftCTPApiClient] Failed to publish coverage to CTP. Response: " + response.statusCode() + " - " + response.body());
+                }
             }
         } catch (SocketException ce) {
             if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
@@ -307,8 +316,10 @@ public class ParasoftCTPApiClient {
                 LOGGER.info("[ParasoftCTPApiClient] Sending API call: " + request.uri());
             }
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
-                LOGGER.info("[ParasoftCTPApiClient] API call response: " + response.statusCode() + " - " + response.body());
+            if (response.statusCode() != 200) {
+                if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
+                    LOGGER.severe("[ParasoftCTPApiClient] Failed to publish baseline to CTP. Response: " + response.statusCode() + " - " + response.body());
+                }
             }
         } catch (SocketException ce) {
             if (ParasoftSettings.isLogLevelEnabled("ERROR")) {

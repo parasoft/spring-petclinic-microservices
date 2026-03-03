@@ -202,7 +202,7 @@ The properties file is loaded from the classpath (`src/test/resources/parasoft-s
 | `CTP_PUBLISH_BASELINE` | `false` | Publish baseline for Test Impact Analysis at suite end |
 | `CTP_BASELINE_BUILD_ID` | `spring-petclinic-baseline` | Baseline build identifier |
 | `PROXY_HOST` | `localhost` | Hostname for the header-injecting proxy |
-| `PROXY_BIND_HOST` | `0.0.0.0` | Bind address for the proxy (use IPv4 for containerized Grid) |
+| `PROXY_BIND_HOST` | `0.0.0.0` | Bind address for the proxy (override for containerized Grid on Linux host) |
 | `HEADLESS` | `false` | Run browser in headless mode |
 | `SELENIUM_GRID` | `false` | Use Selenium Grid (`RemoteWebDriver`) |
 | `SELENIUM_GRID_URL` | `http://localhost:4444/wd/hub` | Selenium Grid hub URL |
