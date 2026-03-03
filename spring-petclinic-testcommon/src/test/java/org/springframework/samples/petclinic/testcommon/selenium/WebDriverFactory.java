@@ -7,6 +7,7 @@ import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
 
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.remote.RemoteWebDriver;
@@ -58,7 +59,7 @@ public class WebDriverFactory {
             try {
                 driver = new RemoteWebDriver(new URL(ParasoftSettings.SELENIUM_GRID_URL), options);
             } catch (Exception e) {
-                throw new RuntimeException("Failed to initialize RemoteWebDriver", e);
+                throw new WebDriverException("Failed to initialize RemoteWebDriver", e);
             }
         } else {
             switch (browser) {
