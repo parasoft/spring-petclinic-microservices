@@ -49,15 +49,19 @@ public class ParasoftCTPApiClient {
                 LOGGER.info("[ParasoftCTPApiClient] Sending API call: " + request.uri());
             }
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
-                LOGGER.info("[ParasoftCTPApiClient] API call response: " + response.statusCode() + " - " + response.body());
-            }
             String responseBody = response.body();
+            if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
+                LOGGER.info("[ParasoftCTPApiClient] API call response: " + response.statusCode() + " - " + responseBody);
+            }
             int sessionIndex = responseBody.indexOf("\"session\":");
             if (sessionIndex != -1) {
                 int start = responseBody.indexOf('"', sessionIndex + 10) + 1;
                 int end = responseBody.indexOf('"', start);
-                return responseBody.substring(start, end);
+                String sessionId =  responseBody.substring(start, end);
+                if (ParasoftSettings.isLogLevelEnabled("INFO")) {
+                    LOGGER.info("[ParasoftCTPApiClient] CTP session started successfully. Session ID: " + sessionId);
+                }
+                return sessionId;
             }
         } catch (SocketException ce) {
             if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
