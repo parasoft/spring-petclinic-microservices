@@ -321,6 +321,7 @@ pipeline {
                     -DCTP_PUBLISH_BASELINE=false \
                     -DCTP_BASELINE_BUILD_ID=${app_name}-${BUILD_TIMESTAMP} \
                     -DPROXY_HOST=$PRIVATE_IP \
+                    -DPROXY_BIND_HOST=$PRIVATE_IP \
                     '''
                 sh '''
                     echo "Running Selenium JUnit5 + Cucumber module with Selenium Grid, sequential execution, and publishing to DTP/CTP..."
@@ -338,6 +339,7 @@ pipeline {
                     -DCTP_PUBLISH_BASELINE=false \
                     -DCTP_BASELINE_BUILD_ID=${app_name}-${BUILD_TIMESTAMP} \
                     -DPROXY_HOST=$PRIVATE_IP \
+                    -DPROXY_BIND_HOST=$PRIVATE_IP \
                     '''
                 sh '''
                     echo "Running Selenium TestNG module with Selenium Grid, parallel execution, and publishing to DTP/CTP..."
@@ -355,6 +357,7 @@ pipeline {
                     -DCTP_PUBLISH_BASELINE=false \
                     -DCTP_BASELINE_BUILD_ID=${app_name}-${BUILD_TIMESTAMP} \
                     -DPROXY_HOST=$PRIVATE_IP \
+                    -DPROXY_BIND_HOST=$PRIVATE_IP \
                     '''
                 sh '''
                     echo "Running Playwright JUnit 5 module, parallel execution, and publishing to DTP/CTP..."
@@ -375,6 +378,7 @@ pipeline {
                     -DCTP_PUBLISH_BASELINE=true \
                     -DCTP_BASELINE_BUILD_ID=${app_name}-${BUILD_TIMESTAMP} \
                     -DPROXY_HOST=$PRIVATE_IP \
+                    -DPROXY_BIND_HOST=$PRIVATE_IP \
                     '''
             } 
         }
