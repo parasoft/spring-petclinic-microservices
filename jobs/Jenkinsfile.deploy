@@ -145,13 +145,13 @@ pipeline {
 
                 // check running containers
                 sh '''
-                    docker compose -f docker-compose-cc.yml down || true
+                    docker-compose -f docker-compose-cc.yml down || true
                     sleep 10s
                     '''
                 // deploy the project
                 sh  '''
                     # Run PetClinic with Jtest coverage agent configured
-                    docker compose -f docker-compose-cc.yml up -d --force-recreate
+                    docker-compose -f docker-compose-cc.yml up -d --force-recreate
 
                     # Allow containers to settle before polling
                     sleep 150s
