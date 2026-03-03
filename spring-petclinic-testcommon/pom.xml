@@ -81,18 +81,11 @@
             <version>${netty.version}</version>
         </dependency>
 
-        <!-- Selenium DevTools dependency for header injection-->
+        <!-- Selenium dependency -->
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>
             <version>${selenium.version}</version>
-            <!--optional>true</optional-->
-        </dependency>
-        <dependency>
-            <groupId>org.seleniumhq.selenium</groupId>
-            <artifactId>selenium-devtools-v142</artifactId>
-            <version>${selenium.version}</version>
-            <!--optional>true</optional-->
         </dependency>
         <!-- adding otel dependency for Selenium 4 RemoteWebDriver runtime -->
         <dependency>

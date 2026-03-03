@@ -8,7 +8,10 @@ pipeline {
         // This is required if you want to clean before build
         skipDefaultCheckout(true)
         
-        // Ontly keep 5 jobs history and 2 jobs artifacts
+        // Set a timeout for the entire pipeline
+        timeout(time: 20, unit: 'MINUTES')
+
+        // Only keep 5 jobs history and 2 jobs artifacts
         buildDiscarder(logRotator(numToKeepStr: '5', artifactNumToKeepStr: '2'))
     }
     parameters {
@@ -72,9 +75,13 @@ pipeline {
 
                     def systemResponse = sh(
                         script: """
-                            #set +x
+                            if [ "${CTP_DEBUG}" != "true" ]; then
+                                set +x
+                            fi
                             curl -sk -u ${DTP_USER}:${DTP_PASS} '${CTP_URL}/em/api/v3/systems?name=${encodedSystemName}&limit=50&offset=0'
-                            #set -x
+                            if [ "${CTP_DEBUG}" != "true" ]; then
+                                set -x
+                            fi
                         """,
                         returnStdout: true
                     ).trim()
@@ -86,9 +93,13 @@ pipeline {
 
                     def envResponse = sh(
                         script: """
-                            #set +x
+                            if [ "${CTP_DEBUG}" != "true" ]; then
+                                set +x
+                            fi
                             curl -sk -u ${DTP_USER}:${DTP_PASS} '${CTP_URL}/em/api/v3/environments?name=${encodedEnvName}&limit=50&offset=0'
-                            #set -x
+                            if [ "${CTP_DEBUG}" != "true" ]; then
+                                set -x
+                            fi
                         """,
                         returnStdout: true
                     ).trim()
@@ -146,7 +157,7 @@ pipeline {
                     report.dtp.publish=true
                     
                     console.verbosity.level=high
-                    " >> ./jtest/jtestcli.properties
+                    " > ./jtest/jtestcli.properties
                     if [ "${CTP_DEBUG}" != "true" ]; then
                         set -x
                     fi
@@ -197,7 +208,7 @@ pipeline {
                             build.id=${app_name}-${BUILD_TIMESTAMP}
                             report.coverage.images=${app_name};${app_name}-UT
                             report.coverage.static.images=${app_name};${app_name}-UT;${app_name}-FT
-                            " >> ./jtest/jtestcli-ut.properties
+                            " > ./jtest/jtestcli-ut.properties
                             if [ "${CTP_DEBUG}" != "true" ]; then
                                 set -x
                             fi
@@ -212,7 +223,7 @@ pipeline {
                             dtp.project=${app_name}
                             build.id=${app_name}-${BUILD_TIMESTAMP}
                             report.coverage.images=${app_name};${app_name}-FT
-                            " >> ./jtest/jtestcli-ft.properties
+                            " > ./jtest/jtestcli-ft.properties
                             if [ "${CTP_DEBUG}" != "true" ]; then
                                 set -x
                             fi
@@ -283,9 +294,8 @@ pipeline {
                     password(name: 'DTP_PASS', value: params.DTP_PASS),
                     string(name: 'BUILD_TIMESTAMP', value: env.BUILD_TIMESTAMP),
                     string(name: 'CTP_ENV_ID', value: env.CTP_ENV_ID),
-
+                    string(name: 'CTP_DEBUG', value: params.CTP_DEBUG),
                     // Add other parameters as needed
-
                 ]
             }
         }
@@ -294,27 +304,23 @@ pipeline {
             steps {
                 // run Selenium tests
                 sh '''
-                    echo "Running Selenium JUnit 5 module with Selenium Grid, sequential execution, and publishing to DTP/CTP..."
+                    echo "Running Selenium JUnit 5 module with Selenium Grid, parallel execution, and publishing to DTP/CTP..."
                     if [ "${CTP_DEBUG}" != "true" ]; then
                         set +x
                     fi
                     mvn -ntp verify \
                     -pl spring-petclinic-selenium-tests \
+                    -Djunit.jupiter.execution.parallel.enabled=true \
+                    -Djunit.jupiter.execution.parallel.mode.classes.default=concurrent \
                     -am \
                     -DPETCLINIC_URL="http://$PUBLIC_IP:8099" \
-                    -DHEADLESS=false \
                     -DCTP_BASE_URL="$CTP_URL" \
                     -DCTP_ENV_ID=$CTP_ENV_ID \
                     -DCTP_USERNAME=$DTP_USER \
                     -DCTP_PASSWORD=$DTP_PASS \
-                    -DCTP_MULTIUSER_MODE=true \
                     -DCTP_PUBLISH_BASELINE=false \
                     -DCTP_BASELINE_BUILD_ID=${app_name}-${BUILD_TIMESTAMP} \
-                    -DCTP_DEBUG=${CTP_DEBUG} \
                     -DPROXY_HOST=$PRIVATE_IP \
-                    -DPROXY_BIND_HOST=0.0.0.0 \
-                    -DSELENIUM_GRID=true \
-                    -DSELENIUM_GRID_URL='http://localhost:4444/wd/hub'
                     '''
                 sh '''
                     echo "Running Selenium JUnit5 + Cucumber module with Selenium Grid, sequential execution, and publishing to DTP/CTP..."
@@ -325,22 +331,16 @@ pipeline {
                     -pl spring-petclinic-selenium-cucumber-tests \
                     -am \
                     -DPETCLINIC_URL="http://$PUBLIC_IP:8099" \
-                    -DHEADLESS=false \
                     -DCTP_BASE_URL="$CTP_URL" \
                     -DCTP_ENV_ID=$CTP_ENV_ID \
                     -DCTP_USERNAME=$DTP_USER \
                     -DCTP_PASSWORD=$DTP_PASS \
-                    -DCTP_MULTIUSER_MODE=true \
                     -DCTP_PUBLISH_BASELINE=false \
                     -DCTP_BASELINE_BUILD_ID=${app_name}-${BUILD_TIMESTAMP} \
-                    -DCTP_DEBUG=${CTP_DEBUG} \
                     -DPROXY_HOST=$PRIVATE_IP \
-                    -DPROXY_BIND_HOST=0.0.0.0 \
-                    -DSELENIUM_GRID=true \
-                    -DSELENIUM_GRID_URL='http://localhost:4444/wd/hub'
                     '''
                 sh '''
-                    echo "Running Selenium TestNG module with Selenium Grid, sequential execution, and publishing to DTP/CTP..."
+                    echo "Running Selenium TestNG module with Selenium Grid, parallel execution, and publishing to DTP/CTP..."
                     if [ "${CTP_DEBUG}" != "true" ]; then
                         set +x
                     fi
@@ -348,66 +348,33 @@ pipeline {
                     -pl spring-petclinic-selenium-testng-tests \
                     -am \
                     -DPETCLINIC_URL="http://$PUBLIC_IP:8099" \
-                    -DHEADLESS=false \
                     -DCTP_BASE_URL="$CTP_URL" \
                     -DCTP_ENV_ID=$CTP_ENV_ID \
                     -DCTP_USERNAME=$DTP_USER \
                     -DCTP_PASSWORD=$DTP_PASS \
-                    -DCTP_MULTIUSER_MODE=true \
                     -DCTP_PUBLISH_BASELINE=false \
                     -DCTP_BASELINE_BUILD_ID=${app_name}-${BUILD_TIMESTAMP} \
-                    -DCTP_DEBUG=${CTP_DEBUG} \
                     -DPROXY_HOST=$PRIVATE_IP \
-                    -DPROXY_BIND_HOST=0.0.0.0 \
-                    -DSELENIUM_GRID=true \
-                    -DSELENIUM_GRID_URL='http://localhost:4444/wd/hub'
                     '''
                 sh '''
-                    echo "Running Selenium JUnit 5 parallel module with Selenium Grid, parallel execution, and publishing to DTP/CTP..."
-                    if [ "${CTP_DEBUG}" != "true" ]; then
-                        set +x
-                    fi
-                    mvn -ntp verify \
-                    -pl spring-petclinic-selenium-parallel-tests \
-                    -am \
-                    -DPETCLINIC_URL="http://$PUBLIC_IP:8099" \
-                    -DHEADLESS=false \
-                    -DCTP_BASE_URL="$CTP_URL" \
-                    -DCTP_ENV_ID=$CTP_ENV_ID \
-                    -DCTP_USERNAME=$DTP_USER \
-                    -DCTP_PASSWORD=$DTP_PASS \
-                    -DCTP_MULTIUSER_MODE=true \
-                    -DCTP_PUBLISH_BASELINE=false \
-                    -DCTP_BASELINE_BUILD_ID=${app_name}-${BUILD_TIMESTAMP} \
-                    -DCTP_DEBUG=${CTP_DEBUG} \
-                    -DPROXY_HOST=$PRIVATE_IP \
-                    -DPROXY_BIND_HOST=0.0.0.0 \
-                    -DSELENIUM_GRID=true \
-                    -DSELENIUM_GRID_URL='http://localhost:4444/wd/hub' \
-                    -Djunit.jupiter.execution.parallel.enabled=true \
-                    -Djunit.jupiter.execution.parallel.mode.classes.default=concurrent
-                    '''
-                sh '''
-                    echo "Running Playwright JUnit 5 module, sequential execution, and publishing to DTP/CTP..."
+                    echo "Running Playwright JUnit 5 module, parallel execution, and publishing to DTP/CTP..."
                     if [ "${CTP_DEBUG}" != "true" ]; then
                         set +x
                     fi
                     mvn -ntp verify \
                     -pl spring-petclinic-playwright-tests \
                     -am \
+                    -Djunit.jupiter.execution.parallel.enabled=true \
+                    -Djunit.jupiter.execution.parallel.mode.classes.default=concurrent \
+                    -DHEADLESS=true \
                     -DPETCLINIC_URL="http://$PUBLIC_IP:8099" \
-                    -DHEADLESS=false \
                     -DCTP_BASE_URL="$CTP_URL" \
                     -DCTP_ENV_ID=$CTP_ENV_ID \
                     -DCTP_USERNAME=$DTP_USER \
                     -DCTP_PASSWORD=$DTP_PASS \
-                    -DCTP_MULTIUSER_MODE=true \
                     -DCTP_PUBLISH_BASELINE=true \
                     -DCTP_BASELINE_BUILD_ID=${app_name}-${BUILD_TIMESTAMP} \
-                    -DCTP_DEBUG=${CTP_DEBUG} \
                     -DPROXY_HOST=$PRIVATE_IP \
-                    -DPROXY_BIND_HOST=0.0.0.0 \
-                    -DHEADLESS=true
                     '''
             } 
         }
@@ -418,7 +385,7 @@ pipeline {
         }
     }
     post {
-        // archive jtest Artofacts after success
+        // archive jtest Artifacts after success
         success {
                 archiveArtifacts artifacts: 'target/jtest/ut/*', excludes: 'target/ut/.jtest/cache', followSymlinks: false
             }
@@ -431,7 +398,7 @@ pipeline {
                     docker logs selenium-grid || true
                 fi
                 '''
-            sh 'docker container stop selenium-grid'
+            sh 'docker container stop selenium-grid || true'
             sh 'docker container prune -f'
             sh 'docker image prune -f'
             

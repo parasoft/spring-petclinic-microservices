@@ -11,7 +11,10 @@ pipeline {
         // This is required if you want to clean before build
         skipDefaultCheckout(true)
 
-        // Ontly keep 5 jobs history and 2 jobs artifacts
+        // Set a timeout for the entire pipeline
+        timeout(time: 20, unit: 'MINUTES')
+
+        // Only keep 5 jobs history and 2 jobs artifacts
         buildDiscarder(logRotator(numToKeepStr: '5', artifactNumToKeepStr: '2'))
     }
     parameters {
@@ -90,16 +93,8 @@ pipeline {
 
                 // Prepare CTP JSON file
                 script {
-                    // get ctp.json file form CTP
+                    // get ctp.json file from CTP
                     sh '''
-                        if [ "${CTP_DEBUG}" != "true" ]; then
-                            set +x
-                        fi
-                        ctp_response=$(curl -sk -X 'GET' -H 'accept: application/json' -u ${DTP_USER}:${DTP_PASS} ${CTP_URL}/em/api/v3/environments?name=${ENCODED_ENV_NAME}&limit=50&offset=0)
-                        if [ "${CTP_DEBUG}" != "true" ]; then
-                            set -x
-                        fi
-                        # envId=$(echo "$ctp_response" | jq -r '.environments[0].id')
                         echo ${CTP_ENV_ID}
                         if [ "${CTP_DEBUG}" != "true" ]; then
                             set +x
@@ -150,13 +145,13 @@ pipeline {
 
                 // check running containers
                 sh '''
-                    docker-compose -f docker-compose-cc.yml down || true
+                    docker compose -f docker-compose-cc.yml down || true
                     sleep 10s
                     '''
                 // deploy the project
                 sh  '''
                     # Run PetClinic with Jtest coverage agent configured
-                    docker-compose -f docker-compose-cc.yml up -d --force-recreate
+                    docker compose -f docker-compose-cc.yml up -d --force-recreate
 
                     # Allow containers to settle before polling
                     sleep 150s

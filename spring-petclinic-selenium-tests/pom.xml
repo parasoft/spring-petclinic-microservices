@@ -36,11 +36,6 @@
             <version>${selenium.version}</version>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.seleniumhq.selenium</groupId>
-            <artifactId>selenium-devtools-v142</artifactId>
-            <version>${selenium.version}</version>
-        </dependency>
         <!-- adding otel dependency for Selenium 4 RemoteWebDriver runtime -->
         <dependency>
             <groupId>io.opentelemetry</groupId>
@@ -65,7 +60,6 @@
             <artifactId>junit-platform-launcher</artifactId>
             <scope>test</scope>
         </dependency>
-        
     </dependencies>
 
     <dependencyManagement>
