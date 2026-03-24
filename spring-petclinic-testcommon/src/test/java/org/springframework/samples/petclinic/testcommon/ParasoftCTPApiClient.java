@@ -15,7 +15,7 @@ import java.util.logging.Logger;
  */
 public class ParasoftCTPApiClient {
     private static final Logger LOGGER = Logger.getLogger(ParasoftCTPApiClient.class.getName());
-    private static final HttpClient client = HttpClient.newBuilder().build();
+    private static final HttpClient client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build();
     private static final String basicAuth = ParasoftSettings.CTP_USERNAME + ":" + ParasoftSettings.CTP_PASSWORD;
 
     /** Starts a CTP coverage session. CTP REST API: {@code /v3/environments/{envId}/agents/session/start} */
@@ -90,7 +90,7 @@ public class ParasoftCTPApiClient {
         if (ParasoftSettings.isLogLevelEnabled("INFO")) {
             LOGGER.info("[ParasoftCTPApiClient] Starting CTP test: " + testId);
         }
-        
+
         String resolvedCoverageUserId = resolveCoverageUserId(coverageUserId);
         StringBuilder payload = new StringBuilder();
         payload.append('{');
@@ -142,7 +142,7 @@ public class ParasoftCTPApiClient {
         if (ParasoftSettings.isLogLevelEnabled("INFO")) {
             LOGGER.info("[ParasoftCTPApiClient] Stopping CTP test: " + testId + " - Result: " + (passed ? "PASS" : "FAIL"));
         }
-        
+
         String resolvedCoverageUserId = resolveCoverageUserId(coverageUserId);
         StringBuilder payload = new StringBuilder();
         payload.append('{');
@@ -198,7 +198,7 @@ public class ParasoftCTPApiClient {
             LOGGER.info("[ParasoftCTPApiClient] Stopping CTP session for environment: " + ParasoftSettings.CTP_ENV_ID);
             LOGGER.info("[ParasoftCTPApiClient] Coverage User ID: " + resolveCoverageUserId(coverageUserId));
         }
-        
+
         String resolvedCoverageUserId = resolveCoverageUserId(coverageUserId);
         StringBuilder payload = new StringBuilder();
         // Only include userId if the coverage agents are configured in multi-user mode
@@ -247,7 +247,7 @@ public class ParasoftCTPApiClient {
     public static void publishCoverage(String sessionId, String dtpSessionTag, String coverageUserId) {
         String resolvedCoverageUserId = resolveCoverageUserId(coverageUserId);
         String resolvedDtpSessionTag = resolveDtpSessionTag(dtpSessionTag);
-        
+
         if (ParasoftSettings.isLogLevelEnabled("INFO")) {
             LOGGER.info("[ParasoftCTPApiClient] Publishing coverage to CTP for environment: " + ParasoftSettings.CTP_ENV_ID);
             LOGGER.info("[ParasoftCTPApiClient] Coverage User ID: " + resolvedCoverageUserId);
@@ -304,7 +304,7 @@ public class ParasoftCTPApiClient {
             LOGGER.info("[ParasoftCTPApiClient] Publishing baseline to CTP for environment: " + ParasoftSettings.CTP_ENV_ID);
             LOGGER.info("[ParasoftCTPApiClient] Baseline Build ID: " + ParasoftSettings.CTP_BASELINE_BUILD_ID);
         }
-        
+
         HttpRequest request = HttpRequest.newBuilder()
             .uri(URI.create(ParasoftSettings.CTP_BASE_URL + ParasoftSettings.CTP_CONTEXT_PATH + "/api/v3/environments/" + ParasoftSettings.CTP_ENV_ID+ "/coverage/baselines/" + ParasoftSettings.CTP_BASELINE_BUILD_ID))
             .header("Content-Type", "application/json")

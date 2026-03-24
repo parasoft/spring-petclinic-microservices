@@ -26,6 +26,8 @@ public class BasicWebDriverConfigurator implements WebDriverConfigurator {
         if (options instanceof ChromeOptions) {
             // Add any basic Chrome options here, e.g.:
             ChromeOptions chromeOptions = (ChromeOptions) options;
+            chromeOptions.addArguments("--no-sandbox");
+            chromeOptions.addArguments("--disable-dev-shm-usage");
             chromeOptions.addArguments("--window-size=" + windowSize);
             chromeOptions.addArguments("--window-position=" + windowPosition);
         }
