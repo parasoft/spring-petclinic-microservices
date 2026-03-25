@@ -9,7 +9,7 @@ pipeline {
         skipDefaultCheckout(true)
         
         // Set a timeout for the entire pipeline
-        timeout(time: 20, unit: 'MINUTES')
+        timeout(time: 30, unit: 'MINUTES')
 
         // Only keep 5 jobs history and 2 jobs artifacts
         buildDiscarder(logRotator(numToKeepStr: '5', artifactNumToKeepStr: '2'))
