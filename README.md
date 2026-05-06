@@ -25,7 +25,7 @@ To run locally with coverage agents:
 
 Alternatively, you can run with coverage agents using Docker Compose. First build the images:
 
-`./mvnw clean install -P buildDocker`
+`./mvnw clean install -P buildDocker -dskipTests=true`
 
 Then start the containers:
 
