@@ -1,0 +1,214 @@
+#version: '2'
+services:
+  config-server:
+    image: springcommunity/spring-petclinic-config-server
+    container_name: config-server
+    networks:
+      - demo-net
+    mem_limit: 512M
+    ports:
+     - 8888:8888
+
+  discovery-server:
+    image: springcommunity/spring-petclinic-discovery-server
+    container_name: discovery-server
+    networks:
+      - demo-net
+    mem_limit: 512M
+    depends_on:
+      - config-server
+    entrypoint: ["./dockerize","-wait=tcp://config-server:8888","-timeout=60s","--","java", "org.springframework.boot.loader.JarLauncher"]
+    ports:
+     - 8761:8761
+
+  customers-service-1:
+    image: springcommunity/spring-petclinic-customers-service
+    container_name: customers-service-1
+    networks:
+      - demo-net
+    mem_limit: 512M
+    depends_on:
+     - config-server
+     - discovery-server
+    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-javaagent:/tmp/coverage/agent.jar=settings=/tmp/coverage/agent.properties", "org.springframework.boot.loader.JarLauncher"]
+    ports:
+     - 8081:8081
+     - 8052:8050 # cov agent
+    volumes:
+      - type: bind
+        source: ./spring-petclinic-customers-service/src/test/resources/coverage
+        target: /tmp/coverage
+
+  customers-service-2:
+    image: springcommunity/spring-petclinic-customers-service
+    container_name: customers-service-2
+    networks:
+      - demo-net
+    mem_limit: 512M
+    depends_on:
+     - config-server
+     - discovery-server
+    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-javaagent:/tmp/coverage/agent.jar=settings=/tmp/coverage/agent.properties", "org.springframework.boot.loader.JarLauncher"]
+    ports:
+     - 8086:8081
+     - 8056:8050 # cov agent
+    volumes:
+      - type: bind
+        source: ./spring-petclinic-customers-service/src/test/resources/coverage
+        target: /tmp/coverage
+
+  visits-service-1:
+    image: springcommunity/spring-petclinic-visits-service
+    container_name: visits-service-1
+    user: 0:0
+    mem_limit: 512M
+    networks:
+      - demo-net
+    depends_on:
+     - config-server
+     - discovery-server
+    ports:
+     - 8082:8082
+     - 8054:8050 # cov agent
+    volumes:
+      - type: bind
+        source: ./spring-petclinic-visits-service/src/test/resources/coverage
+        target: /tmp/coverage
+    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-javaagent:/tmp/coverage/agent.jar=settings=/tmp/coverage/agent.properties", "org.springframework.boot.loader.JarLauncher"]
+
+  visits-service-2:
+    image: springcommunity/spring-petclinic-visits-service
+    container_name: visits-service-2
+    user: 0:0
+    mem_limit: 512M
+    networks:
+      - demo-net
+    depends_on:
+     - config-server
+     - discovery-server
+    ports:
+     - 8088:8082
+     - 8058:8050 # cov agent
+    volumes:
+      - type: bind
+        source: ./spring-petclinic-visits-service/src/test/resources/coverage
+        target: /tmp/coverage
+    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-javaagent:/tmp/coverage/agent.jar=settings=/tmp/coverage/agent.properties", "org.springframework.boot.loader.JarLauncher"]
+
+  vets-service-1:
+    user: root:root
+    image: springcommunity/spring-petclinic-vets-service
+    container_name: vets-service-1
+    mem_limit: 512M
+    networks:
+      - demo-net
+    depends_on:
+     - config-server
+     - discovery-server
+    ports:
+     - 8083:8083
+     - 8053:8050 # cov agent
+    volumes:
+      - type: bind
+        source: ./spring-petclinic-vets-service/src/test/resources/coverage
+        target: /tmp/coverage
+    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-javaagent:/tmp/coverage/agent.jar=settings=/tmp/coverage/agent.properties", "org.springframework.boot.loader.JarLauncher"]
+
+  vets-service-2:
+    user: root:root
+    image: springcommunity/spring-petclinic-vets-service
+    container_name: vets-service-2
+    mem_limit: 512M
+    networks:
+      - demo-net
+    depends_on:
+     - config-server
+     - discovery-server
+    ports:
+     - 8087:8083
+     - 8057:8050 # cov agent
+    volumes:
+      - type: bind
+        source: ./spring-petclinic-vets-service/src/test/resources/coverage
+        target: /tmp/coverage
+    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-javaagent:/tmp/coverage/agent.jar=settings=/tmp/coverage/agent.properties", "org.springframework.boot.loader.JarLauncher"]
+
+  api-gateway-1:
+    image: springcommunity/spring-petclinic-api-gateway
+    container_name: api-gateway-1
+    mem_limit: 512M
+    networks:
+      - demo-net
+    depends_on:
+     - config-server
+     - discovery-server
+    ports:
+     - 8051:8050 # cov agent
+    volumes:
+      - type: bind
+        source: ./spring-petclinic-api-gateway/src/test/resources/coverage
+        target: /tmp/coverage
+    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-javaagent:/tmp/coverage/agent.jar=settings=/tmp/coverage/agent.properties", "org.springframework.boot.loader.JarLauncher"]
+
+  api-gateway-2:
+    image: springcommunity/spring-petclinic-api-gateway
+    container_name: api-gateway-2
+    mem_limit: 512M
+    networks:
+      - demo-net
+    depends_on:
+     - config-server
+     - discovery-server
+    ports:
+     - 8055:8050 # cov agent
+    volumes:
+      - type: bind
+        source: ./spring-petclinic-api-gateway/src/test/resources/coverage
+        target: /tmp/coverage
+    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-javaagent:/tmp/coverage/agent.jar=settings=/tmp/coverage/agent.properties", "org.springframework.boot.loader.JarLauncher"]
+
+  petclinic-lb:
+    image: nginx:alpine
+    container_name: petclinic-lb
+    networks:
+      - demo-net
+    mem_limit: 128M
+    depends_on:
+      - api-gateway-1
+      - api-gateway-2
+    ports:
+      - 8099:80
+    volumes:
+      - type: bind
+        source: ./nginx/nginx.conf
+        target: /etc/nginx/nginx.conf
+        read_only: true
+
+  tracing-server:
+    image: openzipkin/zipkin
+    container_name: tracing-server
+    mem_limit: 512M
+    networks:
+      - demo-net
+    environment:
+    - JAVA_OPTS=-XX:+UnlockExperimentalVMOptions -Djava.security.egd=file:/dev/./urandom
+    ports:
+     - 9411:9411
+
+  admin-server:
+    image: springcommunity/spring-petclinic-admin-server
+    container_name: admin-server
+    mem_limit: 512M
+    networks:
+      - demo-net
+    depends_on:
+     - config-server
+     - discovery-server
+    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "org.springframework.boot.loader.JarLauncher"]
+    ports:
+     - 9099:9090
+
+networks:
+  demo-net:
+    external: true
+    name: demo-net
