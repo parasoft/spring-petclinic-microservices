@@ -290,6 +290,7 @@ pipeline {
                 
                 build job: 'Petclinic-deploy', parameters: [
                     string(name: 'CTP_URL', value: params.CTP_URL),
+                    string(name: 'DTP_URL', value: params.DTP_URL),
                     string(name: 'DTP_USER', value: params.DTP_USER),
                     password(name: 'DTP_PASS', value: params.DTP_PASS),
                     string(name: 'BUILD_TIMESTAMP', value: env.BUILD_TIMESTAMP),

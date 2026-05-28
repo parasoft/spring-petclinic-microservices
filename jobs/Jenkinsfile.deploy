@@ -1,5 +1,4 @@
 def ARRAY
-def NAMES
 
 pipeline {
     agent any
@@ -19,6 +18,7 @@ pipeline {
     }
     parameters {
         string(name: 'CTP_URL', description: 'Parasoft CTP URL')
+        string(name: 'DTP_URL', description: 'Parasoft DTP URL')
         string(name: 'DTP_USER', description: 'Parasoft DTP Username')
         password(name: 'DTP_PASS', description: 'Parasoft DTP Password')
         string(name: 'BUILD_TIMESTAMP', description: 'DTP Build Id')
@@ -33,8 +33,6 @@ pipeline {
         app_name = 'spring-petclinic-microservices' // top level DTP Project
 
         // dynamic vars
-        PUBLIC_IP = sh(script: """curl -s http://checkip.amazonaws.com """, returnStdout: true).trim()
-
         CTP_ENV_ID = "${params.CTP_ENV_ID}"
     }
 
@@ -55,17 +53,10 @@ pipeline {
                 // define services
                 script {
                     ARRAY = [
-                        "spring-petclinic-api-gateway", 
-                        "spring-petclinic-vets-service", 
-                        "spring-petclinic-visits-service", 
+                        "spring-petclinic-api-gateway",
+                        "spring-petclinic-vets-service",
+                        "spring-petclinic-visits-service",
                         "spring-petclinic-customers-service"
-                        ]
-
-                    NAMES = [
-                        "Local Gateway", 
-                        "Vets Microservice", 
-                        "Visits Microservice", 
-                        "Customers Microservice"
                     ]
                 }
 
@@ -91,67 +82,98 @@ pipeline {
                     }
                 }
 
-                // Prepare CTP JSON file
+                // Patch agent.properties with dynamic CTP and DTP values
                 script {
-                    // get ctp.json file from CTP
-                    sh '''
-                        echo ${CTP_ENV_ID}
-                        if [ "${CTP_DEBUG}" != "true" ]; then
-                            set +x
-                        fi
-                        curl -k -X 'GET' -H 'accept: application/json' -u ${DTP_USER}:${DTP_PASS} ${CTP_URL}/em/api/v3/environments/${CTP_ENV_ID}/config | jq . > ctp.json
-                        if [ "${CTP_DEBUG}" != "true" ]; then
-                            set -x
-                        fi
-                        cat ctp.json
-                        '''
+                    def appName        = env.app_name
+                    def buildTimestamp = params.BUILD_TIMESTAMP
 
-                    // Read in ctp.json file
-                    def jsonFile = readFile("ctp.json")
-                    def json = new groovy.json.JsonSlurperClassic().parseText(jsonFile)
+                    // Fetch all components for this CTP environment
+                    def componentsResponse = sh(
+                        script: """
+                            if [ "${CTP_DEBUG}" != "true" ]; then
+                                set +x
+                            fi
+                            curl -sk -u ${DTP_USER}:${DTP_PASS} \\
+                                -H 'accept: application/json' \\
+                                '${CTP_URL}/em/api/v3/environments/${CTP_ENV_ID}/components'
+                            if [ "${CTP_DEBUG}" != "true" ]; then
+                                set -x
+                            fi
+                        """,
+                        returnStdout: true
+                    ).trim()
+                    def componentsJson = new groovy.json.JsonSlurperClassic().parseText(componentsResponse)
 
-                    // debug
-                    echo "${PUBLIC_IP}"
+                    // Resolve DTP filter ID by app name
+                    def filterResponse = sh(
+                        script: """
+                            if [ "${CTP_DEBUG}" != "true" ]; then
+                                set +x
+                            fi
+                            curl -sk -u ${DTP_USER}:${DTP_PASS} \\
+                                -H 'accept: application/json' \\
+                                '${DTP_URL}/grs/api/v1.13/filters?managedOnly=false&name=${appName}'
+                            if [ "${CTP_DEBUG}" != "true" ]; then
+                                set -x
+                            fi
+                        """,
+                        returnStdout: true
+                    ).trim()
+                    def filterJson = new groovy.json.JsonSlurperClassic().parseText(filterResponse)
+                    def filterId = filterJson[0]?.id
+                    if (!filterId) {
+                        error("Could not resolve DTP filter ID for '${appName}'")
+                    }
+                    echo "Resolved DTP filter ID: ${filterId}"
 
-                    // Update the 'buildId' and 'coverageImages' properties
-                    for (service in NAMES) {
-                        echo "service is: ${service}"
-                        def matchingComponent = json.components.find { it.instances.find { it.name == service  } }
-                        if (matchingComponent) {
-                            
-                            // retain ports
-                            def url = new URL(matchingComponent.instances[0].coverage.agentUrl)
-                            def originalPort = url.port
-                            
-                            // Set CTP values for all components
-                            matchingComponent.instances[0].coverage.agentUrl = "http://${PUBLIC_IP}:${originalPort}"
-                            matchingComponent.instances[0].coverage.buildId = "${app_name}-${BUILD_TIMESTAMP}"
-                            matchingComponent.instances[0].coverage.dtpFilter = "${app_name}"    
-                            matchingComponent.instances[0].coverage.coverageImages = "${app_name};${app_name}-FT"
-                            matchingComponent.instances[0].coverage.dtpProject = "${app_name}"
-                        } else {
-                            echo "Something is NULL!"
+                    // Map service directory -> CTP component name (stable across environments)
+                    def serviceConfigs = [
+                        [dir: 'spring-petclinic-api-gateway',       ctpName: 'UI + API Gateway'],
+                        [dir: 'spring-petclinic-customers-service',  ctpName: 'customers-service REST API'],
+                        [dir: 'spring-petclinic-vets-service',       ctpName: 'vets-service REST API'],
+                        [dir: 'spring-petclinic-visits-service',     ctpName: 'visits-service REST API']
+                    ]
+
+                    for (serviceConfig in serviceConfigs) {
+                        def serviceDir = serviceConfig.dir
+                        def ctpName    = serviceConfig.ctpName
+                        def component  = componentsJson.components.find { it.name == ctpName }
+                        if (!component) {
+                            error("Could not find CTP component named '${ctpName}'")
+                        }
+                        def wsUrl     = component.ctpWebsocketUrl
+                        def subQueue  = component.ctpSubscriptionQueue
+                        def propsFile = "${serviceDir}/src/test/resources/coverage/agent.properties"
+
+                        sh """
+                            sed -i 's|^ctp.websocket.url=.*|ctp.websocket.url=${wsUrl}|' ${propsFile}
+                            sed -i 's|^ctp.subscription.queue=.*|ctp.subscription.queue=${subQueue}|' ${propsFile}
+                            sed -i 's|^dtp.buildID=.*|dtp.buildID=${appName}-${buildTimestamp}|' ${propsFile}
+                            sed -i 's|^dtp.project=.*|dtp.project=${appName}|' ${propsFile}
+                            sed -i 's|^dtp.coverageImages=.*|dtp.coverageImages=${appName};${appName}-FT|' ${propsFile}
+                            sed -i 's|^dtp.filterID=.*|dtp.filterID=${filterId}|' ${propsFile}
+                        """
+                        echo "Patched ${propsFile}"
+                        if (params.CTP_DEBUG == 'true') {
+                            sh "cat ${propsFile}"
                         }
                     }
-                    // Write the updated JSON back to the file using writeJSON
-                    writeJSON file: "ctp.json", json: json, pretty: 4
-                    sh "cat ctp.json"
                 }
             }
         }        
-        stage('Deploy: Update CTP') {
+        stage('Deploy: Launch Services') {
             when { equals expected: true, actual: true }
             steps {
 
                 // check running containers
                 sh '''
-                    docker-compose -f docker-compose-cc.yml down || true
+                    docker-compose -f docker-compose-cc-lb.yml down || true
                     sleep 10s
                     '''
                 // deploy the project
                 sh  '''
-                    # Run PetClinic with Jtest coverage agent configured
-                    docker-compose -f docker-compose-cc.yml up -d --force-recreate
+                    # Run PetClinic with Jtest coverage agent and load balancer configured
+                    docker-compose -f docker-compose-cc-lb.yml up -d --force-recreate
 
                     # Allow containers to settle before polling
                     sleep 150s
@@ -177,25 +199,12 @@ pipeline {
                     fi
                     '''
 
-                // Health check coverage agents
+                // Health check all 8 coverage agents (2 instances x 4 services)
                 sh '''
-                    curl -iv --raw http://localhost:8051/status
-
-                    '''
-                // update CTP with yaml script upload
-                sh '''
-                    # upload yaml file to CTP
-                    if [ "${CTP_DEBUG}" != "true" ]; then
-                        set +x
-                    fi
-                    curl -k -X 'PUT' -u ${DTP_USER}:${DTP_PASS} \
-                        ${CTP_URL}/em/api/v3/environments/${CTP_ENV_ID}/config \
-                        -H 'accept: application/json' \
-                        -H 'Content-Type: application/json' \
-                        -d @ctp.json
-                    if [ "${CTP_DEBUG}" != "true" ]; then
-                        set -x
-                    fi
+                    for port in 8051 8052 8053 8054 8055 8056 8057 8058; do
+                        echo "Coverage agent on port ${port}:"
+                        curl -iv --raw http://localhost:${port}/status
+                    done
                     '''
             }
         }
