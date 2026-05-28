@@ -30,7 +30,7 @@ services:
     depends_on:
      - config-server
      - discovery-server
-    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-javaagent:/tmp/coverage/agent.jar=settings=/tmp/coverage/agent.properties", "org.springframework.boot.loader.JarLauncher"]
+    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-javaagent:/tmp/coverage/agent.jar=settings=/tmp/coverage/agent.properties,runtimeData=/tmp/coverage_data/runtime_coverage", "org.springframework.boot.loader.JarLauncher"]
     ports:
      - 8081:8081
      - 8052:8050 # cov agent
@@ -48,7 +48,7 @@ services:
     depends_on:
      - config-server
      - discovery-server
-    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-javaagent:/tmp/coverage/agent.jar=settings=/tmp/coverage/agent.properties", "org.springframework.boot.loader.JarLauncher"]
+    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-javaagent:/tmp/coverage/agent.jar=settings=/tmp/coverage/agent.properties,runtimeData=/tmp/coverage_data/runtime_coverage", "org.springframework.boot.loader.JarLauncher"]
     ports:
      - 8086:8081
      - 8056:8050 # cov agent
@@ -74,7 +74,7 @@ services:
       - type: bind
         source: ./spring-petclinic-visits-service/src/test/resources/coverage
         target: /tmp/coverage
-    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-javaagent:/tmp/coverage/agent.jar=settings=/tmp/coverage/agent.properties", "org.springframework.boot.loader.JarLauncher"]
+    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-javaagent:/tmp/coverage/agent.jar=settings=/tmp/coverage/agent.properties,runtimeData=/tmp/coverage_data/runtime_coverage", "org.springframework.boot.loader.JarLauncher"]
 
   visits-service-2:
     image: springcommunity/spring-petclinic-visits-service
@@ -93,7 +93,7 @@ services:
       - type: bind
         source: ./spring-petclinic-visits-service/src/test/resources/coverage
         target: /tmp/coverage
-    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-javaagent:/tmp/coverage/agent.jar=settings=/tmp/coverage/agent.properties", "org.springframework.boot.loader.JarLauncher"]
+    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-javaagent:/tmp/coverage/agent.jar=settings=/tmp/coverage/agent.properties,runtimeData=/tmp/coverage_data/runtime_coverage", "org.springframework.boot.loader.JarLauncher"]
 
   vets-service-1:
     user: root:root
@@ -112,7 +112,7 @@ services:
       - type: bind
         source: ./spring-petclinic-vets-service/src/test/resources/coverage
         target: /tmp/coverage
-    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-javaagent:/tmp/coverage/agent.jar=settings=/tmp/coverage/agent.properties", "org.springframework.boot.loader.JarLauncher"]
+    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-javaagent:/tmp/coverage/agent.jar=settings=/tmp/coverage/agent.properties,runtimeData=/tmp/coverage_data/runtime_coverage", "org.springframework.boot.loader.JarLauncher"]
 
   vets-service-2:
     user: root:root
@@ -131,7 +131,7 @@ services:
       - type: bind
         source: ./spring-petclinic-vets-service/src/test/resources/coverage
         target: /tmp/coverage
-    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-javaagent:/tmp/coverage/agent.jar=settings=/tmp/coverage/agent.properties", "org.springframework.boot.loader.JarLauncher"]
+    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-javaagent:/tmp/coverage/agent.jar=settings=/tmp/coverage/agent.properties,runtimeData=/tmp/coverage_data/runtime_coverage", "org.springframework.boot.loader.JarLauncher"]
 
   api-gateway-1:
     image: springcommunity/spring-petclinic-api-gateway
@@ -148,7 +148,7 @@ services:
       - type: bind
         source: ./spring-petclinic-api-gateway/src/test/resources/coverage
         target: /tmp/coverage
-    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-javaagent:/tmp/coverage/agent.jar=settings=/tmp/coverage/agent.properties", "org.springframework.boot.loader.JarLauncher"]
+    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-javaagent:/tmp/coverage/agent.jar=settings=/tmp/coverage/agent.properties,runtimeData=/tmp/coverage_data/runtime_coverage", "org.springframework.boot.loader.JarLauncher"]
 
   api-gateway-2:
     image: springcommunity/spring-petclinic-api-gateway
@@ -165,7 +165,7 @@ services:
       - type: bind
         source: ./spring-petclinic-api-gateway/src/test/resources/coverage
         target: /tmp/coverage
-    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-javaagent:/tmp/coverage/agent.jar=settings=/tmp/coverage/agent.properties", "org.springframework.boot.loader.JarLauncher"]
+    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-javaagent:/tmp/coverage/agent.jar=settings=/tmp/coverage/agent.properties,runtimeData=/tmp/coverage_data/runtime_coverage", "org.springframework.boot.loader.JarLauncher"]
 
   petclinic-lb:
     image: nginx:alpine
