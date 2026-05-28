@@ -1,7 +1,7 @@
 FROM eclipse-temurin:17 as builder
 WORKDIR application
 ARG ARTIFACT_NAME
-COPY ${ARTIFACT_NAME}.jar application.jar
+COPY maven/${ARTIFACT_NAME}.jar application.jar
 RUN java -Djarmode=layertools -jar application.jar extract
 
 # Download dockerize and cache that layer
@@ -28,7 +28,7 @@ COPY --from=builder application/spring-boot-loader/ ./
 COPY --from=builder application/snapshot-dependencies/ ./
 COPY --from=builder application/application/ ./
 
-# Copy Coverae agent
-#COPY coverage/* /tmp/coverage/
+# Copy Coverage agent
+COPY coverage/* /tmp/coverage/
 
 ENTRYPOINT ["java", "org.springframework.boot.loader.JarLauncher"]
