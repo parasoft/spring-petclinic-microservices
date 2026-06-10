@@ -167,7 +167,7 @@ pipeline {
 
                 // check running containers
                 sh '''
-                    docker-compose -f docker-compose-cc-lb.yml down || true
+                    docker-compose -f docker-compose-cc.yml down || true
                     sleep 10s
                     '''
                 // deploy the project
