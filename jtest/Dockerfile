@@ -29,7 +29,7 @@ ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
 # Install MVN
 ## Set MVN args
-ARG MAVEN_VERSION=3.9.12
+ARG MAVEN_VERSION=3.9.16
 ENV MAVEN_HOME=${USER_HOME_DIR}/apache-maven-${MAVEN_VERSION}
 ARG BASE_URL=https://downloads.apache.org/maven/maven-3/${MAVEN_VERSION}/binaries
 RUN mkdir -p ${MAVEN_HOME} \
