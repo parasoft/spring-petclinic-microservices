@@ -64,6 +64,7 @@ pipeline {
                         cp jtest_agent/agent.jar                   ${service}/src/test/resources/coverage/agent.jar
                         cp jtest_agent/jtest-otel-ext.jar          ${service}/src/test/resources/coverage/jtest-otel-ext.jar
                         cp jtest_agent/opentelemetry-javaagent.jar ${service}/src/test/resources/coverage/opentelemetry-javaagent.jar
+                        echo "${service} - JARs successfully copied."
                     done
                 '''
 
@@ -163,16 +164,18 @@ pipeline {
             steps {
                 // check running containers
                 sh '''
+                    # Use docker-compose-cc-lb.yml for multi-service-instance load balanced setup
                     docker-compose -f docker-compose-cc.yml down || true
                     sleep 10s
                     '''
                 // deploy the project
                 sh  '''
                     # Run PetClinic with Jtest coverage agent and load balancer configured
-                    docker-compose -f docker-compose-cc-lb.yml up -d --force-recreate
+                    # Use docker-compose-cc-lb.yml for multi-service-instance load balanced setup
+                    docker-compose -f docker-compose-cc.yml up -d --force-recreate
 
                     # Allow containers to settle before polling
-                    sleep 150s
+                    sleep 180s
 
                     echo "Waiting for owners API to be ready..."
                     attempts=30
