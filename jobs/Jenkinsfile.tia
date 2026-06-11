@@ -45,7 +45,11 @@ pipeline {
                 // Clean workspace before build
                 cleanWs()
                 // Checkout project
-                checkout scm
+                script {
+                    def scmVars = checkout scm
+                    env.GIT_BRANCH = scmVars.GIT_BRANCH?.replaceFirst('^origin/', '') ?: ''
+                    env.GIT_URL    = scmVars.GIT_URL ?: ''
+                }
 
                 // Resolve instance metadata: UID, GID, public and private IP
                 script {
@@ -160,7 +164,7 @@ dtp.user=${DTP_USER}
 dtp.password=${DTP_PASS}
 
 scontrol.git.exec=git
-scontrol.rep1.git.branch=${GIT_BRANCH#origin/}
+scontrol.rep1.git.branch=${GIT_BRANCH}
 scontrol.rep1.git.url=${GIT_URL}
 scontrol.rep1.type=git
 
