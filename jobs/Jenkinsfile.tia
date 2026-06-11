@@ -40,6 +40,12 @@ pipeline {
         BUILD_TIMESTAMP = "${BUILD_ID}"
         // BUILD_TIMESTAMP = sh(script: 'date +%Y%m%d%H%M', returnStdout: true).trim()
         BASELINE_ID = "${app_name}-baseline2"
+
+        // Explicit parameter mappings to ensure availability in Groovy GString interpolation
+        LS_URL   = "${params.LS_URL}"
+        CTP_URL  = "${params.CTP_URL}"
+        DTP_URL  = "${params.DTP_URL}"
+        DTP_USER = "${params.DTP_USER}"
     }
 
     stages {
@@ -81,7 +87,7 @@ pipeline {
                             if [ "${CTP_DEBUG}" != "true" ]; then
                                 set +x
                             fi
-                            curl -sk -u ${DTP_USER}:${DTP_PASS} '${CTP_URL}/em/api/v3/systems?name=${encodedSystemName}&limit=50&offset=0'
+                            curl -sk -u "${DTP_USER}:\$DTP_PASS" '${CTP_URL}/em/api/v3/systems?name=${encodedSystemName}&limit=50&offset=0'
                             if [ "${CTP_DEBUG}" != "true" ]; then
                                 set -x
                             fi
@@ -99,7 +105,7 @@ pipeline {
                             if [ "${CTP_DEBUG}" != "true" ]; then
                                 set +x
                             fi
-                            curl -sk -u ${DTP_USER}:${DTP_PASS} '${CTP_URL}/em/api/v3/environments?name=${encodedEnvName}&limit=50&offset=0'
+                            curl -sk -u "${DTP_USER}:\$DTP_PASS" '${CTP_URL}/em/api/v3/environments?name=${encodedEnvName}&limit=50&offset=0'
                             if [ "${CTP_DEBUG}" != "true" ]; then
                                 set -x
                             fi
@@ -348,7 +354,7 @@ pipeline {
                         -DCTP_BASE_URL="${CTP_URL}" \
                         -DCTP_ENV_ID=${CTP_ENV_ID} \
                         -DCTP_USERNAME=${DTP_USER} \
-                        -DCTP_PASSWORD=${DTP_PASS} \
+                        -DCTP_PASSWORD=\$DTP_PASS \
                         -DCTP_DEBUG=${CTP_DEBUG} \
                         -DPROXY_HOST=${PRIVATE_IP} \
                         -DPROXY_BIND_HOST=${PRIVATE_IP} \
@@ -363,7 +369,7 @@ pipeline {
                         -DCTP_BASE_URL="${CTP_URL}" \
                         -DCTP_ENV_ID=${CTP_ENV_ID} \
                         -DCTP_USERNAME=${DTP_USER} \
-                        -DCTP_PASSWORD=${DTP_PASS} \
+                        -DCTP_PASSWORD=\$DTP_PASS \
                         -DCTP_DEBUG=${CTP_DEBUG} \
                         -DPROXY_HOST=${PRIVATE_IP} \
                         -DPROXY_BIND_HOST=${PRIVATE_IP} \
@@ -378,7 +384,7 @@ pipeline {
                         -DCTP_BASE_URL="${CTP_URL}" \
                         -DCTP_ENV_ID=${CTP_ENV_ID} \
                         -DCTP_USERNAME=${DTP_USER} \
-                        -DCTP_PASSWORD=${DTP_PASS} \
+                        -DCTP_PASSWORD=\$DTP_PASS \
                         -DCTP_DEBUG=${CTP_DEBUG} \
                         -DPROXY_HOST=${PRIVATE_IP} \
                         -DPROXY_BIND_HOST=${PRIVATE_IP} \
@@ -396,7 +402,7 @@ pipeline {
                         -DCTP_BASE_URL="${CTP_URL}" \
                         -DCTP_ENV_ID=${CTP_ENV_ID} \
                         -DCTP_USERNAME=${DTP_USER} \
-                        -DCTP_PASSWORD=${DTP_PASS} \
+                        -DCTP_PASSWORD=\$DTP_PASS \
                         -DPROXY_HOST=${PRIVATE_IP} \
                         -DPROXY_BIND_HOST=${PRIVATE_IP} \
                         -Dit.test='${testNames}' \

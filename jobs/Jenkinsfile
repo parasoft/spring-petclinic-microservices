@@ -30,13 +30,19 @@ pipeline {
     environment {
         // App Details
         app_name = 'spring-petclinic-microservices' // top level DTP Project
-        
+
         // Parasoft Settings
         jtestUTConfig="jtest.builtin://Unit Tests"
         jtestSAConfig="jtest.builtin://Recommended Rules"
 
         // Dynamic configs
         BUILD_TIMESTAMP = "${BUILD_ID}"
+
+        // Explicit parameter mappings to ensure availability in Groovy GString interpolation
+        LS_URL   = "${params.LS_URL}"
+        CTP_URL  = "${params.CTP_URL}"
+        DTP_URL  = "${params.DTP_URL}"
+        DTP_USER = "${params.DTP_USER}"
     }
 
     stages {
@@ -78,7 +84,7 @@ pipeline {
                             if [ "${CTP_DEBUG}" != "true" ]; then
                                 set +x
                             fi
-                            curl -sk -u ${DTP_USER}:${DTP_PASS} '${CTP_URL}/em/api/v3/systems?name=${encodedSystemName}&limit=50&offset=0'
+                            curl -sk -u "${DTP_USER}:\$DTP_PASS" '${CTP_URL}/em/api/v3/systems?name=${encodedSystemName}&limit=50&offset=0'
                             if [ "${CTP_DEBUG}" != "true" ]; then
                                 set -x
                             fi
@@ -96,7 +102,7 @@ pipeline {
                             if [ "${CTP_DEBUG}" != "true" ]; then
                                 set +x
                             fi
-                            curl -sk -u ${DTP_USER}:${DTP_PASS} '${CTP_URL}/em/api/v3/environments?name=${encodedEnvName}&limit=50&offset=0'
+                            curl -sk -u "${DTP_USER}:\$DTP_PASS" '${CTP_URL}/em/api/v3/environments?name=${encodedEnvName}&limit=50&offset=0'
                             if [ "${CTP_DEBUG}" != "true" ]; then
                                 set -x
                             fi
