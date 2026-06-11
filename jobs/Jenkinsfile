@@ -323,16 +323,20 @@ EOF
         stage('Test: Full Selenium Suites') {
             when { equals expected: true, actual: true}
             steps {
+                // NOTE: JUnit 5 parallel execution is currently disabled (CTP_PARALLEL_TEST_EXECUTION=false).
+                // To re-enable parallel mode for selenium-tests and playwright-tests, add these flags back
+                // to their respective mvn commands AND set CTP_PARALLEL_TEST_EXECUTION=true in each
+                // module's parasoft-settings.properties (requires multi-user coverage agent deployment):
+                //   -Djunit.jupiter.execution.parallel.enabled=true \
+                //   -Djunit.jupiter.execution.parallel.mode.classes.default=concurrent \
                 withEnv(["CTP_URL=${env.CTP_URL}", "CTP_LOG_LEVEL=${params.CTP_DEBUG == 'true' ? 'DEBUG' : 'INFO'}"]) {
                     sh '''
-                        echo "Running Selenium JUnit 5 module with Selenium Grid, parallel execution, and publishing to DTP/CTP..."
+                        echo "Running Selenium JUnit 5 module with Selenium Grid, sequential execution, and publishing to DTP/CTP..."
                         if [ "${CTP_DEBUG}" != "true" ]; then
                             set +x
                         fi
                         mvn -ntp verify \
                         -pl spring-petclinic-selenium-tests \
-                        -Djunit.jupiter.execution.parallel.enabled=true \
-                        -Djunit.jupiter.execution.parallel.mode.classes.default=concurrent \
                         -am \
                         -DPETCLINIC_URL="http://$PUBLIC_IP:8099" \
                         -DCTP_BASE_URL="$CTP_URL" \
@@ -365,7 +369,7 @@ EOF
                         -DCTP_LOG_LEVEL=${CTP_LOG_LEVEL} \
                         '''
                     sh '''
-                        echo "Running Selenium TestNG module with Selenium Grid, parallel execution, and publishing to DTP/CTP..."
+                        echo "Running Selenium TestNG module with Selenium Grid, sequential execution, and publishing to DTP/CTP..."
                         if [ "${CTP_DEBUG}" != "true" ]; then
                             set +x
                         fi
@@ -384,15 +388,13 @@ EOF
                         -DCTP_LOG_LEVEL=${CTP_LOG_LEVEL} \
                         '''
                     sh '''
-                        echo "Running Playwright JUnit 5 module, parallel execution, and publishing to DTP/CTP..."
+                        echo "Running Playwright JUnit 5 module, sequential execution, and publishing to DTP/CTP..."
                         if [ "${CTP_DEBUG}" != "true" ]; then
                             set +x
                         fi
                         mvn -ntp verify \
                         -pl spring-petclinic-playwright-tests \
                         -am \
-                        -Djunit.jupiter.execution.parallel.enabled=true \
-                        -Djunit.jupiter.execution.parallel.mode.classes.default=concurrent \
                         -DHEADLESS=true \
                         -DPETCLINIC_URL="http://$PUBLIC_IP:8099" \
                         -DCTP_BASE_URL="$CTP_URL" \

@@ -357,6 +357,12 @@ EOF
                     echo "${testNames}"
 
                     // Run each test module parameterized with impacted tests from CTP
+                    // NOTE: JUnit 5 parallel execution is currently disabled (CTP_PARALLEL_TEST_EXECUTION=false).
+                    // To re-enable parallel mode for selenium-tests and playwright-tests, add these flags back
+                    // to their respective mvn commands AND set CTP_PARALLEL_TEST_EXECUTION=true in each
+                    // module's parasoft-settings.properties (requires multi-user coverage agent deployment):
+                    //   -Djunit.jupiter.execution.parallel.enabled=true \
+                    //   -Djunit.jupiter.execution.parallel.mode.classes.default=concurrent \
                     withEnv(["CTP_URL=${env.CTP_URL}", "TEST_NAMES=${testNames}", "CTP_LOG_LEVEL=${params.CTP_DEBUG == 'true' ? 'DEBUG' : 'INFO'}"]) {
                         sh '''
                             echo "Running Selenium JUnit 5 module parameterized with impacted tests from CTP..."
@@ -366,8 +372,6 @@ EOF
                             mvn -ntp verify \
                             -pl spring-petclinic-selenium-tests \
                             -am \
-                            -Djunit.jupiter.execution.parallel.enabled=true \
-                            -Djunit.jupiter.execution.parallel.mode.classes.default=concurrent \
                             -DPETCLINIC_URL="http://${PUBLIC_IP}:8099" \
                             -DCTP_BASE_URL="${CTP_URL}" \
                             -DCTP_ENV_ID=${CTP_ENV_ID} \
@@ -428,8 +432,6 @@ EOF
                             mvn -ntp verify \
                             -pl spring-petclinic-playwright-tests \
                             -am \
-                            -Djunit.jupiter.execution.parallel.enabled=true \
-                            -Djunit.jupiter.execution.parallel.mode.classes.default=concurrent \
                             -DHEADLESS=true \
                             -DPETCLINIC_URL="http://${PUBLIC_IP}:8099" \
                             -DCTP_BASE_URL="${CTP_URL}" \
