@@ -36,7 +36,6 @@ pipeline {
 
         // Dynamic configs
         BUILD_TIMESTAMP = "${BUILD_ID}"
-        BASELINE_ID     = "${app_name}-baseline2"
     }
 
     stages {
@@ -49,6 +48,16 @@ pipeline {
                     def scmVars = checkout scm
                     env.GIT_BRANCH = scmVars.GIT_BRANCH?.replaceFirst('^origin/', '') ?: ''
                     env.GIT_URL    = scmVars.GIT_URL ?: ''
+                }
+
+                // Resolve BASELINE_ID dynamically from the last successful Petclinic-baseline run
+                // NOTE: requires one-time In-process Script Approval in Manage Jenkins → Script Approval
+                script {
+                    def baselineJob  = Jenkins.instance.getItemByFullName('Petclinic-baseline')
+                    def lastBuild    = baselineJob?.getLastSuccessfulBuild()
+                    def buildId      = lastBuild?.getBuildVariables()?.get('BUILD_ID') ?: 'baseline'
+                    env.BASELINE_ID  = "${app_name}-${buildId}"
+                    echo "Resolved BASELINE_ID: ${env.BASELINE_ID}"
                 }
 
                 // Resolve instance metadata: UID, GID, public and private IP
