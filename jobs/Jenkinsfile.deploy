@@ -1,5 +1,3 @@
-def ARRAY
-
 pipeline {
     agent any
     tools {
@@ -28,12 +26,6 @@ pipeline {
     environment {
         // App Settings
         app_name = 'spring-petclinic-microservices' // top level DTP Project
-
-        // dynamic vars
-        CTP_ENV_ID = "${params.CTP_ENV_ID}"
-        CTP_URL    = "${params.CTP_URL}"
-        DTP_URL    = "${params.DTP_URL}"
-        DTP_USER   = "${params.DTP_USER}"
     }
 
     stages {
@@ -45,68 +37,57 @@ pipeline {
                 // Checkout project
                 checkout scm
 
-                // Normalize URLs: strip trailing slashes for consistent path construction
+                // Normalize URLs and resolve agent GID
                 script {
-                    env.CTP_URL = env.CTP_URL.replaceAll('/+$', '')
-                    env.DTP_URL = env.DTP_URL.replaceAll('/+$', '')
+                    env.CTP_URL = params.CTP_URL.replaceAll('/+$', '')
+                    env.DTP_URL = params.DTP_URL.replaceAll('/+$', '')
+                    env.GID     = sh(script: 'id -g jenkins', returnStdout: true).trim()
                 }
 
-                // set GID
-                script {
-                    env.GID = sh(script: 'id -g jenkins', returnStdout: true).trim()
-                }
-                
-                // define services
-                script {
-                    ARRAY = [
-                        "spring-petclinic-api-gateway",
-                        "spring-petclinic-vets-service",
-                        "spring-petclinic-visits-service",
-                        "spring-petclinic-customers-service"
-                    ]
-                }
-
-                // download the agent.jar and cov-tool
-                sh '''
-                    if [ "${CTP_DEBUG}" != "true" ]; then
-                        set +x
-                    fi
-                    curl -kLO -u ${DTP_USER}:${DTP_PASS} ${CTP_URL}/em/coverageagent/java_agent_coverage.zip
-                    if [ "${CTP_DEBUG}" != "true" ]; then
-                        set -x
-                    fi
-                    unzip java_agent_coverage.zip
-
+                // Download coverage agent archive from CTP
+                withEnv(["CTP_URL=${env.CTP_URL}"]) {
+                    sh '''
+                        if [ "${CTP_DEBUG}" != "true" ]; then
+                            set +x
+                        fi
+                        curl -kLO -u ${DTP_USER}:${DTP_PASS} ${CTP_URL}/em/coverageagent/java_agent_coverage.zip
+                        if [ "${CTP_DEBUG}" != "true" ]; then
+                            set -x
+                        fi
+                        unzip java_agent_coverage.zip
                     '''
-                
-                // copy jars
-                script {
-                    for (service in ARRAY) {
-                        sh "cp jtest_agent/agent.jar ${service}/src/test/resources/coverage/agent.jar"
-                        sh "cp jtest_agent/jtest-otel-ext.jar ${service}/src/test/resources/coverage/jtest-otel-ext.jar"
-                        sh "cp jtest_agent/opentelemetry-javaagent.jar ${service}/src/test/resources/coverage/opentelemetry-javaagent.jar"
-                    }
                 }
+                
+                // Copy coverage agent JARs into each microservice
+                sh '''
+                    for service in spring-petclinic-api-gateway spring-petclinic-vets-service spring-petclinic-visits-service spring-petclinic-customers-service; do
+                        cp jtest_agent/agent.jar                   ${service}/src/test/resources/coverage/agent.jar
+                        cp jtest_agent/jtest-otel-ext.jar          ${service}/src/test/resources/coverage/jtest-otel-ext.jar
+                        cp jtest_agent/opentelemetry-javaagent.jar ${service}/src/test/resources/coverage/opentelemetry-javaagent.jar
+                    done
+                '''
 
-                // Patch agent.properties with dynamic CTP and DTP values
-                withEnv(["DTP_PASS=${params.DTP_PASS}"]) {
-                    script {
-                        def appName        = env.app_name
-                        def buildTimestamp = params.BUILD_TIMESTAMP
+                // Patch agent.properties with CTP and DTP configuration
+                script {
+                    def ctpUrl         = env.CTP_URL
+                    def dtpUrl         = env.DTP_URL
+                    def appName        = env.app_name
+                    def buildTimestamp = params.BUILD_TIMESTAMP
 
+                    withEnv(["CTP_URL=${ctpUrl}", "DTP_URL=${dtpUrl}"]) {
                         // Fetch all components for this CTP environment
                         def componentsResponse = sh(
-                            script: """
+                            script: '''
                                 if [ "${CTP_DEBUG}" != "true" ]; then
                                     set +x
                                 fi
-                                curl -sk -u "${DTP_USER}:\$DTP_PASS" \\
-                                    -H 'accept: application/json' \\
-                                    '${CTP_URL}/em/api/v3/environments/${CTP_ENV_ID}/components'
+                                curl -sk -u "${DTP_USER}:${DTP_PASS}" \
+                                    -H 'accept: application/json' \
+                                    "${CTP_URL}/em/api/v3/environments/${CTP_ENV_ID}/components"
                                 if [ "${CTP_DEBUG}" != "true" ]; then
                                     set -x
                                 fi
-                            """,
+                            ''',
                             returnStdout: true
                         ).trim()
                         if (params.CTP_DEBUG == 'true') {
@@ -116,17 +97,17 @@ pipeline {
 
                         // Resolve DTP filter ID by app name
                         def filterResponse = sh(
-                            script: """
+                            script: '''
                                 if [ "${CTP_DEBUG}" != "true" ]; then
                                     set +x
                                 fi
-                                curl -sk -u "${DTP_USER}:\$DTP_PASS" \\
-                                    -H 'accept: application/json' \\
-                                    '${DTP_URL}/grs/api/v1.12/filters?managedOnly=false&name=${appName}'
+                                curl -sk -u "${DTP_USER}:${DTP_PASS}" \
+                                    -H 'accept: application/json' \
+                                    "${DTP_URL}/grs/api/v1.12/filters?managedOnly=false&name=${app_name}"
                                 if [ "${CTP_DEBUG}" != "true" ]; then
                                     set -x
                                 fi
-                            """,
+                            ''',
                             returnStdout: true
                         ).trim()
                         if (params.CTP_DEBUG == 'true') {
@@ -139,7 +120,7 @@ pipeline {
                         }
                         echo "Resolved DTP filter ID: ${filterId}"
 
-                        // Map service directory -> CTP component name (stable across environments)
+                        // Map service directory -> CTP component name
                         def serviceConfigs = [
                             [dir: 'spring-petclinic-api-gateway',       ctpName: 'UI + API Gateway'],
                             [dir: 'spring-petclinic-customers-service',  ctpName: 'customers-service REST API'],
@@ -158,17 +139,19 @@ pipeline {
                             def subQueue  = component.ctpSubscriptionQueue
                             def propsFile = "${serviceDir}/src/test/resources/coverage/agent.properties"
 
-                            sh """
-                                sed -i 's|^ctp.websocket.url=.*|ctp.websocket.url=${wsUrl}|' ${propsFile}
-                                sed -i 's|^ctp.subscription.queue=.*|ctp.subscription.queue=${subQueue}|' ${propsFile}
-                                sed -i 's|^dtp.buildID=.*|dtp.buildID=${appName}-${buildTimestamp}|' ${propsFile}
-                                sed -i 's|^dtp.project=.*|dtp.project=${appName}|' ${propsFile}
-                                sed -i 's|^dtp.coverageImages=.*|dtp.coverageImages=${appName};${appName}-FT|' ${propsFile}
-                                sed -i 's|^dtp.filterID=.*|dtp.filterID=${filterId}|' ${propsFile}
-                            """
-                            echo "Patched ${propsFile}"
-                            if (params.CTP_DEBUG == 'true') {
-                                sh "cat ${propsFile}"
+                            withEnv(["PROPS_FILE=${propsFile}", "WS_URL=${wsUrl}", "SUB_QUEUE=${subQueue}", "FILTER_ID=${filterId}", "BUILD_TIMESTAMP=${buildTimestamp}"]) {
+                                sh '''
+                                    sed -i "s|^ctp.websocket.url=.*|ctp.websocket.url=${WS_URL}|" "${PROPS_FILE}"
+                                    sed -i "s|^ctp.subscription.queue=.*|ctp.subscription.queue=${SUB_QUEUE}|" "${PROPS_FILE}"
+                                    sed -i "s|^dtp.buildID=.*|dtp.buildID=${app_name}-${BUILD_TIMESTAMP}|" "${PROPS_FILE}"
+                                    sed -i "s|^dtp.project=.*|dtp.project=${app_name}|" "${PROPS_FILE}"
+                                    sed -i "s|^dtp.coverageImages=.*|dtp.coverageImages=${app_name};${app_name}-FT|" "${PROPS_FILE}"
+                                    sed -i "s|^dtp.filterID=.*|dtp.filterID=${FILTER_ID}|" "${PROPS_FILE}"
+                                '''
+                                echo "Patched ${propsFile}"
+                                if (params.CTP_DEBUG == 'true') {
+                                    sh 'cat "${PROPS_FILE}"'
+                                }
                             }
                         }
                     }

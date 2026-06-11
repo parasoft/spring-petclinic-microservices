@@ -24,8 +24,6 @@ pipeline {
         string(name: 'CTP_SYSTEM_NAME', defaultValue: 'Spring PetClinic', description: 'CTP system name')
         string(name: 'CTP_ENV_NAME', defaultValue: 'QA', description: 'CTP environment name')
         string(name: 'CTP_DEBUG', defaultValue: 'false', description: 'Enable debug logging for Jenkins pipeline')
-
-        // Add other parameters as needed
     }
     environment {
         // App Details
@@ -37,12 +35,6 @@ pipeline {
 
         // Dynamic configs
         BUILD_TIMESTAMP = "${BUILD_ID}"
-
-        // Explicit parameter mappings to ensure availability in Groovy GString interpolation
-        LS_URL   = "${params.LS_URL}"
-        CTP_URL  = "${params.CTP_URL}"
-        DTP_URL  = "${params.DTP_URL}"
-        DTP_USER = "${params.DTP_USER}"
     }
 
     stages {
@@ -51,16 +43,13 @@ pipeline {
                 // Clean workspace before build
                 cleanWs()
                 // Checkout project
-                checkout([$class: 'GitSCM', 
-                    branches: [[name: 'feature/ctp-integration-enhancements']], 
-                    userRemoteConfigs: [[url: 'https://github.com/parasoft/spring-petclinic-microservices.git']]])
+                checkout scm
                 
-                // set UID, GID
-                // set PUBLIC_IP and PRIVATE_IP
+                // Resolve instance metadata: UID, GID, public and private IP
                 script {
                     env.UID = sh(script: 'id -u jenkins', returnStdout: true).trim()
                     env.GID = sh(script: 'id -g jenkins', returnStdout: true).trim()
-                    env.PUBLIC_IP = sh(script: """curl -s http://checkip.amazonaws.com """, returnStdout: true).trim()
+                    env.PUBLIC_IP = sh(script: 'curl -s http://checkip.amazonaws.com', returnStdout: true).trim()
                     env.PRIVATE_IP = sh(script: '''
                         TOKEN=$(curl -sX PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" || true)
                         if [ -n "$TOKEN" ]; then
@@ -72,59 +61,68 @@ pipeline {
                     if (!env.PRIVATE_IP) {
                         error('Failed to resolve PRIVATE_IP from EC2 metadata service.')
                     }
+                }
 
-                    // resolve envId from CTP based on provided system and env names
-                    def systemName = params.CTP_SYSTEM_NAME
-                    def envName = params.CTP_ENV_NAME
+                // Normalize URLs and resolve CTP environment ID
+                script {
+                    def systemName        = params.CTP_SYSTEM_NAME
+                    def envName           = params.CTP_ENV_NAME
                     def encodedSystemName = java.net.URLEncoder.encode(systemName, 'UTF-8')
-                    def encodedEnvName = java.net.URLEncoder.encode(envName, 'UTF-8')
-                    def ctpUrl = env.CTP_URL.replaceAll('/+$', '')
-                    def dtpUrl = env.DTP_URL.replaceAll('/+$', '')
+                    def encodedEnvName    = java.net.URLEncoder.encode(envName, 'UTF-8')
+                    def ctpUrl = params.CTP_URL.replaceAll('/+$', '')
+                    def dtpUrl = params.DTP_URL.replaceAll('/+$', '')
                     env.CTP_URL = ctpUrl
                     env.DTP_URL = dtpUrl
 
-                    def systemResponse = sh(
-                        script: """
-                            if [ "${CTP_DEBUG}" != "true" ]; then
-                                set +x
-                            fi
-                            curl -sk -u "${DTP_USER}:\$DTP_PASS" '${ctpUrl}/em/api/v3/systems?name=${encodedSystemName}&limit=50&offset=0'
-                            if [ "${CTP_DEBUG}" != "true" ]; then
-                                set -x
-                            fi
-                        """,
-                        returnStdout: true
-                    ).trim()
-                    if (params.CTP_DEBUG == 'true') {
-                        echo "CTP systems response:\n${systemResponse}"
-                    }
-                    def systemJson = new groovy.json.JsonSlurperClassic().parseText(systemResponse)
-                    def systemId = systemJson.systems?.find { it.name == systemName }?.id
-                    if (!systemId) {
-                        error("Failed to resolve systemId for system '${systemName}'.")
-                    }
+                    withEnv(["CTP_URL=${ctpUrl}", "ENCODED_SYSTEM=${encodedSystemName}", "ENCODED_ENV=${encodedEnvName}"]) {
+                        
+                        // Retrieve systemId from CTP based on system name
+                        def systemResponse = sh(
+                            script: '''
+                                if [ "${CTP_DEBUG}" != "true" ]; then
+                                    set +x
+                                fi
+                                curl -sk -u "${DTP_USER}:${DTP_PASS}" \
+                                    "${CTP_URL}/em/api/v3/systems?name=${ENCODED_SYSTEM}&limit=50&offset=0"
+                                if [ "${CTP_DEBUG}" != "true" ]; then
+                                    set -x
+                                fi
+                            ''',
+                            returnStdout: true
+                        ).trim()
+                        if (params.CTP_DEBUG == 'true') {
+                            echo "CTP systems response:\n${systemResponse}"
+                        }
+                        def systemJson = new groovy.json.JsonSlurperClassic().parseText(systemResponse)
+                        def systemId = systemJson.systems?.find { it.name == systemName }?.id
+                        if (!systemId) {
+                            error("Failed to resolve systemId for system '${systemName}'.")
+                        }
 
-                    def envResponse = sh(
-                        script: """
-                            if [ "${CTP_DEBUG}" != "true" ]; then
-                                set +x
-                            fi
-                            curl -sk -u "${DTP_USER}:\$DTP_PASS" '${ctpUrl}/em/api/v3/environments?name=${encodedEnvName}&limit=50&offset=0'
-                            if [ "${CTP_DEBUG}" != "true" ]; then
-                                set -x
-                            fi
-                        """,
-                        returnStdout: true
-                    ).trim()
-                    if (params.CTP_DEBUG == 'true') {
-                        echo "CTP environments response:\n${envResponse}"
+                        // Retrieve envId from CTP based on environment name and systemId
+                        def envResponse = sh(
+                            script: '''
+                                if [ "${CTP_DEBUG}" != "true" ]; then
+                                    set +x
+                                fi
+                                curl -sk -u "${DTP_USER}:${DTP_PASS}" \
+                                    "${CTP_URL}/em/api/v3/environments?name=${ENCODED_ENV}&limit=50&offset=0"
+                                if [ "${CTP_DEBUG}" != "true" ]; then
+                                    set -x
+                                fi
+                            ''',
+                            returnStdout: true
+                        ).trim()
+                        if (params.CTP_DEBUG == 'true') {
+                            echo "CTP environments response:\n${envResponse}"
+                        }
+                        def envJson = new groovy.json.JsonSlurperClassic().parseText(envResponse)
+                        def resolvedEnvId = envJson.environments?.find { it.name == envName && it.systemId == systemId }?.id
+                        if (!resolvedEnvId) {
+                            error("Failed to resolve envId for environment '${envName}' and systemId '${systemId}'.")
+                        }
+                        env.CTP_ENV_ID = resolvedEnvId.toString()
                     }
-                    def envJson = new groovy.json.JsonSlurperClassic().parseText(envResponse)
-                    def resolvedEnvId = envJson.environments?.find { it.name == envName && it.systemId == systemId }?.id
-                    if (!resolvedEnvId) {
-                        error("Failed to resolve envId for environment '${envName}' and systemId '${systemId}'.")
-                    }
-                    env.CTP_ENV_ID = resolvedEnvId.toString()
                 }
                 
                 // startup Selenium Grid
@@ -140,39 +138,38 @@ pipeline {
                     --name selenium-grid \
                     selenium/standalone-chrome:latest
                     '''
-                // set up Parasoft License
+                // Set up Parasoft License
                 sh '''
-                    # Set Up and write .properties file
                     if [ "${CTP_DEBUG}" != "true" ]; then
                         set +x
                     fi
-                    echo $"
-                    parasoft.eula.accepted=true
-                    
-                    jtest.license.use_network=true
-                    jtest.license.network.edition=server_edition
-                    
-                    license.network.use.specified.server=true
-                    license.network.auth.enabled=true
-                    license.network.url=${LS_URL}
-                    license.network.user=${DTP_USER}
-                    license.network.password=${DTP_PASS}
-                    
-                    dtp.url=${DTP_URL}
-                    dtp.user=${DTP_USER}
-                    dtp.password=${DTP_PASS}
-                    
-                    scontrol.git.exec=git
-                    scontrol.rep1.git.branch=feature/ctp-integration-enhancements
-                    scontrol.rep1.git.url=https://github.com/parasoft/spring-petclinic-microservices.git
-                    scontrol.rep1.type=git
+                    cat > ./jtest/jtestcli.properties << EOF
+parasoft.eula.accepted=true
 
-                    report.scontrol=min
-                    report.coverage.line.hashes=true
-                    report.dtp.publish=true
-                    
-                    console.verbosity.level=high
-                    " > ./jtest/jtestcli.properties
+jtest.license.use_network=true
+jtest.license.network.edition=server_edition
+
+license.network.use.specified.server=true
+license.network.auth.enabled=true
+license.network.url=${LS_URL}
+license.network.user=${DTP_USER}
+license.network.password=${DTP_PASS}
+
+dtp.url=${DTP_URL}
+dtp.user=${DTP_USER}
+dtp.password=${DTP_PASS}
+
+scontrol.git.exec=git
+scontrol.rep1.git.branch=${GIT_BRANCH#origin/}
+scontrol.rep1.git.url=${GIT_URL}
+scontrol.rep1.type=git
+
+report.scontrol=min
+report.coverage.line.hashes=true
+report.dtp.publish=true
+
+console.verbosity.level=high
+EOF
                     if [ "${CTP_DEBUG}" != "true" ]; then
                         set -x
                     fi
@@ -197,43 +194,40 @@ pipeline {
                 script {
                         // Setup stage-specific additional settings
                         sh '''
-                            # Set Up and write .properties file
                             if [ "${CTP_DEBUG}" != "true" ]; then
                                 set +x
                             fi
-                            echo $"
-                            dtp.project=${app_name}
-                            build.id=${app_name}-${BUILD_TIMESTAMP}
-                            " > ./jtest/jtestcli-sa.properties
+                            cat > ./jtest/jtestcli-sa.properties << EOF
+dtp.project=${app_name}
+build.id=${app_name}-${BUILD_TIMESTAMP}
+EOF
                             if [ "${CTP_DEBUG}" != "true" ]; then
                                 set -x
                             fi
                         '''
                         sh '''
-                            # Set Up and write .properties file
                             if [ "${CTP_DEBUG}" != "true" ]; then
                                 set +x
                             fi
-                            echo $"
-                            dtp.project=${app_name}
-                            build.id=${app_name}-${BUILD_TIMESTAMP}
-                            report.coverage.images=${app_name};${app_name}-UT
-                            report.coverage.static.images=${app_name};${app_name}-UT;${app_name}-FT
-                            " > ./jtest/jtestcli-ut.properties
+                            cat > ./jtest/jtestcli-ut.properties << EOF
+dtp.project=${app_name}
+build.id=${app_name}-${BUILD_TIMESTAMP}
+report.coverage.images=${app_name};${app_name}-UT
+report.coverage.static.images=${app_name};${app_name}-UT;${app_name}-FT
+EOF
                             if [ "${CTP_DEBUG}" != "true" ]; then
                                 set -x
                             fi
                         '''
                         sh '''
-                            # Set Up and write .properties file
                             if [ "${CTP_DEBUG}" != "true" ]; then
                                 set +x
                             fi
-                            echo $"
-                            dtp.project=${app_name}
-                            build.id=${app_name}-${BUILD_TIMESTAMP}
-                            report.coverage.images=${app_name};${app_name}-FT
-                            " > ./jtest/jtestcli-ft.properties
+                            cat > ./jtest/jtestcli-ft.properties << EOF
+dtp.project=${app_name}
+build.id=${app_name}-${BUILD_TIMESTAMP}
+report.coverage.images=${app_name};${app_name}-FT
+EOF
                             if [ "${CTP_DEBUG}" != "true" ]; then
                                 set -x
                             fi
@@ -303,91 +297,91 @@ pipeline {
                     string(name: 'BUILD_TIMESTAMP', value: env.BUILD_TIMESTAMP),
                     string(name: 'CTP_ENV_ID', value: env.CTP_ENV_ID),
                     string(name: 'CTP_DEBUG', value: params.CTP_DEBUG),
-                    // Add other parameters as needed
                 ]
             }
         }
         stage('Test: Full Selenium Suites') {
             when { equals expected: true, actual: true}
             steps {
-                // run Selenium tests
-                sh '''
-                    echo "Running Selenium JUnit 5 module with Selenium Grid, parallel execution, and publishing to DTP/CTP..."
-                    if [ "${CTP_DEBUG}" != "true" ]; then
-                        set +x
-                    fi
-                    mvn -ntp verify \
-                    -pl spring-petclinic-selenium-tests \
-                    -Djunit.jupiter.execution.parallel.enabled=true \
-                    -Djunit.jupiter.execution.parallel.mode.classes.default=concurrent \
-                    -am \
-                    -DPETCLINIC_URL="http://$PUBLIC_IP:8099" \
-                    -DCTP_BASE_URL="$CTP_URL" \
-                    -DCTP_ENV_ID=$CTP_ENV_ID \
-                    -DCTP_USERNAME=$DTP_USER \
-                    -DCTP_PASSWORD=$DTP_PASS \
-                    -DCTP_PUBLISH_BASELINE=false \
-                    -DCTP_BASELINE_BUILD_ID=${app_name}-${BUILD_TIMESTAMP} \
-                    -DPROXY_HOST=$PRIVATE_IP \
-                    -DPROXY_BIND_HOST=$PRIVATE_IP \
-                    '''
-                sh '''
-                    echo "Running Selenium JUnit5 + Cucumber module with Selenium Grid, sequential execution, and publishing to DTP/CTP..."
-                    if [ "${CTP_DEBUG}" != "true" ]; then
-                        set +x
-                    fi
-                    mvn -ntp verify \
-                    -pl spring-petclinic-selenium-cucumber-tests \
-                    -am \
-                    -DPETCLINIC_URL="http://$PUBLIC_IP:8099" \
-                    -DCTP_BASE_URL="$CTP_URL" \
-                    -DCTP_ENV_ID=$CTP_ENV_ID \
-                    -DCTP_USERNAME=$DTP_USER \
-                    -DCTP_PASSWORD=$DTP_PASS \
-                    -DCTP_PUBLISH_BASELINE=false \
-                    -DCTP_BASELINE_BUILD_ID=${app_name}-${BUILD_TIMESTAMP} \
-                    -DPROXY_HOST=$PRIVATE_IP \
-                    -DPROXY_BIND_HOST=$PRIVATE_IP \
-                    '''
-                sh '''
-                    echo "Running Selenium TestNG module with Selenium Grid, parallel execution, and publishing to DTP/CTP..."
-                    if [ "${CTP_DEBUG}" != "true" ]; then
-                        set +x
-                    fi
-                    mvn -ntp verify \
-                    -pl spring-petclinic-selenium-testng-tests \
-                    -am \
-                    -DPETCLINIC_URL="http://$PUBLIC_IP:8099" \
-                    -DCTP_BASE_URL="$CTP_URL" \
-                    -DCTP_ENV_ID=$CTP_ENV_ID \
-                    -DCTP_USERNAME=$DTP_USER \
-                    -DCTP_PASSWORD=$DTP_PASS \
-                    -DCTP_PUBLISH_BASELINE=false \
-                    -DCTP_BASELINE_BUILD_ID=${app_name}-${BUILD_TIMESTAMP} \
-                    -DPROXY_HOST=$PRIVATE_IP \
-                    -DPROXY_BIND_HOST=$PRIVATE_IP \
-                    '''
-                sh '''
-                    echo "Running Playwright JUnit 5 module, parallel execution, and publishing to DTP/CTP..."
-                    if [ "${CTP_DEBUG}" != "true" ]; then
-                        set +x
-                    fi
-                    mvn -ntp verify \
-                    -pl spring-petclinic-playwright-tests \
-                    -am \
-                    -Djunit.jupiter.execution.parallel.enabled=true \
-                    -Djunit.jupiter.execution.parallel.mode.classes.default=concurrent \
-                    -DHEADLESS=true \
-                    -DPETCLINIC_URL="http://$PUBLIC_IP:8099" \
-                    -DCTP_BASE_URL="$CTP_URL" \
-                    -DCTP_ENV_ID=$CTP_ENV_ID \
-                    -DCTP_USERNAME=$DTP_USER \
-                    -DCTP_PASSWORD=$DTP_PASS \
-                    -DCTP_PUBLISH_BASELINE=true \
-                    -DCTP_BASELINE_BUILD_ID=${app_name}-${BUILD_TIMESTAMP} \
-                    -DPROXY_HOST=$PRIVATE_IP \
-                    -DPROXY_BIND_HOST=$PRIVATE_IP \
-                    '''
+                withEnv(["CTP_URL=${env.CTP_URL}"]) {
+                    sh '''
+                        echo "Running Selenium JUnit 5 module with Selenium Grid, parallel execution, and publishing to DTP/CTP..."
+                        if [ "${CTP_DEBUG}" != "true" ]; then
+                            set +x
+                        fi
+                        mvn -ntp verify \
+                        -pl spring-petclinic-selenium-tests \
+                        -Djunit.jupiter.execution.parallel.enabled=true \
+                        -Djunit.jupiter.execution.parallel.mode.classes.default=concurrent \
+                        -am \
+                        -DPETCLINIC_URL="http://$PUBLIC_IP:8099" \
+                        -DCTP_BASE_URL="$CTP_URL" \
+                        -DCTP_ENV_ID=$CTP_ENV_ID \
+                        -DCTP_USERNAME=$DTP_USER \
+                        -DCTP_PASSWORD=$DTP_PASS \
+                        -DCTP_PUBLISH_BASELINE=false \
+                        -DCTP_BASELINE_BUILD_ID=${app_name}-${BUILD_TIMESTAMP} \
+                        -DPROXY_HOST=$PRIVATE_IP \
+                        -DPROXY_BIND_HOST=$PRIVATE_IP \
+                        '''
+                    sh '''
+                        echo "Running Selenium JUnit5 + Cucumber module with Selenium Grid, sequential execution, and publishing to DTP/CTP..."
+                        if [ "${CTP_DEBUG}" != "true" ]; then
+                            set +x
+                        fi
+                        mvn -ntp verify \
+                        -pl spring-petclinic-selenium-cucumber-tests \
+                        -am \
+                        -DPETCLINIC_URL="http://$PUBLIC_IP:8099" \
+                        -DCTP_BASE_URL="$CTP_URL" \
+                        -DCTP_ENV_ID=$CTP_ENV_ID \
+                        -DCTP_USERNAME=$DTP_USER \
+                        -DCTP_PASSWORD=$DTP_PASS \
+                        -DCTP_PUBLISH_BASELINE=false \
+                        -DCTP_BASELINE_BUILD_ID=${app_name}-${BUILD_TIMESTAMP} \
+                        -DPROXY_HOST=$PRIVATE_IP \
+                        -DPROXY_BIND_HOST=$PRIVATE_IP \
+                        '''
+                    sh '''
+                        echo "Running Selenium TestNG module with Selenium Grid, parallel execution, and publishing to DTP/CTP..."
+                        if [ "${CTP_DEBUG}" != "true" ]; then
+                            set +x
+                        fi
+                        mvn -ntp verify \
+                        -pl spring-petclinic-selenium-testng-tests \
+                        -am \
+                        -DPETCLINIC_URL="http://$PUBLIC_IP:8099" \
+                        -DCTP_BASE_URL="$CTP_URL" \
+                        -DCTP_ENV_ID=$CTP_ENV_ID \
+                        -DCTP_USERNAME=$DTP_USER \
+                        -DCTP_PASSWORD=$DTP_PASS \
+                        -DCTP_PUBLISH_BASELINE=false \
+                        -DCTP_BASELINE_BUILD_ID=${app_name}-${BUILD_TIMESTAMP} \
+                        -DPROXY_HOST=$PRIVATE_IP \
+                        -DPROXY_BIND_HOST=$PRIVATE_IP \
+                        '''
+                    sh '''
+                        echo "Running Playwright JUnit 5 module, parallel execution, and publishing to DTP/CTP..."
+                        if [ "${CTP_DEBUG}" != "true" ]; then
+                            set +x
+                        fi
+                        mvn -ntp verify \
+                        -pl spring-petclinic-playwright-tests \
+                        -am \
+                        -Djunit.jupiter.execution.parallel.enabled=true \
+                        -Djunit.jupiter.execution.parallel.mode.classes.default=concurrent \
+                        -DHEADLESS=true \
+                        -DPETCLINIC_URL="http://$PUBLIC_IP:8099" \
+                        -DCTP_BASE_URL="$CTP_URL" \
+                        -DCTP_ENV_ID=$CTP_ENV_ID \
+                        -DCTP_USERNAME=$DTP_USER \
+                        -DCTP_PASSWORD=$DTP_PASS \
+                        -DCTP_PUBLISH_BASELINE=true \
+                        -DCTP_BASELINE_BUILD_ID=${app_name}-${BUILD_TIMESTAMP} \
+                        -DPROXY_HOST=$PRIVATE_IP \
+                        -DPROXY_BIND_HOST=$PRIVATE_IP \
+                        '''
+                }
             }
         }
         stage('Release') {
@@ -408,17 +402,13 @@ pipeline {
                     echo "--- selenium-grid logs (CTP_DEBUG=true) ---"
                     docker logs selenium-grid || true
                 fi
-                '''
-            sh 'docker container stop selenium-grid || true'
-            sh 'docker container prune -f'
-            sh 'docker image prune -f'
-            
-            // delete Cov-tool stuff
-            sh  '''
+                docker container stop selenium-grid || true
+                docker container prune -f
+                docker image prune -f
                 echo "cleaning up..."
                 # rm -rf "jtest_agent"
                 # rm -rf "jtestcov"
-                '''
+            '''
         }
     }
 }
