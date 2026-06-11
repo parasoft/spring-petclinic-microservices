@@ -353,7 +353,7 @@ EOF
                     echo "${testNames}"
 
                     // Run each test module parameterized with impacted tests from CTP
-                    withEnv(["CTP_URL=${env.CTP_URL}", "TEST_NAMES=${testNames}"]) {
+                    withEnv(["CTP_URL=${env.CTP_URL}", "TEST_NAMES=${testNames}", "CTP_LOG_LEVEL=${params.CTP_DEBUG == 'true' ? 'DEBUG' : 'INFO'}"]) {
                         sh '''
                             echo "Running Selenium JUnit 5 module parameterized with impacted tests from CTP..."
                             if [ "${CTP_DEBUG}" != "true" ]; then
@@ -372,6 +372,7 @@ EOF
                             -DCTP_DEBUG=${CTP_DEBUG} \
                             -DPROXY_HOST=${PRIVATE_IP} \
                             -DPROXY_BIND_HOST=${PRIVATE_IP} \
+                            -DCTP_LOG_LEVEL=${CTP_LOG_LEVEL} \
                             -Dit.test="${TEST_NAMES}" \
                             -Dfailsafe.failIfNoSpecifiedTests=false
                         '''
@@ -391,6 +392,7 @@ EOF
                             -DCTP_DEBUG=${CTP_DEBUG} \
                             -DPROXY_HOST=${PRIVATE_IP} \
                             -DPROXY_BIND_HOST=${PRIVATE_IP} \
+                            -DCTP_LOG_LEVEL=${CTP_LOG_LEVEL} \
                             -Dit.test="${TEST_NAMES}" \
                             -Dfailsafe.failIfNoSpecifiedTests=false
                         '''
@@ -410,6 +412,7 @@ EOF
                             -DCTP_DEBUG=${CTP_DEBUG} \
                             -DPROXY_HOST=${PRIVATE_IP} \
                             -DPROXY_BIND_HOST=${PRIVATE_IP} \
+                            -DCTP_LOG_LEVEL=${CTP_LOG_LEVEL} \
                             -Dit.test="${TEST_NAMES}" \
                             -Dfailsafe.failIfNoSpecifiedTests=false
                         '''
@@ -431,6 +434,7 @@ EOF
                             -DCTP_PASSWORD=${DTP_PASS} \
                             -DPROXY_HOST=${PRIVATE_IP} \
                             -DPROXY_BIND_HOST=${PRIVATE_IP} \
+                            -DCTP_LOG_LEVEL=${CTP_LOG_LEVEL} \
                             -Dit.test="${TEST_NAMES}" \
                             -Dfailsafe.failIfNoSpecifiedTests=false
                         '''

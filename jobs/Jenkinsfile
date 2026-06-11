@@ -319,7 +319,7 @@ EOF
         stage('Test: Full Selenium Suites') {
             when { equals expected: true, actual: true}
             steps {
-                withEnv(["CTP_URL=${env.CTP_URL}"]) {
+                withEnv(["CTP_URL=${env.CTP_URL}", "CTP_LOG_LEVEL=${params.CTP_DEBUG == 'true' ? 'DEBUG' : 'INFO'}"]) {
                     sh '''
                         echo "Running Selenium JUnit 5 module with Selenium Grid, parallel execution, and publishing to DTP/CTP..."
                         if [ "${CTP_DEBUG}" != "true" ]; then
@@ -339,6 +339,7 @@ EOF
                         -DCTP_BASELINE_BUILD_ID=${app_name}-${BUILD_TIMESTAMP} \
                         -DPROXY_HOST=$PRIVATE_IP \
                         -DPROXY_BIND_HOST=$PRIVATE_IP \
+                        -DCTP_LOG_LEVEL=${CTP_LOG_LEVEL} \
                         '''
                     sh '''
                         echo "Running Selenium JUnit5 + Cucumber module with Selenium Grid, sequential execution, and publishing to DTP/CTP..."
@@ -357,6 +358,7 @@ EOF
                         -DCTP_BASELINE_BUILD_ID=${app_name}-${BUILD_TIMESTAMP} \
                         -DPROXY_HOST=$PRIVATE_IP \
                         -DPROXY_BIND_HOST=$PRIVATE_IP \
+                        -DCTP_LOG_LEVEL=${CTP_LOG_LEVEL} \
                         '''
                     sh '''
                         echo "Running Selenium TestNG module with Selenium Grid, parallel execution, and publishing to DTP/CTP..."
@@ -375,6 +377,7 @@ EOF
                         -DCTP_BASELINE_BUILD_ID=${app_name}-${BUILD_TIMESTAMP} \
                         -DPROXY_HOST=$PRIVATE_IP \
                         -DPROXY_BIND_HOST=$PRIVATE_IP \
+                        -DCTP_LOG_LEVEL=${CTP_LOG_LEVEL} \
                         '''
                     sh '''
                         echo "Running Playwright JUnit 5 module, parallel execution, and publishing to DTP/CTP..."
@@ -396,6 +399,7 @@ EOF
                         -DCTP_BASELINE_BUILD_ID=${app_name}-${BUILD_TIMESTAMP} \
                         -DPROXY_HOST=$PRIVATE_IP \
                         -DPROXY_BIND_HOST=$PRIVATE_IP \
+                        -DCTP_LOG_LEVEL=${CTP_LOG_LEVEL} \
                         '''
                 }
             }
