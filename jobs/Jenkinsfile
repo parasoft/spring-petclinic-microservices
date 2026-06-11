@@ -170,6 +170,10 @@ report.dtp.publish=true
 
 console.verbosity.level=high
 EOF
+                    if [ "${CTP_DEBUG}" = "true" ]; then
+                        echo "--- jtestcli.properties ---"
+                        cat ./jtest/jtestcli.properties
+                    fi
                     if [ "${CTP_DEBUG}" != "true" ]; then
                         set -x
                     fi
@@ -201,6 +205,10 @@ EOF
 dtp.project=${app_name}
 build.id=${app_name}-${BUILD_TIMESTAMP}
 EOF
+                            if [ "${CTP_DEBUG}" = "true" ]; then
+                                echo "--- jtestcli-sa.properties ---"
+                                cat ./jtest/jtestcli-sa.properties
+                            fi
                             if [ "${CTP_DEBUG}" != "true" ]; then
                                 set -x
                             fi
@@ -215,6 +223,10 @@ build.id=${app_name}-${BUILD_TIMESTAMP}
 report.coverage.images=${app_name};${app_name}-UT
 report.coverage.static.images=${app_name};${app_name}-UT;${app_name}-FT
 EOF
+                            if [ "${CTP_DEBUG}" = "true" ]; then
+                                echo "--- jtestcli-ut.properties ---"
+                                cat ./jtest/jtestcli-ut.properties
+                            fi
                             if [ "${CTP_DEBUG}" != "true" ]; then
                                 set -x
                             fi
@@ -228,6 +240,10 @@ dtp.project=${app_name}
 build.id=${app_name}-${BUILD_TIMESTAMP}
 report.coverage.images=${app_name};${app_name}-FT
 EOF
+                            if [ "${CTP_DEBUG}" = "true" ]; then
+                                echo "--- jtestcli-ft.properties ---"
+                                cat ./jtest/jtestcli-ft.properties
+                            fi
                             if [ "${CTP_DEBUG}" != "true" ]; then
                                 set -x
                             fi
