@@ -119,7 +119,6 @@ pipeline {
                     }
                     env.CTP_ENV_ID = resolvedEnvId.toString()
                 }
-
                 // startup Selenium Grid
                 sh '''
                     # Start Selenium Grid for Selenium test execution
@@ -133,7 +132,6 @@ pipeline {
                     --name selenium-grid \
                     selenium/standalone-chrome:latest
                     '''
-
                 // set up Parasoft License
                 sh '''
                     # Set Up and write .properties file
@@ -171,7 +169,6 @@ pipeline {
                         set -x
                     fi
                     '''
-
                 // copy artifacts from latest successful baseline
                 copyArtifacts projectName: 'Petclinic-baseline', selector: lastSuccessful(), target: './baseline-artifacts'
             }
@@ -207,7 +204,6 @@ pipeline {
                                 set -x
                             fi
                         '''
-
                         sh '''
                             # Set Up and write .properties file
                             if [ "${CTP_DEBUG}" != "true" ]; then
@@ -223,7 +219,6 @@ pipeline {
                                 set -x
                             fi
                         '''
-
                         sh '''
                             # Set Up and write .properties file
                             if [ "${CTP_DEBUG}" != "true" ]; then
@@ -238,7 +233,6 @@ pipeline {
                                 set -x
                             fi
                         '''
-
                         // Execute the build with Jtest Maven plugin in docker
                         sh '''
                             # Run Maven build with Jtest tasks via Docker
@@ -284,7 +278,6 @@ pipeline {
                             "
                         '''
                 }
-
                 // Parasoft Findings plugin for Unit Tests Results
                 echo '---> Parsing 10.x unit test reports'
                 script {

@@ -130,7 +130,6 @@ pipeline {
                     --name selenium-grid \
                     selenium/standalone-chrome:latest
                     '''
-
                 // set up Parasoft License
                 sh '''
                     # Set Up and write .properties file
@@ -173,7 +172,6 @@ pipeline {
         stage('Build: Create Docker Images') {
             when { equals expected: true, actual: true }
             steps {
-                
                 // build the binaries
                 echo "Building ${env.JOB_NAME}..."
                 sh  '''
@@ -185,10 +183,8 @@ pipeline {
         stage('Build: Jtest UT + Static Cov') {
             when { equals expected: true, actual: true }
             steps {
-
                 // Run Jtest Unit test with CC
                 script {
-
                         // Setup stage-specific additional settings
                         sh '''
                             # Set Up and write .properties file
@@ -203,7 +199,6 @@ pipeline {
                                 set -x
                             fi
                         '''
-                        
                         sh '''
                             # Set Up and write .properties file
                             if [ "${CTP_DEBUG}" != "true" ]; then
@@ -219,7 +214,6 @@ pipeline {
                                 set -x
                             fi
                         '''
-                        
                         sh '''
                             # Set Up and write .properties file
                             if [ "${CTP_DEBUG}" != "true" ]; then
@@ -234,7 +228,6 @@ pipeline {
                                 set -x
                             fi
                         '''
-                        
                         // Execute the build with Jtest Maven plugin in docker
                         sh '''
                             # Run Maven build with Jtest tasks via Docker
@@ -270,7 +263,6 @@ pipeline {
                             "
                         '''
                 }
-
                 // Parasoft Findings plugin for Unit Tests Results
                 echo '---> Parsing 10.x unit test reports'
                 script {
@@ -293,7 +285,6 @@ pipeline {
         stage('Deploy: Docker Compose + CTP') {
             when { equals expected: true, actual: true }
             steps {
-                
                 build job: 'Petclinic-deploy', parameters: [
                     string(name: 'CTP_URL', value: params.CTP_URL),
                     string(name: 'DTP_URL', value: params.DTP_URL),
@@ -387,20 +378,19 @@ pipeline {
                     -DPROXY_HOST=$PRIVATE_IP \
                     -DPROXY_BIND_HOST=$PRIVATE_IP \
                     '''
-            } 
+            }
         }
         stage('Release') {
             steps {
                 sh 'echo "Release"'
-            }   
+            }
         }
     }
     post {
         // archive jtest Artifacts after success
         success {
-                archiveArtifacts artifacts: 'target/jtest/ut/*', excludes: 'target/ut/.jtest/cache', followSymlinks: false
-            }
-
+            archiveArtifacts artifacts: 'target/jtest/ut/*', excludes: 'target/ut/.jtest/cache', followSymlinks: false
+        }
         // Clean after build
         always {
             sh '''

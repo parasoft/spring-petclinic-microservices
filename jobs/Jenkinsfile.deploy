@@ -24,9 +24,6 @@ pipeline {
         string(name: 'BUILD_TIMESTAMP', description: 'DTP Build Id')
         string(name: 'CTP_ENV_ID', description: 'Parasoft CTP Environment ID')
         string(name: 'CTP_DEBUG', defaultValue: 'false', description: 'Enable debug logging for Jenkins pipeline')
-
-        // Add other parameters as needed
-
     }
     environment {
         // App Settings
@@ -87,88 +84,88 @@ pipeline {
 
                 // Patch agent.properties with dynamic CTP and DTP values
                 withEnv(["DTP_PASS=${params.DTP_PASS}"]) {
-                script {
-                    def appName        = env.app_name
-                    def buildTimestamp = params.BUILD_TIMESTAMP
+                    script {
+                        def appName        = env.app_name
+                        def buildTimestamp = params.BUILD_TIMESTAMP
 
-                    // Fetch all components for this CTP environment
-                    def componentsResponse = sh(
-                        script: """
-                            if [ "${CTP_DEBUG}" != "true" ]; then
-                                set +x
-                            fi
-                            curl -sk -u "${DTP_USER}:\$DTP_PASS" \\
-                                -H 'accept: application/json' \\
-                                '${CTP_URL}/em/api/v3/environments/${CTP_ENV_ID}/components'
-                            if [ "${CTP_DEBUG}" != "true" ]; then
-                                set -x
-                            fi
-                        """,
-                        returnStdout: true
-                    ).trim()
-                    def componentsJson = new groovy.json.JsonSlurperClassic().parseText(componentsResponse)
+                        // Fetch all components for this CTP environment
+                        def componentsResponse = sh(
+                            script: """
+                                if [ "${CTP_DEBUG}" != "true" ]; then
+                                    set +x
+                                fi
+                                curl -sk -u "${DTP_USER}:\$DTP_PASS" \\
+                                    -H 'accept: application/json' \\
+                                    '${CTP_URL}/em/api/v3/environments/${CTP_ENV_ID}/components'
+                                if [ "${CTP_DEBUG}" != "true" ]; then
+                                    set -x
+                                fi
+                            """,
+                            returnStdout: true
+                        ).trim()
+                        def componentsJson = new groovy.json.JsonSlurperClassic().parseText(componentsResponse)
 
-                    // Resolve DTP filter ID by app name
-                    def filterResponse = sh(
-                        script: """
-                            if [ "${CTP_DEBUG}" != "true" ]; then
-                                set +x
-                            fi
-                            curl -sk -u "${DTP_USER}:\$DTP_PASS" \\
-                                -H 'accept: application/json' \\
-                                '${DTP_URL}/grs/api/v1.13/filters?managedOnly=false&name=${appName}'
-                            if [ "${CTP_DEBUG}" != "true" ]; then
-                                set -x
-                            fi
-                        """,
-                        returnStdout: true
-                    ).trim()
-                    def filterJson = new groovy.json.JsonSlurperClassic().parseText(filterResponse)
-                    def filterId = filterJson[0]?.id
-                    if (!filterId) {
-                        error("Could not resolve DTP filter ID for '${appName}'")
-                    }
-                    echo "Resolved DTP filter ID: ${filterId}"
-
-                    // Map service directory -> CTP component name (stable across environments)
-                    def serviceConfigs = [
-                        [dir: 'spring-petclinic-api-gateway',       ctpName: 'UI + API Gateway'],
-                        [dir: 'spring-petclinic-customers-service',  ctpName: 'customers-service REST API'],
-                        [dir: 'spring-petclinic-vets-service',       ctpName: 'vets-service REST API'],
-                        [dir: 'spring-petclinic-visits-service',     ctpName: 'visits-service REST API']
-                    ]
-
-                    for (serviceConfig in serviceConfigs) {
-                        def serviceDir = serviceConfig.dir
-                        def ctpName    = serviceConfig.ctpName
-                        def component  = componentsJson.components.find { it.name == ctpName }
-                        if (!component) {
-                            error("Could not find CTP component named '${ctpName}'")
+                        // Resolve DTP filter ID by app name
+                        def filterResponse = sh(
+                            script: """
+                                if [ "${CTP_DEBUG}" != "true" ]; then
+                                    set +x
+                                fi
+                                curl -sk -u "${DTP_USER}:\$DTP_PASS" \\
+                                    -H 'accept: application/json' \\
+                                    '${DTP_URL}/grs/api/v1.13/filters?managedOnly=false&name=${appName}'
+                                if [ "${CTP_DEBUG}" != "true" ]; then
+                                    set -x
+                                fi
+                            """,
+                            returnStdout: true
+                        ).trim()
+                        def filterJson = new groovy.json.JsonSlurperClassic().parseText(filterResponse)
+                        def filterId = filterJson[0]?.id
+                        if (!filterId) {
+                            error("Could not resolve DTP filter ID for '${appName}'")
                         }
-                        def wsUrl     = component.ctpWebsocketUrl
-                        def subQueue  = component.ctpSubscriptionQueue
-                        def propsFile = "${serviceDir}/src/test/resources/coverage/agent.properties"
+                        echo "Resolved DTP filter ID: ${filterId}"
 
-                        sh """
-                            sed -i 's|^ctp.websocket.url=.*|ctp.websocket.url=${wsUrl}|' ${propsFile}
-                            sed -i 's|^ctp.subscription.queue=.*|ctp.subscription.queue=${subQueue}|' ${propsFile}
-                            sed -i 's|^dtp.buildID=.*|dtp.buildID=${appName}-${buildTimestamp}|' ${propsFile}
-                            sed -i 's|^dtp.project=.*|dtp.project=${appName}|' ${propsFile}
-                            sed -i 's|^dtp.coverageImages=.*|dtp.coverageImages=${appName};${appName}-FT|' ${propsFile}
-                            sed -i 's|^dtp.filterID=.*|dtp.filterID=${filterId}|' ${propsFile}
-                        """
-                        echo "Patched ${propsFile}"
-                        if (params.CTP_DEBUG == 'true') {
-                            sh "cat ${propsFile}"
+                        // Map service directory -> CTP component name (stable across environments)
+                        def serviceConfigs = [
+                            [dir: 'spring-petclinic-api-gateway',       ctpName: 'UI + API Gateway'],
+                            [dir: 'spring-petclinic-customers-service',  ctpName: 'customers-service REST API'],
+                            [dir: 'spring-petclinic-vets-service',       ctpName: 'vets-service REST API'],
+                            [dir: 'spring-petclinic-visits-service',     ctpName: 'visits-service REST API']
+                        ]
+
+                        for (serviceConfig in serviceConfigs) {
+                            def serviceDir = serviceConfig.dir
+                            def ctpName    = serviceConfig.ctpName
+                            def component  = componentsJson.components.find { it.name == ctpName }
+                            if (!component) {
+                                error("Could not find CTP component named '${ctpName}'")
+                            }
+                            def wsUrl     = component.ctpWebsocketUrl
+                            def subQueue  = component.ctpSubscriptionQueue
+                            def propsFile = "${serviceDir}/src/test/resources/coverage/agent.properties"
+
+                            sh """
+                                sed -i 's|^ctp.websocket.url=.*|ctp.websocket.url=${wsUrl}|' ${propsFile}
+                                sed -i 's|^ctp.subscription.queue=.*|ctp.subscription.queue=${subQueue}|' ${propsFile}
+                                sed -i 's|^dtp.buildID=.*|dtp.buildID=${appName}-${buildTimestamp}|' ${propsFile}
+                                sed -i 's|^dtp.project=.*|dtp.project=${appName}|' ${propsFile}
+                                sed -i 's|^dtp.coverageImages=.*|dtp.coverageImages=${appName};${appName}-FT|' ${propsFile}
+                                sed -i 's|^dtp.filterID=.*|dtp.filterID=${filterId}|' ${propsFile}
+                            """
+                            echo "Patched ${propsFile}"
+                            if (params.CTP_DEBUG == 'true') {
+                                sh "cat ${propsFile}"
+                            }
                         }
                     }
                 }
             }
-        }        
+        }
         stage('Deploy: Launch Services') {
             when { equals expected: true, actual: true }
             steps {
-
                 // check running containers
                 sh '''
                     docker-compose -f docker-compose-cc.yml down || true
@@ -202,7 +199,6 @@ pipeline {
                         exit 1
                     fi
                     '''
-
                 // Health check all 8 coverage agents (2 instances x 4 services)
                 sh '''
                     for port in 8051 8052 8053 8054 8055 8056 8057 8058; do
@@ -214,7 +210,6 @@ pipeline {
         }
     }
     post {
-
         always {
             sh  '''
                 echo "cleaning up..."
