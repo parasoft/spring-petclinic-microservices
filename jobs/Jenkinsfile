@@ -78,19 +78,26 @@ pipeline {
                     def envName = params.CTP_ENV_NAME
                     def encodedSystemName = java.net.URLEncoder.encode(systemName, 'UTF-8')
                     def encodedEnvName = java.net.URLEncoder.encode(envName, 'UTF-8')
+                    def ctpUrl = env.CTP_URL.replaceAll('/+$', '')
+                    def dtpUrl = env.DTP_URL.replaceAll('/+$', '')
+                    env.CTP_URL = ctpUrl
+                    env.DTP_URL = dtpUrl
 
                     def systemResponse = sh(
                         script: """
                             if [ "${CTP_DEBUG}" != "true" ]; then
                                 set +x
                             fi
-                            curl -sk -u "${DTP_USER}:\$DTP_PASS" '${CTP_URL}/em/api/v3/systems?name=${encodedSystemName}&limit=50&offset=0'
+                            curl -sk -u "${DTP_USER}:\$DTP_PASS" '${ctpUrl}/em/api/v3/systems?name=${encodedSystemName}&limit=50&offset=0'
                             if [ "${CTP_DEBUG}" != "true" ]; then
                                 set -x
                             fi
                         """,
                         returnStdout: true
                     ).trim()
+                    if (params.CTP_DEBUG == 'true') {
+                        echo "CTP systems response:\n${systemResponse}"
+                    }
                     def systemJson = new groovy.json.JsonSlurperClassic().parseText(systemResponse)
                     def systemId = systemJson.systems?.find { it.name == systemName }?.id
                     if (!systemId) {
@@ -102,13 +109,16 @@ pipeline {
                             if [ "${CTP_DEBUG}" != "true" ]; then
                                 set +x
                             fi
-                            curl -sk -u "${DTP_USER}:\$DTP_PASS" '${CTP_URL}/em/api/v3/environments?name=${encodedEnvName}&limit=50&offset=0'
+                            curl -sk -u "${DTP_USER}:\$DTP_PASS" '${ctpUrl}/em/api/v3/environments?name=${encodedEnvName}&limit=50&offset=0'
                             if [ "${CTP_DEBUG}" != "true" ]; then
                                 set -x
                             fi
                         """,
                         returnStdout: true
                     ).trim()
+                    if (params.CTP_DEBUG == 'true') {
+                        echo "CTP environments response:\n${envResponse}"
+                    }
                     def envJson = new groovy.json.JsonSlurperClassic().parseText(envResponse)
                     def resolvedEnvId = envJson.environments?.find { it.name == envName && it.systemId == systemId }?.id
                     if (!resolvedEnvId) {
@@ -286,8 +296,8 @@ pipeline {
             when { equals expected: true, actual: true }
             steps {
                 build job: 'Petclinic-deploy', parameters: [
-                    string(name: 'CTP_URL', value: params.CTP_URL),
-                    string(name: 'DTP_URL', value: params.DTP_URL),
+                    string(name: 'CTP_URL', value: env.CTP_URL),
+                    string(name: 'DTP_URL', value: env.DTP_URL),
                     string(name: 'DTP_USER', value: params.DTP_USER),
                     password(name: 'DTP_PASS', value: params.DTP_PASS),
                     string(name: 'BUILD_TIMESTAMP', value: env.BUILD_TIMESTAMP),

@@ -87,6 +87,8 @@ pipeline {
                     script {
                         def appName        = env.app_name
                         def buildTimestamp = params.BUILD_TIMESTAMP
+                        def ctpUrl         = env.CTP_URL.replaceAll('/+$', '')
+                        def dtpUrl         = env.DTP_URL.replaceAll('/+$', '')
 
                         // Fetch all components for this CTP environment
                         def componentsResponse = sh(
@@ -96,13 +98,16 @@ pipeline {
                                 fi
                                 curl -sk -u "${DTP_USER}:\$DTP_PASS" \\
                                     -H 'accept: application/json' \\
-                                    '${CTP_URL}/em/api/v3/environments/${CTP_ENV_ID}/components'
+                                    '${ctpUrl}/em/api/v3/environments/${CTP_ENV_ID}/components'
                                 if [ "${CTP_DEBUG}" != "true" ]; then
                                     set -x
                                 fi
                             """,
                             returnStdout: true
                         ).trim()
+                        if (params.CTP_DEBUG == 'true') {
+                            echo "CTP components response:\n${componentsResponse}"
+                        }
                         def componentsJson = new groovy.json.JsonSlurperClassic().parseText(componentsResponse)
 
                         // Resolve DTP filter ID by app name
@@ -113,13 +118,16 @@ pipeline {
                                 fi
                                 curl -sk -u "${DTP_USER}:\$DTP_PASS" \\
                                     -H 'accept: application/json' \\
-                                    '${DTP_URL}/grs/api/v1.12/filters?managedOnly=false&name=${appName}'
+                                    '${dtpUrl}/grs/api/v1.12/filters?managedOnly=false&name=${appName}'
                                 if [ "${CTP_DEBUG}" != "true" ]; then
                                     set -x
                                 fi
                             """,
                             returnStdout: true
                         ).trim()
+                        if (params.CTP_DEBUG == 'true') {
+                            echo "DTP filter response:\n${filterResponse}"
+                        }
                         def filterJson = new groovy.json.JsonSlurperClassic().parseText(filterResponse)
                         def filterId = filterJson[0]?.id
                         if (!filterId) {
