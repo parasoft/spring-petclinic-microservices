@@ -162,48 +162,58 @@ pipeline {
         stage('Deploy: Launch Services') {
             when { equals expected: true, actual: true }
             steps {
-                // check running containers
-                sh '''
-                    # Use docker-compose-cc-lb.yml for multi-service-instance load balanced setup
-                    docker-compose -f docker-compose-cc.yml down || true
-                    sleep 10s
-                    '''
-                // deploy the project
-                sh  '''
-                    # Run PetClinic with Jtest coverage agent and load balancer configured
-                    # Use docker-compose-cc-lb.yml for multi-service-instance load balanced setup
-                    docker-compose -f docker-compose-cc.yml up -d --force-recreate
+                // Select deployment topology: single instance or load balanced multi-instance
+                // Switch composeFile to 'docker-compose-cc-lb.yml' for 2-instance load balanced setup
+                script {
+                    def composeFile = 'docker-compose-cc.yml' //change this line to switch topology
+                    def agentPorts  = composeFile.contains('-lb')
+                        ? '8051 8052 8053 8054 8055 8056 8057 8058'  // 2 instances x 4 services
+                        : '8051 8052 8053 8054'                        // 1 instance  x 4 services
+                    env.COMPOSE_FILE = composeFile
+                    env.AGENT_PORTS  = agentPorts
+                }
+                withEnv(["COMPOSE_FILE=${env.COMPOSE_FILE}", "AGENT_PORTS=${env.AGENT_PORTS}"]) {
+                    // Tear down any running stack (both topologies, safe if not running)
+                    sh '''
+                        docker-compose -f docker-compose-cc.yml down || true
+                        docker-compose -f docker-compose-cc-lb.yml down || true
+                        sleep 10s
+                        '''
+                    // Deploy and wait for readiness
+                    sh '''
+                        docker-compose -f ${COMPOSE_FILE} up -d --force-recreate
 
-                    # Allow containers to settle before polling
-                    sleep 180s
+                        # Allow containers to settle before polling
+                        sleep 180s
 
-                    echo "Waiting for owners API to be ready..."
-                    attempts=30
-                    sleep_seconds=10
-                    i=1
-                    while [ $i -le $attempts ]; do
-                        http_code=$(curl -s --max-time 5 -o owners.json -w "%{http_code}" http://localhost:8099/api/customer/owners || true)
-                        if [ "$http_code" = "200" ] && jq -e 'type=="array" and length>0' owners.json > /dev/null 2>&1; then
-                            echo "Owners API ready."
-                            break
+                        echo "Waiting for owners API to be ready..."
+                        attempts=30
+                        sleep_seconds=10
+                        i=1
+                        while [ $i -le $attempts ]; do
+                            http_code=$(curl -s --max-time 5 -o owners.json -w "%{http_code}" http://localhost:8099/api/customer/owners || true)
+                            if [ "$http_code" = "200" ] && jq -e 'type=="array" and length>0' owners.json > /dev/null 2>&1; then
+                                echo "Owners API ready."
+                                break
+                            fi
+                            echo "Owners API not ready (attempt $i/$attempts, status $http_code)."
+                            i=$((i+1))
+                            sleep $sleep_seconds
+                        done
+                        if [ $i -gt $attempts ]; then
+                            echo "Owners API did not become ready in time."
+                            cat owners.json
+                            exit 1
                         fi
-                        echo "Owners API not ready (attempt $i/$attempts, status $http_code)."
-                        i=$((i+1))
-                        sleep $sleep_seconds
-                    done
-                    if [ $i -gt $attempts ]; then
-                        echo "Owners API did not become ready in time."
-                        cat owners.json
-                        exit 1
-                    fi
-                    '''
-                // Health check all 8 coverage agents (2 instances x 4 services)
-                sh '''
-                    for port in 8051 8052 8053 8054 8055 8056 8057 8058; do
-                        echo "Coverage agent on port ${port}:"
-                        curl -iv --raw http://localhost:${port}/status
-                    done
-                    '''
+                        '''
+                    // Health check coverage agents on all configured ports
+                    sh '''
+                        for port in ${AGENT_PORTS}; do
+                            echo "Coverage agent on port ${port}:"
+                            curl -iv --raw http://localhost:${port}/status
+                        done
+                        '''
+                }
             }
         }
     }
