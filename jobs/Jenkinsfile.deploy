@@ -113,7 +113,7 @@ pipeline {
                                 fi
                                 curl -sk -u "${DTP_USER}:\$DTP_PASS" \\
                                     -H 'accept: application/json' \\
-                                    '${DTP_URL}/grs/api/v1.13/filters?managedOnly=false&name=${appName}'
+                                    '${DTP_URL}/grs/api/v1.12/filters?managedOnly=false&name=${appName}'
                                 if [ "${CTP_DEBUG}" != "true" ]; then
                                     set -x
                                 fi
