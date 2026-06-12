@@ -55,7 +55,9 @@ pipeline {
                 script {
                     def baselineJob  = Jenkins.instance.getItemByFullName('Petclinic-baseline')
                     def lastBuild    = baselineJob?.getLastSuccessfulBuild()
-                    def buildId      = lastBuild?.getBuildVariables()?.get('BUILD_ID') ?: 'baseline'
+                    def buildId      = lastBuild?.getAction(hudson.model.ParametersAction.class)
+                                           ?.getParameter('BUILD_ID')
+                                           ?.getValue() ?: 'baseline'
                     env.BASELINE_ID  = "${app_name}-${buildId}"
                     echo "Resolved BASELINE_ID: ${env.BASELINE_ID}"
                 }
