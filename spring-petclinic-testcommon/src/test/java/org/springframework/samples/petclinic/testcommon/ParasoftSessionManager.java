@@ -1,172 +1,281 @@
 package org.springframework.samples.petclinic.testcommon;
 
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 
 /**
- * Manages Parasoft CTP test sessions for both sequential and parallel test execution.
+ * Manages the single Parasoft CTP session for the entire test run.
  * <p>
  * Responsibilities include:
  * <ul>
- *   <li>Starting and stopping CTP sessions</li>
- *   <li>Registering coverage user IDs, CTP test session IDs, and DTP session tags</li>
+ *   <li>Starting and stopping the CTP session (once per suite via the SuiteListener)</li>
+ *   <li>Registering per-test-class parallel IDs and Selenium proxy baggage references</li>
+ *   <li>Distributing the per-test baggage value from {@code /test/start} responses to Selenium
+ *       proxies and Playwright contexts</li>
  *   <li>Publishing coverage data to Parasoft DTP at the end of the test suite</li>
  *   <li>Publishing baseline data to Parasoft CTP at the end of the test suite</li>
  * </ul>
  */
 public class ParasoftSessionManager {
     private static final Logger LOGGER = Logger.getLogger(ParasoftSessionManager.class.getName());
-    
-    // For tracking sessions from parallel test execution
-    public static final class SessionInfo {
-        public final String coverageUserId;
-        public volatile String ctpTestSessionId;
-        public volatile String dtpSessionTag;
 
-        private SessionInfo(String coverageUserId) {
-            this.coverageUserId = coverageUserId;
-        }
+    /**
+     * Prefix used by all baggage sentinel values. Real API baggage values from {@code /test/start}
+     * never start with this prefix, so callers can use {@link #isBaggageSentinel(String)} to
+     * distinguish a real value from a placeholder.
+     */
+    public static final String BAGGAGE_SENTINEL_PREFIX = "__";
+
+    /** Sentinel: a baggage {@link AtomicReference} was created but no test has populated it yet. */
+    public static final String BAGGAGE_UNINITIALIZED = "__UNINITIALIZED__";
+
+    /** Sentinel: a test completed and its baggage was cleared until the next test populates it. */
+    public static final String BAGGAGE_RESET = "__RESET__";
+
+    /** Returns {@code true} if {@code value} is a baggage sentinel (placeholder, not a real API value). */
+    public static boolean isBaggageSentinel(String value) {
+        return value != null && value.startsWith(BAGGAGE_SENTINEL_PREFIX);
     }
-    private static final Map<String, AtomicReference<String>> COVERAGE_USER_IDS = new ConcurrentHashMap<>(); // <String testContextKey, AtomicReference<String> coverageUserId>
-    private static final Map<String, SessionInfo> SESSIONS = new ConcurrentHashMap<>(); // <String coverageUserId, SessionInfo>
 
-    // For tracking a session from sequential test execution
-    private static AtomicReference<String> sequentialCoverageUserIdRef = null;
-    private static String sequentialCtpTestSessionId = null;
-    private static String sequentialDtpSessionTag = null;
+    // Single-session state — populated once by startSession() at suite start
+    private static volatile String userId = null;
+    private static volatile String ctpSessionId = null;
+    private static volatile String dtpSessionTag = null;
 
-    /** Intended to be used by the SuiteListener for sequential test execution. */
+    // Maps the testContextKey to the AtomicReference held inside the Selenium proxy for that context.
+    // testContextKey: test class name (Selenium/TestNG/Playwright) or Cucumber scenario ID.
+    // baggageRef: updated per-test from the /test/start response via updateBaggage(); pre-set at
+    //   registration time with stable sequential baggage when isParallelTestExecution() is false.
+    private static final Map<String, AtomicReference<String>> PROXY_BAGGAGE_REFS = new ConcurrentHashMap<>(); // <String testContextKey, AtomicReference<String> baggageRef>
+
+    // Maps the testContextKey to the current test's baggage header value.
+    // baggage: full header value (e.g. "test-operator-id=admin+uuid") sourced from /test/start response.
+    //
+    // CURRENT_BAGGAGE is the canonical state store ("what is the latest baggage for this test context?");
+    // PROXY_BAGGAGE_REFS above is a separate push channel that delivers updates into the Netty proxy's
+    // lock-free AtomicReference. updateBaggage() writes to both so they stay in sync, but they are not
+    // interchangeable — CURRENT_BAGGAGE is required for two cases that PROXY_BAGGAGE_REFS cannot serve:
+    //   1. Playwright tests construct no proxy and never call registerProxyBaggageRef(). Their @BeforeEach
+    //      reads the baggage via getBaggage(), which reads from this map.
+    //   2. In Cucumber, the watcher's @Before fires (and calls updateBaggage()) before the @Given step
+    //      creates the WebDriver/proxy. CURRENT_BAGGAGE captures that early write so the later
+    //      registerProxyBaggageRef() call can pre-populate the new proxy's AtomicReference with it.
+    //
+    // Read by getBaggage() (sentinel-filtered); written by updateBaggage(); written-to-sentinel by
+    // resetBaggage() via computeIfPresent() (avoids re-introducing a key after unregister()); cleared by
+    // unregister().
+    private static final Map<String, String> CURRENT_BAGGAGE = new ConcurrentHashMap<>(); // <String testContextKey, String baggage>
+
+    // Maps the testContextKey to the parallelId for that concurrent test execution thread.
+    // parallelId: WebDriver session ID (Selenium) or UUID (Playwright) registered in @BeforeAll/@BeforeClass;
+    //   uniquely identifies a concurrent thread within the single shared CTP session.
+    //   Only populated when isParallelTestExecution() && isMultiUserMode() are both true.
+    private static final Map<String, String> PARALLEL_IDS = new ConcurrentHashMap<>(); // <String testContextKey, String parallelId>
+
+    /** Starts the single CTP session for this test run. Called once by the SuiteListener at suite start. */
     public static void startSession() {
-        startSession(null,null,null);
-    }
-
-    /** Intended to be (directly) used by the ParasoftWebDriverResource for parallel test execution. */
-    public static void startSession(String testContextKey, String webDriverSessionId, AtomicReference<String> coverageUserIdRef) {
-        String dtpSessionTag = buildDtpSessionTag(webDriverSessionId);
-
+        if (ParasoftSettings.isParallelTestExecution() && !ParasoftSettings.isMultiUserMode()) {
+            if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
+                LOGGER.severe("[ParasoftSessionManager] startSession(): CTP_PARALLEL_TEST_EXECUTION=true requires CTP_MULTI_USER_MODE=true. Running parallel tests in single-user mode is an invalid configuration because concurrent tests cannot be distinguished by the coverage agents when they are in single-user mode.");
+            }
+        }
+        userId = buildUserId();
+        dtpSessionTag = buildDtpSessionTag();
         if (ParasoftSettings.isMultiUserMode()) {
-            if (ParasoftSettings.isParallelTestExecution()) {
-                // For parallel test execution, coverageUserIdRef is passed to this method from the ParasoftWebDriverResource
-                // Note: the coverageUserIdRef and accompanying session info will be registered for this testContextKey to publish coverage at suite end
-                // Start a CTP session for this coverageUserIdRef
-                if (coverageUserIdRef == null || coverageUserIdRef.get() == null || coverageUserIdRef.get().isBlank()) {
-                    if (ParasoftSettings.isLogLevelEnabled("WARN")) {
-                        LOGGER.warning("[ParasoftSessionManager] startSession(): Skipping starting CTP session due to missing coverageUserIdRef for test execution with multi-user mode and parallel test execution");
-                    }
-                    return;
-                }
-                coverageUserIdRef = setExistingCoverageUserIdRef(coverageUserIdRef, webDriverSessionId);
-                registerCoverageUserId(testContextKey, coverageUserIdRef, dtpSessionTag);
-                String ctpTestSessionId = ParasoftCTPApiClient.startSession(coverageUserIdRef.get());
-                registerCtpTestSession(ctpTestSessionId, coverageUserIdRef.get());
-            } else {
-                // For sequential test execution in multi-user mode, build a new coverageUserIdRef on session start
-                // Note: the shared sequentialCoverageUserIdRef will be bound to each WebDriver's proxy for sequential test execution
-                // Start a CTP session for this coverageUserIdRef
-                sequentialCoverageUserIdRef = buildNewCoverageUserIdRef(webDriverSessionId);
-                sequentialDtpSessionTag = dtpSessionTag;
-                if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
-                    LOGGER.info("[ParasoftSessionManager] startSession(): Setting sequentialCoverageUserIdRef for multi-user sequential test execution to:" + sequentialCoverageUserIdRef.get());
-                    LOGGER.info("[ParasoftSessionManager] startSession(): Setting sequentialDtpSessionTag for multi-user sequential test execution to:" + sequentialDtpSessionTag);
-                }
-                sequentialCtpTestSessionId = ParasoftCTPApiClient.startSession(sequentialCoverageUserIdRef.get());
-            }
+            ctpSessionId = ParasoftCTPApiClient.startSession(userId);
         } else {
-            // For sequential test execution in single-user mode, start a CTP session without a coverageUserIdRef
-            // Note: a proxy is not needed for single-user sequential test execution
-            sequentialDtpSessionTag = dtpSessionTag;
-            if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
-                LOGGER.info("[ParasoftSessionManager] startSession(): Setting sequentialDtpSessionTag for single-user sequential test execution to:" + sequentialDtpSessionTag);
-            }
-            sequentialCtpTestSessionId = ParasoftCTPApiClient.startSession();
+            ctpSessionId = ParasoftCTPApiClient.startSession();
         }
     }
 
-    public static void stopSession(String testContextKey) {
+    /** Stops the single CTP session for this test run. Called once by the SuiteListener at suite end. */
+    public static void stopSession() {
         if (ParasoftSettings.isMultiUserMode()) {
-            ParasoftCTPApiClient.stopSession(getCoverageUserId(testContextKey));
+            ParasoftCTPApiClient.stopSession(userId);
         } else {
             ParasoftCTPApiClient.stopSession();
         }
     }
 
-    /**
-     * Retrieves the coverage user ID for the given test context key in parallel test execution,
-     * or the sequential coverage user ID for sequential test execution.
-     */
-    public static String getCoverageUserId(String testContextKey) {
-        return getCoverageUserIdRef(testContextKey).get();
+    /** Returns the stable user ID for this test run (e.g. {@code "seleniumJUnit-admin"}). */
+    public static String getUserId() {
+        return userId;
     }
 
     /**
-     * Retrieves the {@code AtomicReference<String>} coverage user ID ref for the given test context key
-     * in parallel test execution, or the sequential coverage user ID ref for sequential test execution.
+     * Returns the parallelId registered for the given test context key, or {@code null} if none was
+     * registered. A {@code null} return value indicates sequential execution for this context.
      */
-    public static AtomicReference<String> getCoverageUserIdRef(String testContextKey) {
-        if (ParasoftSettings.isParallelTestExecution() && ParasoftSettings.isMultiUserMode()) {
-            if (testContextKey == null || testContextKey.isBlank()) {
-                if (ParasoftSettings.isLogLevelEnabled("WARN")) {
-                    LOGGER.warning("[ParasoftSessionManager] getCoverageUserIdRef(): testContextKey should not be null or blank for parallel test execution with multi-user mode");
-                }
-                return null;
+    public static String getParallelId(String testContextKey) {
+        if (testContextKey == null || testContextKey.isBlank()) {
+            if (ParasoftSettings.isLogLevelEnabled("WARN")) {
+                LOGGER.warning("[ParasoftSessionManager] getParallelId(): testContextKey must not be null or blank");
             }
-            return COVERAGE_USER_IDS.get(testContextKey);
-        } else {
-            return sequentialCoverageUserIdRef; // sequential test execution provides a null testContextKey, so return the shared sequentialCoverageUserIdRef
+            return null;
+        }
+        return PARALLEL_IDS.get(testContextKey);
+    }
+
+    /**
+     * Registers the parallel ID for a test context key. Only registers when {@code parallelId} is
+     * non-null — {@link ConcurrentHashMap} does not permit null values. A null {@code parallelId}
+     * is logged at WARN and ignored; {@link #getParallelId(String)} will return {@code null} from a
+     * map miss, and the watcher falls back to the sequential (2-arg) startTest overload.
+     * <p>
+     * Called from the {@link org.springframework.samples.petclinic.testcommon.selenium.ParasoftWebDriverResource}
+     * constructor (Selenium) or a Playwright test class {@code @BeforeAll}.
+     */
+    public static void registerParallelId(String testContextKey, String parallelId) {
+        if (testContextKey == null || testContextKey.isBlank()) {
+            if (ParasoftSettings.isLogLevelEnabled("WARN")) {
+                LOGGER.warning("[ParasoftSessionManager] registerParallelId(): testContextKey must not be null or blank; skipping");
+            }
+            return;
+        }
+        if (parallelId == null) {
+            if (ParasoftSettings.isLogLevelEnabled("WARN")) {
+                LOGGER.warning("[ParasoftSessionManager] registerParallelId(): parallelId is null for " + testContextKey + "; skipping");
+            }
+            return;
+        }
+        PARALLEL_IDS.put(testContextKey, parallelId);
+    }
+
+    /**
+     * Registers the Selenium proxy's baggage {@link AtomicReference} for a test context key, and
+     * immediately pre-sets the best available baggage value on the proxy ref.
+     * <p>
+     * If a valid baggage string already exists in {@code CURRENT_BAGGAGE} for this key (written by a
+     * preceding watcher {@code updateBaggage()} call — possible in Cucumber where the watcher
+     * {@code @Before} fires before the {@code @Given} step creates the proxy), that value is applied
+     * to the proxy ref. Otherwise, if in sequential multi-user mode, the stable fallback
+     * {@code "test-operator-id=" + userId} is pre-set so the proxy has a sensible default from the
+     * moment it is created.
+     * <p>
+     * Called from the {@link org.springframework.samples.petclinic.testcommon.selenium.ParasoftWebDriverResource}
+     * constructor.
+     */
+    public static void registerProxyBaggageRef(String testContextKey, AtomicReference<String> baggageRef) {
+        if (testContextKey == null || testContextKey.isBlank()) {
+            if (ParasoftSettings.isLogLevelEnabled("WARN")) {
+                LOGGER.warning("[ParasoftSessionManager] registerProxyBaggageRef(): testContextKey must not be null or blank; skipping");
+            }
+            return;
+        }
+        if (baggageRef == null) {
+            if (ParasoftSettings.isLogLevelEnabled("WARN")) {
+                LOGGER.warning("[ParasoftSessionManager] registerProxyBaggageRef(): baggageRef is null for " + testContextKey + "; skipping");
+            }
+            return;
+        }
+        PROXY_BAGGAGE_REFS.put(testContextKey, baggageRef);
+        // Apply the best available baggage to the new proxy ref immediately
+        String existingBaggage = CURRENT_BAGGAGE.get(testContextKey);
+        if (existingBaggage != null && !existingBaggage.isBlank() && !isBaggageSentinel(existingBaggage)) {
+            // Real API baggage already available (e.g. Cucumber watcher @Before fired before proxy creation)
+            baggageRef.set(existingBaggage);
+        } else if (!ParasoftSettings.isParallelTestExecution() && userId != null) {
+            // Sequential multi-user mode: pre-set stable fallback until the watcher fires
+            baggageRef.set("test-operator-id=" + userId);
         }
     }
 
-    /** Publishes coverage for all sessions (parallel) or single session (sequential). */
+    /**
+     * Updates the current baggage value for a test context key and propagates it to the Selenium
+     * proxy's {@link AtomicReference} if one is registered. Called by watcher classes immediately
+     * after {@link ParasoftCTPApiClient#startTest(String, String, String)} returns.
+     */
+    public static void updateBaggage(String testContextKey, String baggage) {
+        if (testContextKey == null || testContextKey.isBlank()) {
+            if (ParasoftSettings.isLogLevelEnabled("WARN")) {
+                LOGGER.warning("[ParasoftSessionManager] updateBaggage(): testContextKey must not be null or blank; skipping");
+            }
+            return;
+        }
+        CURRENT_BAGGAGE.put(testContextKey, baggage);
+        AtomicReference<String> ref = PROXY_BAGGAGE_REFS.get(testContextKey);
+        if (ref != null) {
+            ref.set(baggage);
+        }
+    }
+
+    /**
+     * Resets the baggage for a test context key to the {@code "__RESET__"} sentinel after a test
+     * completes. Uses {@link Map#compute} with {@code computeIfPresent} semantics to avoid
+     * reintroducing the key if {@link #unregister(String)} has already removed it (prevents a race
+     * with Cucumber {@code @After} hook ordering). Also updates the Selenium proxy's
+     * {@link AtomicReference} to the sentinel if one is registered. Called by watcher classes after
+     * each {@code stopTest()} call.
+     */
+    public static void resetBaggage(String testContextKey) {
+        if (testContextKey == null || testContextKey.isBlank()) {
+            if (ParasoftSettings.isLogLevelEnabled("WARN")) {
+                LOGGER.warning("[ParasoftSessionManager] resetBaggage(): testContextKey must not be null or blank; skipping");
+            }
+            return;
+        }
+        CURRENT_BAGGAGE.computeIfPresent(testContextKey, (k, v) -> BAGGAGE_RESET);
+        AtomicReference<String> ref = PROXY_BAGGAGE_REFS.get(testContextKey);
+        if (ref != null) {
+            ref.set(BAGGAGE_RESET);
+        }
+    }
+
+    /**
+     * Returns the current baggage value for a test context key, or {@code null} if the value is
+     * absent or is a sentinel (starts with {@code "__"}). Sentinel filtering is centralized here so
+     * callers (e.g. Playwright {@code @BeforeEach}) do not need to know the sentinel convention.
+     */
+    public static String getBaggage(String testContextKey) {
+        if (testContextKey == null || testContextKey.isBlank()) {
+            if (ParasoftSettings.isLogLevelEnabled("WARN")) {
+                LOGGER.warning("[ParasoftSessionManager] getBaggage(): testContextKey must not be null or blank");
+            }
+            return null;
+        }
+        String baggage = CURRENT_BAGGAGE.get(testContextKey);
+        if (baggage == null || isBaggageSentinel(baggage)) {
+            return null;
+        }
+        return baggage;
+    }
+
+    /**
+     * Removes all registrations for a test context key from the internal maps. Prevents unbounded
+     * map growth across many Cucumber scenarios or long-lived JVM sessions.
+     * <p>
+     * Called from {@link org.springframework.samples.petclinic.testcommon.selenium.ParasoftWebDriverResource#close()}
+     * (Selenium) or a Playwright test class {@code @AfterAll}.
+     */
+    public static void unregister(String testContextKey) {
+        if (testContextKey == null || testContextKey.isBlank()) {
+            if (ParasoftSettings.isLogLevelEnabled("WARN")) {
+                LOGGER.warning("[ParasoftSessionManager] unregister(): testContextKey must not be null or blank; skipping");
+            }
+            return;
+        }
+        PROXY_BAGGAGE_REFS.remove(testContextKey);
+        PARALLEL_IDS.remove(testContextKey);
+        CURRENT_BAGGAGE.remove(testContextKey);
+    }
+
+    /** Publishes coverage for the single session at suite end. */
     public static void publishCoverageAtSuiteEnd() {
-        if (ParasoftSettings.isMultiUserMode()) {
-            if (ParasoftSettings.isParallelTestExecution()) {
-                // multi-user parallel: publishing coverage for all sessions that are started with WebDriver lifecycle at suite end
-                Collection<SessionInfo> sessions = getSessionInfos();
-                if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
-                    LOGGER.info("[ParasoftSessionManager] publishCoverageAtSuiteEnd(): Publishing multi-user parallel coverage for " + sessions.size() + " sessions at suite end");
-                }
-                for (SessionInfo session : sessions) {
-                    if (session.ctpTestSessionId != null && !session.ctpTestSessionId.isBlank()
-                        && session.coverageUserId != null && !session.coverageUserId.isBlank()
-                        && session.dtpSessionTag != null && !session.dtpSessionTag.isBlank()) {
-                        ParasoftCTPApiClient.publishCoverage(session.ctpTestSessionId, session.dtpSessionTag,session.coverageUserId);
-                    } else {
-                        if (ParasoftSettings.isLogLevelEnabled("WARN")) {
-                            LOGGER.warning("[ParasoftSessionManager] publishCoverageAtSuiteEnd(): Skipping publishing coverage for multi-user parallel session with missing information: coverageUserId=" + session.coverageUserId + ", ctpTestSessionId=" + session.ctpTestSessionId + ", dtpSessionTag=" + session.dtpSessionTag);
-                        }
-                    }
-                }
+        if (ctpSessionId != null && !ctpSessionId.isBlank()
+                && dtpSessionTag != null && !dtpSessionTag.isBlank()) {
+            if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
+                LOGGER.info("[ParasoftSessionManager] publishCoverageAtSuiteEnd(): Publishing coverage for session " + ctpSessionId);
+            }
+            if (ParasoftSettings.isMultiUserMode() && userId != null && !userId.isBlank()) {
+                ParasoftCTPApiClient.publishCoverage(ctpSessionId, dtpSessionTag, userId);
             } else {
-                // multi-user sequential: coverageUserId is needed for publishing coverage
-                if (sequentialCtpTestSessionId != null && !sequentialCtpTestSessionId.isBlank()
-                    && sequentialCoverageUserIdRef != null && sequentialCoverageUserIdRef.get() != null && !sequentialCoverageUserIdRef.get().isBlank()
-                    && sequentialDtpSessionTag != null && !sequentialDtpSessionTag.isBlank()) {
-                    if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
-                        LOGGER.info("[ParasoftSessionManager] publishCoverageAtSuiteEnd(): Publishing multi-user sequential coverage for " + sequentialCtpTestSessionId + " at suite end");
-                    }
-                    ParasoftCTPApiClient.publishCoverage(sequentialCtpTestSessionId, sequentialDtpSessionTag, sequentialCoverageUserIdRef.get());
-                } else {
-                    if (ParasoftSettings.isLogLevelEnabled("WARN")) {
-                        LOGGER.warning("[ParasoftSessionManager] publishCoverageAtSuiteEnd(): Skipping publishing coverage for multi-user sequential session with missing information: coverageUserId=" + (sequentialCoverageUserIdRef != null ? sequentialCoverageUserIdRef.get() : null) + ", ctpTestSessionId=" + sequentialCtpTestSessionId + ", dtpSessionTag=" + sequentialDtpSessionTag);
-                    }
-                }
+                ParasoftCTPApiClient.publishCoverage(ctpSessionId, dtpSessionTag);
             }
         } else {
-            // single-user: coverageUserId is not needed
-            if (sequentialCtpTestSessionId != null && !sequentialCtpTestSessionId.isBlank()
-                && sequentialDtpSessionTag != null && !sequentialDtpSessionTag.isBlank()) {
-                if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
-                    LOGGER.info("[ParasoftSessionManager] publishCoverageAtSuiteEnd(): Publishing single-user sequential coverage for " + sequentialCtpTestSessionId + " at suite end");
-                }
-                ParasoftCTPApiClient.publishCoverage(sequentialCtpTestSessionId, sequentialDtpSessionTag);
-            } else {
-                if (ParasoftSettings.isLogLevelEnabled("WARN")) {
-                    LOGGER.warning("[ParasoftSessionManager] publishCoverageAtSuiteEnd(): Skipping publishing coverage for single-user sequential session with missing information: ctpTestSessionId=" + sequentialCtpTestSessionId + ", dtpSessionTag=" + sequentialDtpSessionTag);
-                }
+            if (ParasoftSettings.isLogLevelEnabled("WARN")) {
+                LOGGER.warning("[ParasoftSessionManager] publishCoverageAtSuiteEnd(): Skipping publishing coverage — missing session information: ctpSessionId=" + ctpSessionId + ", dtpSessionTag=" + dtpSessionTag);
             }
         }
     }
@@ -176,102 +285,17 @@ public class ParasoftSessionManager {
         ParasoftCTPApiClient.publishBaseline();
     }
 
-    /** Retrieves all {@link SessionInfo} objects from parallel test execution sessions. */
-    private static Collection<SessionInfo> getSessionInfos() {
-        return Collections.unmodifiableCollection(SESSIONS.values());
-    }
-
-    /** Registers a coverage user ID for parallel test execution sessions. */
-    private static void registerCoverageUserId(String testContextKey, AtomicReference<String> coverageUserIdRef, String dtpSessionTag) {
-        if (testContextKey == null || testContextKey.isBlank()) {
-            if (ParasoftSettings.isLogLevelEnabled("WARN")) {
-                LOGGER.warning("[ParasoftSessionManager] registerCoverageUserId(): Skipping registration due to bad testContextKey");
-            }
-            return;
-        }
-        if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
-            LOGGER.info("[ParasoftSessionManager] registerCoverageUserId(): For parallel test execution, registering coverageUserId to: " + coverageUserIdRef.get());
-        }
-        registerSessionInfo(coverageUserIdRef.get(), null, dtpSessionTag);
-        COVERAGE_USER_IDS.put(testContextKey, coverageUserIdRef);
-    }
-
-    /** Registers a CTP test session ID for parallel test execution sessions. */
-    private static void registerCtpTestSession(String ctpTestSessionId, String coverageUserId) {
-        if (ctpTestSessionId == null || ctpTestSessionId.isBlank()) {
-            if (ParasoftSettings.isLogLevelEnabled("WARN")) {
-                LOGGER.warning("[ParasoftSessionManager] registerCtpTestSession(): Skipping registration due to bad ctpTestSessionId");
-            }
-            return;
-        }   
-        if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
-            LOGGER.info("[ParasoftSessionManager] registerCtpTestSession(): For parallel test execution, registering CTP test session: " + ctpTestSessionId);
-        }
-        registerSessionInfo(coverageUserId, ctpTestSessionId, null);
-    }
-
-    /** Registers session info for parallel test execution sessions. */
-    private static void registerSessionInfo(String coverageUserId, String ctpTestSessionId, String dtpSessionTag) {
-        if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
-            LOGGER.info("[ParasoftSessionManager] registerSessionInfo(): For parallel test execution, registering session info: coverageUserId=" + coverageUserId + ", ctpTestSessionId=" + ctpTestSessionId + ", dtpSessionTag=" + dtpSessionTag);
-        }
-        SESSIONS.compute(coverageUserId, (key, existing) -> {
-            SessionInfo info = existing == null ? new SessionInfo(key) : existing;
-            if (ctpTestSessionId != null && !ctpTestSessionId.isBlank()) {
-                info.ctpTestSessionId = ctpTestSessionId;
-            }
-            if (dtpSessionTag != null && !dtpSessionTag.isBlank()) {
-                info.dtpSessionTag = dtpSessionTag;
-            }
-            return info;
-        });
-    }
-
-    private static AtomicReference<String> buildNewCoverageUserIdRef(String webDriverSessionId) {
-        AtomicReference<String> coverageUserIdRef = new AtomicReference<>("__UNINITIALIZED__");
-        coverageUserIdRef = setExistingCoverageUserIdRef(coverageUserIdRef, webDriverSessionId);
-        return coverageUserIdRef;
-    }
-
-    private static AtomicReference<String> setExistingCoverageUserIdRef(AtomicReference<String> coverageUserIdRef, String webDriverSessionId) {
-        coverageUserIdRef.set(buildCoverageUserIdString(webDriverSessionId));
-        return coverageUserIdRef;
+    /** Builds the stable user ID for this test run: {@code {testFramework}-{ctpUsername}}. */
+    private static String buildUserId() {
+        return ParasoftSettings.getTestFramework() + "-" + ParasoftSettings.CTP_USERNAME;
     }
 
     /**
-     * Builds a coverage user ID string following the convention:
-     * {@code {testFramework}-{ctpUsername}-{webDriverSessionId}}
-     * <p>
-     * When coverage agents are deployed in multi-user mode, CTP test sessions are
-     * owned by a userId. Test sessions are started/stopped using the userId as an identifier.
-     * <ul>
-     *   <li>{@code ctpUsername} — included for troubleshooting which CTP user credential was used</li>
-     *   <li>{@code webDriverSessionId} — unique identifier for a WebDriver session, to
-     *       differentiate multiple CTP test sessions running in parallel</li>
-     * </ul>
+     * Builds the DTP session tag: {@code {testFramework}-{ctpUsername}-1}.
+     * The trailing {@code -1} is a placeholder for a dynamic run count if multiple test execution
+     * jobs publish to the same buildId.
      */
-    private static String buildCoverageUserIdString(String webDriverSessionId) {
-        String resolvedWebDriverSessionId = webDriverSessionId;
-        if (resolvedWebDriverSessionId == null || resolvedWebDriverSessionId.isBlank()) {
-            resolvedWebDriverSessionId = "defaultSession";
-        }
-        return ParasoftSettings.getTestFramework() + "-" + ParasoftSettings.CTP_USERNAME + "-"
-                + resolvedWebDriverSessionId;
-    }
-
-    /**
-     * Builds a DTP session tag following the convention:
-     * {@code {testFramework}-{ctpUsername}-{webDriverSessionId}-{runCount}}
-     * <ul>
-     *   <li>{@code ctpUsername} — included for troubleshooting which CTP user credential was used</li>
-     *   <li>{@code webDriverSessionId} — unique identifier for a WebDriver session, to
-     *       differentiate multiple CTP test sessions running in parallel</li>
-     *   <li>{@code runCount} — differentiates multiple test runs publishing to the same buildId,
-     *       ensuring test results and coverage data are not overwritten in DTP</li>
-     * </ul>
-     */
-    private static String buildDtpSessionTag(String webDriverSessionId) {
-        String dtpSessionTag = buildCoverageUserIdString(webDriverSessionId) + "-1"; // placeholder for dynamic runCount if multiple test execution jobs are run against the same buildId
-        return dtpSessionTag;
+    private static String buildDtpSessionTag() {
+        return buildUserId() + "-1";
     }
 }

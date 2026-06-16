@@ -1,8 +1,6 @@
 package org.springframework.samples.petclinic.testcommon.junit5.playwright;
 
-import org.springframework.samples.petclinic.testcommon.ParasoftCTPApiClient;
-import org.springframework.samples.petclinic.testcommon.ParasoftSessionManager;
-import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
+import org.springframework.samples.petclinic.testcommon.ParasoftWatcherUtil;
 
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -13,45 +11,29 @@ import org.junit.jupiter.api.extension.TestWatcher;
  * for per-test coverage tracking in Playwright-based tests.
  */
 public class ParasoftWatcherPlaywright implements BeforeEachCallback, TestWatcher {
+    private static final String WATCHER_TAG = "ParasoftWatcherPlaywright";
 
     @Override
     public void beforeEach(ExtensionContext context) {
-        String testId = getTestId(context);
-
-        // If multi-user mode, the coverage user ID is retrieved from the Session Manager
-        if (ParasoftSettings.isMultiUserMode()) {
-            ParasoftCTPApiClient.startTest(testId, getCoverageUserId(context));
-            return;
-        }
-        ParasoftCTPApiClient.startTest(testId); // if not running in multi-user mode, the coverage user ID is not needed
+        ParasoftWatcherUtil.startTest(getTestId(context), getTestContextKey(context), WATCHER_TAG);
     }
 
     @Override
     public void testSuccessful(ExtensionContext context) {
-        String testId = getTestId(context);
-
-        // If multi-user mode, the coverage user ID is retrieved from the Session Manager
-        if (ParasoftSettings.isMultiUserMode()) {
-            ParasoftCTPApiClient.stopTest(testId, true, null, getCoverageUserId(context));
-            return;
-        }
-        ParasoftCTPApiClient.stopTest(testId, true, null); // if not running in multi-user mode, the coverage user ID is not needed
+        ParasoftWatcherUtil.stopTest(getTestId(context), getTestContextKey(context), true, null, WATCHER_TAG);
     }
 
     @Override
     public void testFailed(ExtensionContext context, Throwable cause) {
-        String testId = getTestId(context);
-
-        // If multi-user mode, the coverage user ID is retrieved from the Session Manager
-        if (ParasoftSettings.isMultiUserMode()) {
-            ParasoftCTPApiClient.stopTest(testId, false, buildFailureMessage(cause), getCoverageUserId(context));
-            return;
-        }
-        ParasoftCTPApiClient.stopTest(testId, false, buildFailureMessage(cause)); // if not running in multi-user mode, the coverage user ID is not needed
+        ParasoftWatcherUtil.stopTest(getTestId(context), getTestContextKey(context), false, buildFailureMessage(cause), WATCHER_TAG);
     }
 
     private static String getTestId(ExtensionContext context) {
         return context.getTestClass().get().getName() + '#' + context.getTestMethod().get().getName();
+    }
+
+    private static String getTestContextKey(ExtensionContext context) {
+        return context.getTestClass().map(Class::getName).orElse(null);
     }
 
     private static String buildFailureMessage(Throwable cause) {
@@ -89,12 +71,5 @@ public class ParasoftWatcherPlaywright implements BeforeEachCallback, TestWatche
             normalized = normalized.replace("  ", " ");
         }
         return normalized.trim();
-    }
-
-    private static String getCoverageUserId(ExtensionContext context) {
-        String testClassName = context.getTestClass().map(Class::getName).orElse(null);
-        String coverageUserId = ParasoftSessionManager.getCoverageUserId(testClassName); // retrieve the coverage user ID for this test class from the Session Manager Map, which was set when the WebDriver instance was created
-
-        return coverageUserId;
     }
 }

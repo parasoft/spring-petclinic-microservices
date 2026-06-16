@@ -1,8 +1,6 @@
 package org.springframework.samples.petclinic.testcommon.junit5.cucumber;
 
-import org.springframework.samples.petclinic.testcommon.ParasoftCTPApiClient;
-import org.springframework.samples.petclinic.testcommon.ParasoftSessionManager;
-import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
+import org.springframework.samples.petclinic.testcommon.ParasoftWatcherUtil;
 
 import io.cucumber.java.After;
 import io.cucumber.java.Before;
@@ -14,38 +12,26 @@ import io.cucumber.java.Scenario;
  * <p>
  * This is the Cucumber equivalent of
  * {@link org.springframework.samples.petclinic.testcommon.junit5.ParasoftWatcher ParasoftWatcher}.
+ * Cucumber parallel execution is not yet implemented in this project, but the shared
+ * {@link ParasoftWatcherUtil} will branch on {@code isParallelTestExecution()} just like the
+ * other watchers if that ever changes.
  */
 public class ParasoftWatcherCucumber {
+	private static final String WATCHER_TAG = "ParasoftWatcherCucumber";
+
 	@Before
 	public void beforeScenario(Scenario scenario) {
 		String testId = ParasoftCucumberUtil.getTestId(scenario);
-
-		// If multi-user mode, the coverage user ID is retrieved from the Session Manager
-        if (ParasoftSettings.isMultiUserMode()) {
-            ParasoftCTPApiClient.startTest(testId, ParasoftSessionManager.getCoverageUserId(testId));
-            return;
-        }
-        ParasoftCTPApiClient.startTest(testId); // if not running in multi-user mode, the coverage user ID is not needed
+		// For Cucumber the testContextKey is the scenario testId itself (one context per scenario).
+		ParasoftWatcherUtil.startTest(testId, testId, WATCHER_TAG);
 	}
 
 	@After
 	public void afterScenario(Scenario scenario) {
 		String testId = ParasoftCucumberUtil.getTestId(scenario);
-		
-        // If multi-user mode, the coverage user ID is retrieved from the Session Manager
-        if (ParasoftSettings.isMultiUserMode()) {
-            ParasoftCTPApiClient.stopTest(
-					testId,
-					!scenario.isFailed(),
-					scenario.isFailed() ? buildFailureMessage(scenario) : null,
-					ParasoftSessionManager.getCoverageUserId(testId));
-			return;
-        }
-        // If not running in multi-user mode, the coverage user ID is not needed
-		ParasoftCTPApiClient.stopTest(
-				testId,
-				!scenario.isFailed(),
-				scenario.isFailed() ? buildFailureMessage(scenario) : null); 
+		boolean passed = !scenario.isFailed();
+		String failureMessage = passed ? null : buildFailureMessage(scenario);
+		ParasoftWatcherUtil.stopTest(testId, testId, passed, failureMessage, WATCHER_TAG);
 	}
 
 	private static String buildFailureMessage(Scenario scenario) {

@@ -3,7 +3,6 @@ package org.springframework.samples.petclinic.playwright;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.springframework.samples.petclinic.testcommon.ParasoftSessionManager;
 import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
@@ -38,8 +37,8 @@ import com.microsoft.playwright.options.AriaRole;
         playwrightSessionId = UUID.randomUUID().toString();
         playwright = Playwright.create();
         browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(ParasoftSettings.isHeadless()).setSlowMo(500));
-        if (ParasoftSettings.isParallelTestExecution()) {
-            ParasoftSessionManager.startSession(NavigateIT.class.getName(), playwrightSessionId, new AtomicReference<String>("__UNINITIALIZED__"));
+        if (ParasoftSettings.isParallelTestExecution() && ParasoftSettings.isMultiUserMode()) {
+            ParasoftSessionManager.registerParallelId(NavigateIT.class.getName(), playwrightSessionId);
         }
     }
 
@@ -47,9 +46,7 @@ import com.microsoft.playwright.options.AriaRole;
     static void closeBrowser() {
         browser.close();
         playwright.close();
-        if (ParasoftSettings.isParallelTestExecution()) {
-            ParasoftSessionManager.stopSession(NavigateIT.class.getName());
-        }
+        ParasoftSessionManager.unregister(NavigateIT.class.getName());
     }
 
     @BeforeEach
@@ -58,9 +55,12 @@ import com.microsoft.playwright.options.AriaRole;
         // Using Playwright API for request header injection, required for Parasoft
         // coverage reporting when agents are in multi-user mode
         if (ParasoftSettings.isMultiUserMode()) {
-            Map<String, String> headers = new HashMap<>();
-            headers.put("baggage", "test-operator-id=" + ParasoftSessionManager.getCoverageUserId(NavigateIT.class.getName()));
-            context.setExtraHTTPHeaders(headers);
+            String baggage = ParasoftSessionManager.getBaggage(NavigateIT.class.getName());
+            if (baggage != null && !baggage.isBlank()) {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("baggage", baggage);
+                context.setExtraHTTPHeaders(headers);
+            }
         }
         page = context.newPage();
     }

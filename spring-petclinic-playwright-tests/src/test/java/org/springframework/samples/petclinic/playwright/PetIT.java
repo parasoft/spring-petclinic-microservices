@@ -3,7 +3,6 @@ package org.springframework.samples.petclinic.playwright;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.springframework.samples.petclinic.testcommon.ParasoftSessionManager;
 import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
@@ -39,8 +38,8 @@ public class PetIT {
         playwrightSessionId = UUID.randomUUID().toString();
         playwright = Playwright.create();
         browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(ParasoftSettings.isHeadless()).setSlowMo(500));
-        if (ParasoftSettings.isParallelTestExecution()) {
-            ParasoftSessionManager.startSession(PetIT.class.getName(), playwrightSessionId, new AtomicReference<String>("__UNINITIALIZED__"));
+        if (ParasoftSettings.isParallelTestExecution() && ParasoftSettings.isMultiUserMode()) {
+            ParasoftSessionManager.registerParallelId(PetIT.class.getName(), playwrightSessionId);
         }
     }
 
@@ -48,9 +47,7 @@ public class PetIT {
     static void closeBrowser() {
         browser.close();
         playwright.close();
-        if (ParasoftSettings.isParallelTestExecution()) {
-            ParasoftSessionManager.stopSession(PetIT.class.getName());
-        }
+        ParasoftSessionManager.unregister(PetIT.class.getName());
     }
 
     @BeforeEach
@@ -59,9 +56,12 @@ public class PetIT {
         // Using Playwright API for request header injection, required for Parasoft
         // coverage reporting when agents are in multi-user mode
         if (ParasoftSettings.isMultiUserMode()) {
-            Map<String, String> headers = new HashMap<>();
-            headers.put("baggage", "test-operator-id=" + ParasoftSessionManager.getCoverageUserId(PetIT.class.getName()));
-            context.setExtraHTTPHeaders(headers);
+            String baggage = ParasoftSessionManager.getBaggage(PetIT.class.getName());
+            if (baggage != null && !baggage.isBlank()) {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("baggage", baggage);
+                context.setExtraHTTPHeaders(headers);
+            }
         }
         page = context.newPage();
     }

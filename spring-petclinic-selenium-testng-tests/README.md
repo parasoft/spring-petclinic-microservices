@@ -60,7 +60,9 @@ To run tests in parallel, two changes are required:
 mvn -ntp verify -pl spring-petclinic-selenium-testng-tests -am -DCTP_PARALLEL_TEST_EXECUTION=true -DPETCLINIC_URL=<PETCLINIC URL>
 ```
 
-When parallel execution is enabled, `CTP_MULTI_USER_MODE` must also be `true` (the default). Each test class gets its own WebDriver instance, header-injecting proxy, and CTP session, so coverage is tracked independently per thread.
+When parallel execution is enabled, `CTP_MULTI_USER_MODE` must also be `true` (the default) — running parallel tests in single-user mode is an invalid configuration because concurrent tests cannot be distinguished by the coverage agents when they are in single-user mode. All concurrent test classes share a single CTP session and are distinguished on the server by a per-class `parallelId` (the WebDriver session ID).
+
+**Parallelism scope:** This project supports **class-level parallelism only** — test classes run concurrently, but methods within a class run sequentially and share the class's WebDriver/proxy instance. Method-level parallelism is intentionally not supported because it would require per-method WebDriver and `ParasoftHeaderInjectingProxy` lifecycle management, which is uncommon in production SDET frameworks for UI tests. The `parallel="tests"` value above runs each `<test>` (and therefore each class via the implicit test grouping) on its own thread; do **not** change it to `parallel="methods"` — multiple methods of the same class would then share one `testContextKey` and race on baggage and `parallelId` registration, making coverage attribution unreliable.
 
 ### Selenium Grid Notes
 
@@ -134,7 +136,7 @@ public void closeBrowser() {
 }
 ```
 
-The `ParasoftWebDriverConfigurator` takes the test class name as the `testContextKey`, which associates the WebDriver session with a `coverageUserId` in `ParasoftSessionManager`. It also starts the header-injecting proxy when multi-user mode is enabled.
+The `ParasoftWebDriverConfigurator` takes the test class name as the `testContextKey`, which associates the WebDriver session and its proxy's baggage `AtomicReference` with `ParasoftSessionManager`. It also starts the header-injecting proxy when multi-user mode is enabled.
 
 ## Configuring Settings
 

@@ -326,7 +326,10 @@ EOF
                 // NOTE: JUnit 5 parallel execution is currently disabled (CTP_PARALLEL_TEST_EXECUTION=false).
                 // To re-enable parallel mode for selenium-tests and playwright-tests, add these flags back
                 // to their respective mvn commands AND set CTP_PARALLEL_TEST_EXECUTION=true in each
-                // module's parasoft-settings.properties (requires multi-user coverage agent deployment):
+                // module's parasoft-settings.properties. CTP_PARALLEL_TEST_EXECUTION=true requires
+                // CTP_MULTI_USER_MODE=true. Running parallel tests in single-user mode is an invalid
+                // configuration because concurrent tests cannot be distinguished by the coverage agents
+                // when they are in single-user mode:
                 //   -Djunit.jupiter.execution.parallel.enabled=true \
                 //   -Djunit.jupiter.execution.parallel.mode.classes.default=concurrent \
                 withEnv(["CTP_URL=${env.CTP_URL}", "CTP_LOG_LEVEL=${params.CTP_DEBUG == 'true' ? 'DEBUG' : 'INFO'}"]) {

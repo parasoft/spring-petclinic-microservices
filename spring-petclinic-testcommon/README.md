@@ -18,8 +18,8 @@ All source lives under `src/test/java/org/springframework/samples/petclinic/test
 |---|---|
 | `ParasoftSettings` | Centralized configuration. Resolves settings from system properties (`-D`), a `parasoft-settings.properties` file, or hardcoded defaults — in that precedence order. Controls CTP connection, multi-user mode, parallel execution, coverage/baseline publishing, proxy, Selenium Grid, and headless settings. |
 | `ParasoftCTPApiClient` | REST API client for Parasoft CTP. Provides methods for session start/stop, test start/stop, coverage publishing to DTP, and baseline publishing for Test Impact Analysis. |
-| `ParasoftSessionManager` | Manages CTP test session lifecycle. Handles both sequential (single shared session) and parallel (per-WebDriver session) execution modes, tracking `coverageUserId`s, CTP session IDs, and DTP session tags. |
-| `ParasoftHeaderInjectingProxy` | LittleProxy-based HTTP proxy that injects a `baggage: test-operator-id=<coverageUserId>` header into all proxied requests. Required for code coverage attribution when coverage agents are in multi-user mode. Uses dynamic port assignment. |
+| `ParasoftSessionManager` | Manages the single CTP test session for the entire test run. Started once by the SuiteListener at suite start (with `userId` in multi-user mode). Tracks the per-test `baggage` header value sourced from the `/test/start` API response, and propagates it to Selenium proxy `AtomicReference`s and Playwright contexts via per-test-context registrations. Records per-test parallel IDs (WebDriver session IDs / Playwright UUIDs) when `CTP_PARALLEL_TEST_EXECUTION=true`. |
+| `ParasoftHeaderInjectingProxy` | LittleProxy-based HTTP proxy that injects a `baggage` header (e.g. `test-operator-id=<userId>+<parallelId>`) into all proxied requests. The header value is sourced from the `/test/start` API response and held in an `AtomicReference` that `ParasoftSessionManager` updates per-test. Required for code coverage attribution when coverage agents are in multi-user mode. Uses dynamic port assignment. |
 
 ### `junit5` subpackage
 
@@ -27,7 +27,7 @@ For JUnit 5 (Jupiter) test modules, like `spring-petclinic-selenium-tests` and `
 
 | Class | Purpose |
 |---|---|
-| `ParasoftSuiteListener` | Implements `TestExecutionListener`. On test plan start: starts a CTP session (sequential mode). On test plan finish: stops the session and optionally publishes coverage and/or baseline data. |
+| `ParasoftSuiteListener` | Implements `TestExecutionListener`. On test plan start: starts the single CTP session for the entire run. On test plan finish: stops the session and optionally publishes coverage and/or baseline data. |
 | `ParasoftWatcher` | Implements `BeforeEachCallback` + `TestWatcher`. Calls CTP test start before each test and CTP test stop (with PASS/FAIL result) after each test. Used by Selenium JUnit 5 tests. |
 
 ### `junit5.cucumber` subpackage
@@ -68,7 +68,7 @@ Shared Selenium WebDriver infrastructure used by all Selenium-based test modules
 | `BasicWebDriverConfigurator` | Configurator for basic browser options with examples that set window size and position. |
 | `ParasoftWebDriverConfigurator` | Configurator that starts the `ParasoftHeaderInjectingProxy` (if multi-user mode) and configures the browser's proxy settings to route through it. Also applies headless mode. |
 | `WebDriverFactory` | Factory method `create(BrowserType, WebDriverConfigurator...)` that builds a `MutableCapabilities`, applies all configurators, and creates either a local or `RemoteWebDriver` (Selenium Grid). Returns a `ParasoftWebDriverResource`. |
-| `ParasoftWebDriverResource` | `AutoCloseable` wrapper around `WebDriver` + proxy. On construction: starts a CTP session (parallel mode) or binds the sequential `coverageUserId` to the proxy. On `close()`: quits the driver, stops the proxy, and stops the CTP session (parallel mode). |
+| `ParasoftWebDriverResource` | `AutoCloseable` wrapper around `WebDriver` + proxy. On construction (multi-user mode only): registers the proxy's baggage `AtomicReference` with `ParasoftSessionManager` so per-test baggage from `/test/start` is automatically propagated; if parallel mode is also enabled, registers the WebDriver session ID as the parallel ID for this test context. On `close()`: quits the driver, stops the proxy, and unregisters from `ParasoftSessionManager`. |
 
 ## How Test Modules Consume testcommon
 
@@ -88,7 +88,35 @@ Since all classes in testcommon live in `src/test/java`, the module produces a *
 
 Consumer modules must also declare their own direct dependencies for Selenium, Playwright, Cucumber, TestNG, etc., since `test`-scoped transitive dependencies are not inherited.
 
-### 2. Connecting the SuiteListener
+### 2. Building and Installing the Test-Jar
+
+Consumer modules pick up changes to testcommon by resolving the `spring-petclinic-testcommon` test-jar from your local Maven repository (`~/.m2/repository`). After **any** change to testcommon source, you must rebuild and reinstall the test-jar before consumer modules will see the change.
+
+**Build and install in one step (most common):**
+
+```
+mvn -ntp -pl spring-petclinic-testcommon install -DskipTests
+```
+
+This compiles the test classes, packages them into both the regular jar and the test-jar, and installs both into your local repo so the four consumer modules can resolve the new version.
+
+**Build the consumer module along with testcommon in one reactor invocation** (no separate install step needed; uses Maven's `--also-make` flag):
+
+```
+mvn -ntp -pl spring-petclinic-selenium-tests -am verify
+```
+
+With `-am`, Maven rebuilds testcommon as part of the same reactor before the consumer module is tested, so changes are picked up automatically. Replace `spring-petclinic-selenium-tests` with whichever consumer module you want to run.
+
+**When the testcommon dependency graph changes** (e.g. bumping a Selenium/Playwright/JUnit version), make sure the new dependency is declared at default (`compile`) scope rather than `<scope>test</scope>`. Maven does **not** propagate `test`-scope transitive dependencies even through a test-jar dependency, so a `<scope>test</scope>` library will compile cleanly inside testcommon but produce a `NoClassDefFoundError` at consumer test runtime. Compare with `littleproxy`, `netty-all`, `selenium-java`, and `jackson-databind` in `pom.xml` — all are at default scope so they propagate.
+
+**Quick compile check without installing** (validates the source compiles against the existing dependency graph; does not refresh consumer modules' classpath):
+
+```
+mvn -ntp -pl spring-petclinic-testcommon -am test-compile
+```
+
+### 3. Connecting the SuiteListener
 
 The SuiteListener manages the CTP session lifecycle at the suite level (start/stop session, publish coverage, publish baseline). Each framework registers it differently:
 
@@ -124,7 +152,7 @@ org.springframework.samples.petclinic.testcommon.junit5.ParasoftSuiteListener
 </suite>
 ```
 
-### 3. Connecting the Watcher
+### 4. Connecting the Watcher
 
 The Watcher reports individual test start/stop events to CTP. Each framework connects it differently:
 
@@ -157,9 +185,9 @@ public class NavigateIT {
 }
 ```
 
-### 4. Using WebDriverFactory (Selenium Modules Only)
+### 5. Using WebDriverFactory (Selenium Modules Only)
 
-Selenium-based test modules use `WebDriverFactory` to create a `ParasoftWebDriverResource` that bundles the `WebDriver`, the header-injecting proxy, and the CTP session lifecycle:
+Selenium-based test modules use `WebDriverFactory` to create a `ParasoftWebDriverResource` that bundles the per-class `WebDriver`, the header-injecting proxy, and registration with `ParasoftSessionManager` (parallel ID and proxy baggage `AtomicReference`). The single CTP session for the whole run is managed separately by `ParasoftSuiteListener`:
 
 ```java
 ParasoftWebDriverResource driverResource = WebDriverFactory.create(
@@ -170,12 +198,12 @@ WebDriver driver = driverResource.getDriver();
 ```
 
 - `BasicWebDriverConfigurator` — sets window size/position (optional, has defaults).
-- `ParasoftWebDriverConfigurator` — takes a `testContextKey` (typically the test class name or Cucumber test ID) used to associate the WebDriver session with a `coverageUserId` in `ParasoftSessionManager`. It starts the `ParasoftHeaderInjectingProxy` when multi-user mode is enabled.
+- `ParasoftWebDriverConfigurator` — takes a `testContextKey` (typically the test class name or Cucumber scenario ID) used to associate the WebDriver session and its proxy's baggage `AtomicReference` with `ParasoftSessionManager`. It starts the `ParasoftHeaderInjectingProxy` when multi-user mode is enabled.
 
 Clean up the resource in `@AfterAll` (JUnit 5), `@AfterClass` (TestNG), or `@After` (Cucumber):
 
 ```java
-driverResource.close(); // quits driver, stops proxy, stops CTP session (parallel mode)
+driverResource.close(); // quits driver, stops proxy, unregisters from ParasoftSessionManager
 ```
 
 Playwright tests do **not** use `WebDriverFactory`. Instead, they inject the `baggage` header directly using Playwright's `context.setExtraHTTPHeaders()` API.
@@ -197,7 +225,7 @@ The properties file is loaded from the classpath (`src/test/resources/parasoft-s
 | `CTP_PASSWORD` | `admin` | CTP authentication password |
 | `CTP_LOG_LEVEL` | `WARN` | Logging verbosity: ERROR, WARN, INFO, DEBUG, TRACE |
 | `CTP_MULTI_USER_MODE` | `true` | Whether coverage agents are in multi-user mode |
-| `CTP_PARALLEL_TEST_EXECUTION` | `false` | Enable parallel test execution (requires multi-user mode) |
+| `CTP_PARALLEL_TEST_EXECUTION` | `false` | Enable parallel test execution. Requires `CTP_MULTI_USER_MODE=true` |
 | `CTP_PUBLISH_COVERAGE` | `false` | Publish coverage data to DTP at suite end |
 | `CTP_PUBLISH_BASELINE` | `false` | Publish baseline for Test Impact Analysis at suite end |
 | `CTP_BASELINE_BUILD_ID` | `spring-petclinic-baseline` | Baseline build identifier |
@@ -206,4 +234,4 @@ The properties file is loaded from the classpath (`src/test/resources/parasoft-s
 | `HEADLESS` | `false` | Run browser in headless mode |
 | `SELENIUM_GRID` | `false` | Use Selenium Grid (`RemoteWebDriver`) |
 | `SELENIUM_GRID_URL` | `http://localhost:4444/wd/hub` | Selenium Grid hub URL |
-| `TESTFRAMEWORK` | `defaultTestFramework` | Identifier included in `coverageUserId` for traceability |
+| `TESTFRAMEWORK` | `defaultTestFramework` | Identifier composed into the run-level `userId` (`<TESTFRAMEWORK>-<CTP_USERNAME>`) and DTP session tag. Acts as the primary uniqueness discriminator between concurrent test runs (e.g. this repo example demonstrates `seleniumJUnit`, `seleniumTestNG`, `cucumber`, `playwright`) so coverage from different frameworks publishing to the same CTP/DTP environment is attributable. Use this property to uniquely identify each test execution process when running distributed test execution using multiple CI nodes (e.g., `n` CI jobs for distributed test execution) |

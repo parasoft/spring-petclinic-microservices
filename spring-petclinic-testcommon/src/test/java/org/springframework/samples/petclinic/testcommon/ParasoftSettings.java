@@ -51,8 +51,10 @@ public class ParasoftSettings {
     // CTP_MULTI_USER_MODE controls whether tests are executed in an environment where the coverage agents are setup for multi-user
     public static final boolean CTP_MULTI_USER_MODE = getBoolSetting("CTP_MULTI_USER_MODE", "true");
 
-    // CTP_PARALLEL_TEST_EXECUTION controls whether tests are executed in parallel, which requires a different implementation in the test framework
-    // CTP_MULTI_USER_MODE must be true for parallel test execution to work
+    // CTP_PARALLEL_TEST_EXECUTION is set to be consistent with whether the test framework is running tests in parallel.
+    // CTP_PARALLEL_TEST_EXECUTION=true requires CTP_MULTI_USER_MODE=true. Running parallel tests in single-user mode
+    // is an invalid configuration because concurrent tests cannot be distinguished by the coverage agents when they
+    // are in single-user mode.
     public static final boolean CTP_PARALLEL_TEST_EXECUTION = getBoolSetting("CTP_PARALLEL_TEST_EXECUTION", "false");
 
     // publishCoverage controls whether this test run should publish coverage and test result data to DTP.

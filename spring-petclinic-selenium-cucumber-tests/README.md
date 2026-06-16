@@ -2,7 +2,7 @@
 
 Selenium + Cucumber + JUnit Platform functional tests for the Spring Petclinic application, with Parasoft CTP integration for code coverage collection, test result reporting, and Test Impact Analysis.
 
-This module only supports sequential test execution. Cucumber-JUnit does not natively support parallel execution the way vanilla JUnit 5 does, so `CTP_PARALLEL_TEST_EXECUTION` must remain `false`.
+This module only supports sequential test execution. Parallel test execution is not yet implemented for this module, so `CTP_PARALLEL_TEST_EXECUTION` must remain `false`.
 
 ## Prerequisites
 
@@ -103,7 +103,7 @@ public void cleanup() {
 }
 ```
 
-The `ParasoftWebDriverConfigurator` takes the Cucumber test ID (derived from `ParasoftCucumberUtil.getTestId(scenario)`) as the `testContextKey`, which associates the WebDriver session with a `coverageUserId` in `ParasoftSessionManager`. It also starts the header-injecting proxy when multi-user mode is enabled.
+The `ParasoftWebDriverConfigurator` takes the Cucumber test ID (derived from `ParasoftCucumberUtil.getTestId(scenario)`) as the `testContextKey`, which associates the WebDriver session and its proxy's baggage `AtomicReference` with `ParasoftSessionManager`. It also starts the header-injecting proxy when multi-user mode is enabled.
 
 ## Configuring Settings
 

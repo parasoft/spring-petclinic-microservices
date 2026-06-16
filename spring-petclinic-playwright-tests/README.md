@@ -44,7 +44,7 @@ To run tests in parallel, two changes are required:
 -Djunit.jupiter.execution.parallel.enabled=true -Djunit.jupiter.execution.parallel.mode.default=same_thread -Djunit.jupiter.execution.parallel.mode.classes.default=concurrent
 ```
 
-This runs test classes concurrently (each gets its own Playwright Browser and CTP session), while tests within a class run sequentially (they share a Browser instance).
+This runs test classes concurrently (each gets its own Playwright `Browser`), while tests within a class run sequentially (sharing the class's `Browser` instance). All concurrent classes share a single CTP session for the entire run — managed once by `ParasoftSuiteListener` — and are distinguished on the server by a per-class `parallelId` (see below).
 
 2. **Set `CTP_PARALLEL_TEST_EXECUTION=true`** — either in `parasoft-settings.properties` or on the command line:
 
@@ -52,7 +52,9 @@ This runs test classes concurrently (each gets its own Playwright Browser and CT
 mvn -ntp verify -pl spring-petclinic-playwright-tests -am -DCTP_PARALLEL_TEST_EXECUTION=true -Djunit.jupiter.execution.parallel.enabled=true -Djunit.jupiter.execution.parallel.mode.default=same_thread -Djunit.jupiter.execution.parallel.mode.classes.default=concurrent -DPETCLINIC_URL=<PETCLINIC URL>
 ```
 
-When parallel execution is enabled, `CTP_MULTI_USER_MODE` must also be `true` (the default). Each test class gets its own Playwright Browser instance and CTP session, so coverage is tracked independently per class.
+When parallel execution is enabled, `CTP_MULTI_USER_MODE` must also be `true` (the default) — running parallel tests in single-user mode is an invalid configuration because concurrent tests cannot be distinguished by the coverage agents when they are in single-user mode. All concurrent test classes share a single CTP session and are distinguished on the server by a per-class `parallelId` (a UUID generated in `@BeforeAll`).
+
+**Parallelism scope:** This project supports **class-level parallelism only** — test classes run concurrently, but methods within a class run sequentially and share the class's Playwright `Browser` instance (see the `@BeforeAll`/`@AfterAll` pattern in the [Header Injection](#header-injection-and-session-management-instead-of-webdriverfactory) section). Method-level parallelism is intentionally not supported because it would require per-method `Browser` and CTP session lifecycle management, which is uncommon in production SDET frameworks for UI tests. The flags shown above include `parallel.mode.default=same_thread` together with `parallel.mode.classes.default=concurrent` to enforce this; do **not** change `parallel.mode.default` to `concurrent` — multiple methods of the same class would then share one `testContextKey` and race on baggage and `parallelId` registration, making coverage attribution unreliable.
 
 ## How This Module Uses testcommon
 
@@ -86,7 +88,7 @@ Containing:
 org.springframework.samples.petclinic.testcommon.junit5.ParasoftSuiteListener
 ```
 
-For sequential execution, this starts/stops the CTP session at the test plan level. For parallel execution, each test class manages its own CTP session in `@BeforeAll`/`@AfterAll`. In both modes, the listener publishes coverage and baseline data at suite end.
+For all execution modes, this listener starts a single CTP session at test plan start and stops it at test plan finish. It also publishes coverage and baseline data at suite end. Per-test `baggage` (sourced from the `/test/start` API response) is propagated to Playwright contexts by the watcher and `ParasoftSessionManager`.
 
 ### Watcher
 
@@ -101,7 +103,7 @@ This reports individual test start/stop events (with PASS/FAIL results) to CTP.
 
 ### Header Injection and Session Management (Instead of WebDriverFactory)
 
-Playwright tests do **not** use `WebDriverFactory` or the `ParasoftHeaderInjectingProxy`. Instead, they inject the `baggage` header directly using Playwright's `BrowserContext.setExtraHTTPHeaders()` API and manage CTP sessions in the test class lifecycle methods:
+Playwright tests do **not** use `WebDriverFactory` or the `ParasoftHeaderInjectingProxy`. Instead, they inject the `baggage` header directly using Playwright's `BrowserContext.setExtraHTTPHeaders()` API. The CTP session itself is managed once for the whole run by `ParasoftSuiteListener`; each test class only registers a `parallelId` (when running in parallel) and reads the per-test baggage value populated by the watcher (required imports: `java.util.Map`, `java.util.HashMap`, `java.util.UUID`):
 
 ```java
 @BeforeAll
@@ -109,8 +111,8 @@ static void launchBrowser() {
     playwrightSessionId = UUID.randomUUID().toString();
     playwright = Playwright.create();
     browser = playwright.chromium().launch(...);
-    if (ParasoftSettings.isParallelTestExecution()) {
-        ParasoftSessionManager.startSession(NavigateIT.class.getName(), playwrightSessionId, new AtomicReference<String>(""));
+    if (ParasoftSettings.isParallelTestExecution() && ParasoftSettings.isMultiUserMode()) {
+        ParasoftSessionManager.registerParallelId(NavigateIT.class.getName(), playwrightSessionId);
     }
 }
 
@@ -118,9 +120,12 @@ static void launchBrowser() {
 void createContextAndPage() {
     context = browser.newContext();
     if (ParasoftSettings.isMultiUserMode()) {
-        Map<String, String> headers = new HashMap<>();
-        headers.put("baggage", "test-operator-id=" + ParasoftSessionManager.getCoverageUserId(NavigateIT.class.getName()));
-        context.setExtraHTTPHeaders(headers);
+        String baggage = ParasoftSessionManager.getBaggage(NavigateIT.class.getName());
+        if (baggage != null && !baggage.isBlank()) {
+            Map<String, String> headers = new HashMap<>();
+            headers.put("baggage", baggage);
+            context.setExtraHTTPHeaders(headers);
+        }
     }
     page = context.newPage();
 }
@@ -129,13 +134,11 @@ void createContextAndPage() {
 static void closeBrowser() {
     browser.close();
     playwright.close();
-    if (ParasoftSettings.isParallelTestExecution()) {
-        ParasoftSessionManager.stopSession(NavigateIT.class.getName());
-    }
+    ParasoftSessionManager.unregister(NavigateIT.class.getName());
 }
 ```
 
-This achieves the same coverage attribution as the proxy-based approach used by the Selenium modules, but uses Playwright's native API instead of LittleProxy. The `@BeforeAll`/`@AfterAll` session management is analogous to the `ParasoftWebDriverResource` lifecycle in the Selenium module.
+This achieves the same coverage attribution as the proxy-based approach used by the Selenium modules, but uses Playwright's native API instead of LittleProxy. The `@BeforeAll` `registerParallelId` and `@AfterAll` `unregister` calls are analogous to the registrations performed by the `ParasoftWebDriverResource` constructor and `close()` in the Selenium module.
 
 ## Configuring Settings
 
