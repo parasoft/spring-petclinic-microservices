@@ -20,6 +20,7 @@ All source lives under `src/test/java/org/springframework/samples/petclinic/test
 | `ParasoftCTPApiClient` | REST API client for Parasoft CTP. Provides methods for session start/stop, test start/stop, coverage publishing to DTP, and baseline publishing for Test Impact Analysis. |
 | `ParasoftSessionManager` | Manages the single CTP test session for the entire test run. Started once by the SuiteListener at suite start (with `userId` in multi-user mode). Tracks the per-test `baggage` header value sourced from the `/test/start` API response, and propagates it to Selenium proxy `AtomicReference`s and Playwright contexts via per-test-context registrations. Records per-test parallel IDs (WebDriver session IDs / Playwright UUIDs) when `CTP_PARALLEL_TEST_EXECUTION=true`. |
 | `ParasoftHeaderInjectingProxy` | LittleProxy-based HTTP proxy that injects a `baggage` header (e.g. `test-operator-id=<userId>+<parallelId>`) into all proxied requests. The header value is sourced from the `/test/start` API response and held in an `AtomicReference` that `ParasoftSessionManager` updates per-test. Required for code coverage attribution when coverage agents are in multi-user mode. Uses dynamic port assignment. |
+| `ParasoftWatcherUtil` | Shared per-test start/stop logic invoked by all four watcher classes (`ParasoftWatcher`, `ParasoftWatcherPlaywright`, `ParasoftWatcherCucumber`, `ParasoftWatcherTestNG`). Centralizes the single-user / multi-user / parallel branching so the framework-specific watchers stay thin adapters that only translate framework events into `testId`, `testContextKey`, `passed`, and `failureMessage`. |
 
 ### `junit5` subpackage
 
@@ -28,7 +29,7 @@ For JUnit 5 (Jupiter) test modules, like `spring-petclinic-selenium-tests` and `
 | Class | Purpose |
 |---|---|
 | `ParasoftSuiteListener` | Implements `TestExecutionListener`. On test plan start: starts the single CTP session for the entire run. On test plan finish: stops the session and optionally publishes coverage and/or baseline data. |
-| `ParasoftWatcher` | Implements `BeforeEachCallback` + `TestWatcher`. Calls CTP test start before each test and CTP test stop (with PASS/FAIL result) after each test. Used by Selenium JUnit 5 tests. |
+| `ParasoftWatcher` | Thin JUnit 5 adapter that translates `BeforeEachCallback` / `TestWatcher` events into calls on `ParasoftWatcherUtil` for per-test CTP start/stop. Used by Selenium JUnit 5 tests. |
 
 ### `junit5.cucumber` subpackage
 
@@ -37,7 +38,7 @@ For the Cucumber test module (`spring-petclinic-selenium-cucumber-tests`).
 | Class | Purpose |
 |---|---|
 | `ParasoftSuiteListenerCucumber` | Uses Cucumber `@BeforeAll`/`@AfterAll` hooks (instead of JUnit `TestExecutionListener`) to start/stop the CTP session and publish coverage/baseline data. |
-| `ParasoftWatcherCucumber` | Uses Cucumber `@Before`/`@After` hooks to call CTP test start/stop for each scenario. |
+| `ParasoftWatcherCucumber` | Thin Cucumber adapter that translates `@Before`/`@After` scenario hooks into calls on `ParasoftWatcherUtil` for per-scenario CTP start/stop. |
 | `ParasoftCucumberUtil` | Utility to derive a CTP test ID from a Cucumber `Scenario` in the format `featurefile.feature#Scenario Name`. |
 
 ### `junit5.playwright` subpackage
@@ -46,7 +47,7 @@ For the Playwright test module (`spring-petclinic-playwright-tests`).
 
 | Class | Purpose |
 |---|---|
-| `ParasoftWatcherPlaywright` | Implements `BeforeEachCallback` + `TestWatcher`, similar to `ParasoftWatcher` but with Playwright-specific failure message normalization (strips stack traces and `at` lines). |
+| `ParasoftWatcherPlaywright` | Thin JUnit 5 adapter (`BeforeEachCallback` + `TestWatcher`) that translates events into calls on `ParasoftWatcherUtil`, with Playwright-specific failure-message normalization (strips stack traces and `at` lines) before delegating. |
 
 ### `testng` subpackage
 
@@ -55,7 +56,7 @@ For the TestNG test module (`spring-petclinic-selenium-testng-tests`).
 | Class | Purpose |
 |---|---|
 | `ParasoftSuiteListenerTestNG` | Implements TestNG `ISuiteListener`. Starts/stops the CTP session at suite boundaries and publishes coverage/baseline data. |
-| `ParasoftWatcherTestNG` | Implements TestNG `ITestListener`. Calls CTP test start/stop for each test method. |
+| `ParasoftWatcherTestNG` | Thin TestNG adapter that translates `ITestListener` events into calls on `ParasoftWatcherUtil` for per-test CTP start/stop. |
 
 ### `selenium` subpackage
 
@@ -65,7 +66,7 @@ Shared Selenium WebDriver infrastructure used by all Selenium-based test modules
 |---|---|
 | `BrowserType` | Enum: `CHROME`, `FIREFOX`, `EDGE`. |
 | `WebDriverConfigurator` | Strategy interface — `void configure(MutableCapabilities options)`. |
-| `BasicWebDriverConfigurator` | Configurator for basic browser options with examples that set window size and position. |
+| `BasicWebDriverConfigurator` | Configurator for basic browser options: window size/position, plus Chrome startup-quieting flags (background networking, component updater, sync, translate, optimization hints, etc.) that mirror Playwright's bundled-Chromium defaults to suppress Chrome's background startup network traffic. |
 | `ParasoftWebDriverConfigurator` | Configurator that starts the `ParasoftHeaderInjectingProxy` (if multi-user mode) and configures the browser's proxy settings to route through it. Also applies headless mode. |
 | `WebDriverFactory` | Factory method `create(BrowserType, WebDriverConfigurator...)` that builds a `MutableCapabilities`, applies all configurators, and creates either a local or `RemoteWebDriver` (Selenium Grid). Returns a `ParasoftWebDriverResource`. |
 | `ParasoftWebDriverResource` | `AutoCloseable` wrapper around `WebDriver` + proxy. On construction (multi-user mode only): registers the proxy's baggage `AtomicReference` with `ParasoftSessionManager` so per-test baggage from `/test/start` is automatically propagated; if parallel mode is also enabled, registers the WebDriver session ID as the parallel ID for this test context. On `close()`: quits the driver, stops the proxy, and unregisters from `ParasoftSessionManager`. |
