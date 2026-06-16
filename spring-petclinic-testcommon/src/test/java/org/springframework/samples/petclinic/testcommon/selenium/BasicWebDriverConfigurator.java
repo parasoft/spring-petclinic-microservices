@@ -32,8 +32,7 @@ public class BasicWebDriverConfigurator implements WebDriverConfigurator {
             chromeOptions.addArguments("--window-position=" + windowPosition);
             // Suppress Chrome's background startup network traffic
             // These flags mirror the defaults that Playwright's launcher applies to its
-            // bundled Chromium, which is why Playwright-driven browsers are far less affected
-            // by the same parallel-startup slowness.
+            // bundled Chromium
             chromeOptions.addArguments(
                 "--no-first-run",
                 "--no-default-browser-check",
