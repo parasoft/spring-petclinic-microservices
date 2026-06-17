@@ -69,7 +69,7 @@ public class ParasoftSessionManager {
     public static void startSession() {
         if (ParasoftSettings.isParallelTestExecution() && !ParasoftSettings.isMultiUserMode()) {
             if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
-                LOGGER.severe("[ParasoftSessionManager] startSession(): CTP_PARALLEL_TEST_EXECUTION=true requires CTP_MULTI_USER_MODE=true. Running parallel tests in single-user mode is an invalid configuration because concurrent tests cannot be distinguished by the coverage agents when they are in single-user mode.");
+                LOGGER.severe("[ParasoftSessionManager] startSession: invalid configuration - CTP_PARALLEL_TEST_EXECUTION=true requires CTP_MULTI_USER_MODE=true");
             }
         }
         userId = buildUserId();
@@ -102,7 +102,7 @@ public class ParasoftSessionManager {
     public static String getParallelId(String testContextKey) {
         if (testContextKey == null || testContextKey.isBlank()) {
             if (ParasoftSettings.isLogLevelEnabled("WARN")) {
-                LOGGER.warning("[ParasoftSessionManager] getParallelId(): testContextKey must not be null or blank");
+                LOGGER.warning("[ParasoftSessionManager] getParallelId: testContextKey must not be null or blank");
             }
             return null;
         }
@@ -121,13 +121,13 @@ public class ParasoftSessionManager {
     public static void registerParallelId(String testContextKey, String parallelId) {
         if (testContextKey == null || testContextKey.isBlank()) {
             if (ParasoftSettings.isLogLevelEnabled("WARN")) {
-                LOGGER.warning("[ParasoftSessionManager] registerParallelId(): testContextKey must not be null or blank; skipping");
+                LOGGER.warning("[ParasoftSessionManager] registerParallelId: testContextKey must not be null or blank; skipping");
             }
             return;
         }
         if (parallelId == null) {
             if (ParasoftSettings.isLogLevelEnabled("WARN")) {
-                LOGGER.warning("[ParasoftSessionManager] registerParallelId(): parallelId is null for " + testContextKey + "; skipping");
+                LOGGER.warning("[ParasoftSessionManager] [" + testContextKey + "] registerParallelId: parallelId is null; skipping");
             }
             return;
         }
@@ -153,7 +153,7 @@ public class ParasoftSessionManager {
     public static AtomicReference<String> obtainProxyBaggageRef(String testContextKey) {
         if (testContextKey == null || testContextKey.isBlank()) {
             if (ParasoftSettings.isLogLevelEnabled("WARN")) {
-                LOGGER.warning("[ParasoftSessionManager] obtainProxyBaggageRef(): testContextKey must not be null or blank; returning null");
+                LOGGER.warning("[ParasoftSessionManager] obtainProxyBaggageRef: testContextKey must not be null or blank; returning null");
             }
             return null;
         }
@@ -185,7 +185,7 @@ public class ParasoftSessionManager {
     public static void updateBaggage(String testContextKey, String baggage) {
         if (testContextKey == null || testContextKey.isBlank()) {
             if (ParasoftSettings.isLogLevelEnabled("WARN")) {
-                LOGGER.warning("[ParasoftSessionManager] updateBaggage(): testContextKey must not be null or blank; skipping");
+                LOGGER.warning("[ParasoftSessionManager] updateBaggage: testContextKey must not be null or blank; skipping");
             }
             return;
         }
@@ -201,7 +201,7 @@ public class ParasoftSessionManager {
     public static void resetBaggage(String testContextKey) {
         if (testContextKey == null || testContextKey.isBlank()) {
             if (ParasoftSettings.isLogLevelEnabled("WARN")) {
-                LOGGER.warning("[ParasoftSessionManager] resetBaggage(): testContextKey must not be null or blank; skipping");
+                LOGGER.warning("[ParasoftSessionManager] resetBaggage: testContextKey must not be null or blank; skipping");
             }
             return;
         }
@@ -220,7 +220,7 @@ public class ParasoftSessionManager {
     public static String getBaggage(String testContextKey) {
         if (testContextKey == null || testContextKey.isBlank()) {
             if (ParasoftSettings.isLogLevelEnabled("WARN")) {
-                LOGGER.warning("[ParasoftSessionManager] getBaggage(): testContextKey must not be null or blank");
+                LOGGER.warning("[ParasoftSessionManager] getBaggage: testContextKey must not be null or blank");
             }
             return null;
         }
@@ -245,7 +245,7 @@ public class ParasoftSessionManager {
     public static void unregister(String testContextKey) {
         if (testContextKey == null || testContextKey.isBlank()) {
             if (ParasoftSettings.isLogLevelEnabled("WARN")) {
-                LOGGER.warning("[ParasoftSessionManager] unregister(): testContextKey must not be null or blank; skipping");
+                LOGGER.warning("[ParasoftSessionManager] unregister: testContextKey must not be null or blank; skipping");
             }
             return;
         }
@@ -257,9 +257,6 @@ public class ParasoftSessionManager {
     public static void publishCoverageAtSuiteEnd() {
         if (ctpSessionId != null && !ctpSessionId.isBlank()
                 && dtpSessionTag != null && !dtpSessionTag.isBlank()) {
-            if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
-                LOGGER.info("[ParasoftSessionManager] publishCoverageAtSuiteEnd(): Publishing coverage for session " + ctpSessionId);
-            }
             if (ParasoftSettings.isMultiUserMode() && userId != null && !userId.isBlank()) {
                 ParasoftCTPApiClient.publishCoverage(ctpSessionId, dtpSessionTag, userId);
             } else {
@@ -267,7 +264,7 @@ public class ParasoftSessionManager {
             }
         } else {
             if (ParasoftSettings.isLogLevelEnabled("WARN")) {
-                LOGGER.warning("[ParasoftSessionManager] publishCoverageAtSuiteEnd(): Skipping publishing coverage — missing session information: ctpSessionId=" + ctpSessionId + ", dtpSessionTag=" + dtpSessionTag);
+                LOGGER.warning("[ParasoftSessionManager] publishCoverageAtSuiteEnd: skipping publishing coverage - missing session information: ctpSessionId=" + ctpSessionId + ", dtpSessionTag=" + dtpSessionTag);
             }
         }
     }

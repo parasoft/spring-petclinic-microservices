@@ -31,7 +31,7 @@ public final class ParasoftWatcherUtil {
                 // Tests running in parallel must include a baggage header containing userId+parallelId
                 String parallelId = ParasoftSessionManager.getParallelId(testContextKey);
                 if (parallelId == null && ParasoftSettings.isLogLevelEnabled("WARN")) {
-                    LOGGER.warning("[" + watcherTag + "] parallelId is null for " + testContextKey + " in parallel mode");
+                    LOGGER.warning("[ParasoftWatcherUtil] [" + watcherTag + "] [" + testContextKey + "] startTest: parallelId is null in parallel mode");
                 }
                 baggage = ParasoftCTPApiClient.startTest(testId, ParasoftSessionManager.getUserId(), parallelId);
             } else {

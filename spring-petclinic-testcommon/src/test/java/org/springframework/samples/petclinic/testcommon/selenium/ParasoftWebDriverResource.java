@@ -38,7 +38,7 @@ public class ParasoftWebDriverResource implements AutoCloseable {
             if (webDriverSessionId != null) {
                 ParasoftSessionManager.registerParallelId(testContextKey, webDriverSessionId);
             } else if (ParasoftSettings.isLogLevelEnabled("WARN")) {
-                LOGGER.warning("[ParasoftWebDriverResource] webDriverSessionId is null for " + testContextKey
+                LOGGER.warning("[ParasoftWebDriverResource] [" + testContextKey + "] webDriverSessionId is null"
                         + " in parallel mode; parallelId will be absent from API calls and concurrent tests may not be distinguishable by the coverage agents");
             }
         }

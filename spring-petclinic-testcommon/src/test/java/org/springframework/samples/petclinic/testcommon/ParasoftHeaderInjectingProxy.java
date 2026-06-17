@@ -31,7 +31,7 @@ import org.littleshoot.proxy.impl.DefaultHttpProxyServer;
  * Uses LittleProxy and Netty with dynamic port assignment.
  */
 public class ParasoftHeaderInjectingProxy {
-    private final Logger LOGGER = Logger.getLogger(ParasoftHeaderInjectingProxy.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(ParasoftHeaderInjectingProxy.class.getName());
     private final AtomicReference<String> baggageRef;
     private final HttpProxyServer proxy;
 
@@ -92,7 +92,7 @@ public class ParasoftHeaderInjectingProxy {
                                     String value = baggageRef.get();
                                     if (traceEnabled) {
                                         // very noisy, enable TRACE if you need to see the baggage header being injected into the requests
-                                        LOGGER.info("[ParasoftHeaderInjectingProxy] Proxy baggage header: baggage: " + value);
+                                        LOGGER.info("[ParasoftHeaderInjectingProxy] injecting header=" + value);
                                     }
                                     if (value != null && !ParasoftSessionManager.isBaggageSentinel(value)) {
                                         request.headers().set("baggage", value);
