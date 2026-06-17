@@ -486,7 +486,7 @@ public class ParasoftCTPApiClient {
         String resolvedDtpSessionTag = resolveDtpSessionTag(dtpSessionTag);
 
         if (ParasoftSettings.isLogLevelEnabled("INFO")) {
-            LOGGER.info("[ParasoftCTPApiClient] publishCoverage: envId=" + ParasoftSettings.CTP_ENV_ID + ", userId=" + resolvedUserId + ", dtpSessionTag=" + resolvedDtpSessionTag + ", sessionId=" + sessionId);
+            LOGGER.info("[ParasoftCTPApiClient] [" + sessionId + "] publishCoverage: envId=" + ParasoftSettings.CTP_ENV_ID + ", userId=" + resolvedUserId + ", dtpSessionTag=" + resolvedDtpSessionTag);
         }
 
         StringBuilder payload = new StringBuilder();
@@ -510,29 +510,29 @@ public class ParasoftCTPApiClient {
             .build();
         try {
             if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
-                LOGGER.info("[ParasoftCTPApiClient] -> POST " + apiPath(request.uri()) + " payload=" + payload);
+                LOGGER.info("[ParasoftCTPApiClient] [" + sessionId + "] -> POST " + apiPath(request.uri()) + " payload=" + payload);
             }
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 200) {
                 if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
-                    LOGGER.info("[ParasoftCTPApiClient] <- " + response.statusCode() + " body=" + response.body());
+                    LOGGER.info("[ParasoftCTPApiClient] [" + sessionId + "] <- " + response.statusCode() + " body=" + response.body());
                 }
             } else {
                 if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
-                    LOGGER.severe("[ParasoftCTPApiClient] publishCoverage failed: " + response.statusCode() + " Response - " + summarizeBody(response.body()));
+                    LOGGER.severe("[ParasoftCTPApiClient] [" + sessionId + "] publishCoverage failed: " + response.statusCode() + " Response - " + summarizeBody(response.body()));
                 }
             }
         } catch (SocketException ce) {
             if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
-                LOGGER.severe("[ParasoftCTPApiClient] publishCoverage failed: connection error - " + ce.getMessage());
+                LOGGER.severe("[ParasoftCTPApiClient] [" + sessionId + "] publishCoverage failed: connection error - " + ce.getMessage());
             }
         } catch (IOException ioe) {
             if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
-                LOGGER.severe("[ParasoftCTPApiClient] publishCoverage failed: IO error - " + ioe.getMessage());
+                LOGGER.severe("[ParasoftCTPApiClient] [" + sessionId + "] publishCoverage failed: IO error - " + ioe.getMessage());
             }
         } catch (Exception e) {
             if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
-                LOGGER.severe("[ParasoftCTPApiClient] publishCoverage failed: unexpected error - " + e.getMessage());
+                LOGGER.severe("[ParasoftCTPApiClient] [" + sessionId + "] publishCoverage failed: unexpected error - " + e.getMessage());
             }
         }
     }
@@ -544,7 +544,7 @@ public class ParasoftCTPApiClient {
      */
     public static void publishBaseline() {
         if (ParasoftSettings.isLogLevelEnabled("INFO")) {
-            LOGGER.info("[ParasoftCTPApiClient] publishBaseline: envId=" + ParasoftSettings.CTP_ENV_ID + ", baselineBuildId=" + ParasoftSettings.CTP_BASELINE_BUILD_ID);
+            LOGGER.info("[ParasoftCTPApiClient] [" + ParasoftSettings.CTP_BASELINE_BUILD_ID + "] publishBaseline: envId=" + ParasoftSettings.CTP_ENV_ID);
         }
 
         HttpRequest request = HttpRequest.newBuilder()
@@ -555,29 +555,29 @@ public class ParasoftCTPApiClient {
             .build();
         try {
             if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
-                LOGGER.info("[ParasoftCTPApiClient] -> POST " + apiPath(request.uri()) + " payload=<none>");
+                LOGGER.info("[ParasoftCTPApiClient] [" + ParasoftSettings.CTP_BASELINE_BUILD_ID + "] -> POST " + apiPath(request.uri()) + " payload=<none>");
             }
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 200) {
                 if (ParasoftSettings.isLogLevelEnabled("DEBUG")) {
-                    LOGGER.info("[ParasoftCTPApiClient] <- " + response.statusCode() + " body=" + response.body());
+                    LOGGER.info("[ParasoftCTPApiClient] [" + ParasoftSettings.CTP_BASELINE_BUILD_ID + "] <- " + response.statusCode() + " body=" + response.body());
                 }
             } else {
                 if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
-                    LOGGER.severe("[ParasoftCTPApiClient] publishBaseline failed: " + response.statusCode() + " Response - " + summarizeBody(response.body()));
+                    LOGGER.severe("[ParasoftCTPApiClient] [" + ParasoftSettings.CTP_BASELINE_BUILD_ID + "] publishBaseline failed: " + response.statusCode() + " Response - " + summarizeBody(response.body()));
                 }
             }
         } catch (SocketException ce) {
             if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
-                LOGGER.severe("[ParasoftCTPApiClient] publishBaseline failed: connection error - " + ce.getMessage());
+                LOGGER.severe("[ParasoftCTPApiClient] [" + ParasoftSettings.CTP_BASELINE_BUILD_ID + "] publishBaseline failed: connection error - " + ce.getMessage());
             }
         } catch (IOException ioe) {
             if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
-                LOGGER.severe("[ParasoftCTPApiClient] publishBaseline failed: IO error - " + ioe.getMessage());
+                LOGGER.severe("[ParasoftCTPApiClient] [" + ParasoftSettings.CTP_BASELINE_BUILD_ID + "] publishBaseline failed: IO error - " + ioe.getMessage());
             }
         } catch (Exception e) {
             if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
-                LOGGER.severe("[ParasoftCTPApiClient] publishBaseline failed: unexpected error - " + e.getMessage());
+                LOGGER.severe("[ParasoftCTPApiClient] [" + ParasoftSettings.CTP_BASELINE_BUILD_ID + "] publishBaseline failed: unexpected error - " + e.getMessage());
             }
         }
     }
