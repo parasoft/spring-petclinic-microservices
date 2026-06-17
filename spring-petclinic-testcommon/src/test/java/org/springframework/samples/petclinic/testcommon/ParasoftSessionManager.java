@@ -226,10 +226,16 @@ public class ParasoftSessionManager {
         }
         AtomicReference<String> ref = BAGGAGE_REFS.get(testContextKey);
         if (ref == null) {
+            if (ParasoftSettings.isLogLevelEnabled("WARN")) {
+                LOGGER.warning("[ParasoftSessionManager] getBaggage: no AtomicReference found for testContextKey=" + testContextKey);
+            }
             return null;
         }
         String baggage = ref.get();
         if (baggage == null || isBaggageSentinel(baggage)) {
+            if (ParasoftSettings.isLogLevelEnabled("WARN")) {
+                LOGGER.warning("[ParasoftSessionManager] getBaggage: baggage is null or a sentinel value for testContextKey=" + testContextKey);
+            }
             return null;
         }
         return baggage;
