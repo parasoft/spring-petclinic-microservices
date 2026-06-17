@@ -22,22 +22,19 @@ import java.util.logging.Logger;
 public class ParasoftSessionManager {
     private static final Logger LOGGER = Logger.getLogger(ParasoftSessionManager.class.getName());
 
-    /**
-     * Prefix used by all baggage sentinel values. Real API baggage values from {@code /test/start}
-     * never start with this prefix, so callers can use {@link #isBaggageSentinel(String)} to
-     * distinguish a real value from a placeholder.
-     */
-    public static final String BAGGAGE_SENTINEL_PREFIX = "__";
-
     /** Sentinel: a baggage {@link AtomicReference} was created but no test has populated it yet. */
     public static final String BAGGAGE_UNINITIALIZED = "__UNINITIALIZED__";
 
     /** Sentinel: a test completed and its baggage was cleared until the next test populates it. */
     public static final String BAGGAGE_RESET = "__RESET__";
 
-    /** Returns {@code true} if {@code value} is a baggage sentinel (placeholder, not a real API value). */
+    /**
+     * Returns {@code true} if {@code value} is one of the baggage sentinels
+     * ({@link #BAGGAGE_UNINITIALIZED} or {@link #BAGGAGE_RESET}) rather than a real
+     * value from the {@code /test/start} API response. Null-safe.
+     */
     public static boolean isBaggageSentinel(String value) {
-        return value != null && value.startsWith(BAGGAGE_SENTINEL_PREFIX);
+        return BAGGAGE_UNINITIALIZED.equals(value) || BAGGAGE_RESET.equals(value);
     }
 
     // Single-session state — populated once by startSession() at suite start
@@ -216,8 +213,9 @@ public class ParasoftSessionManager {
 
     /**
      * Returns the current baggage value for a test context key, or {@code null} if the value is
-     * absent or is a sentinel (starts with {@code "__"}). Sentinel filtering is centralized here so
-     * callers (e.g. Playwright {@code @BeforeEach}) do not need to know the sentinel convention.
+     * absent or is a sentinel ({@link #BAGGAGE_UNINITIALIZED} or {@link #BAGGAGE_RESET}). Sentinel
+     * filtering is centralized here so callers (e.g. Playwright {@code @BeforeEach}) do not need
+     * to know which placeholder values exist.
      */
     public static String getBaggage(String testContextKey) {
         if (testContextKey == null || testContextKey.isBlank()) {
