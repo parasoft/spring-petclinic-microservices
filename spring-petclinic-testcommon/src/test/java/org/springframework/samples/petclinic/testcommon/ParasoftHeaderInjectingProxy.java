@@ -92,7 +92,7 @@ public class ParasoftHeaderInjectingProxy {
                                     String value = baggageRef.get();
                                     if (traceEnabled) {
                                         // very noisy, enable TRACE if you need to see the baggage header being injected into the requests
-                                        LOGGER.info("[ParasoftHeaderInjectingProxy] injecting header=" + value);
+                                        LOGGER.info("[ParasoftHeaderInjectingProxy] injecting header [baggage: " + value + "]");
                                     }
                                     if (value != null && !ParasoftSessionManager.isBaggageSentinel(value)) {
                                         request.headers().set("baggage", value);
