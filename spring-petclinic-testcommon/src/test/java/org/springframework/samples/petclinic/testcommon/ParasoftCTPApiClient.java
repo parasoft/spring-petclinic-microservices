@@ -228,21 +228,21 @@ public class ParasoftCTPApiClient {
                     return baggage;
                 }
             } else {
-                if (ParasoftSettings.isLogLevelEnabled("WARN")) {
-                    LOGGER.warning("[ParasoftCTPApiClient] [" + testId + "] startTest failed: " + response.statusCode() + " Response - " + summarizeBody(response.body()) + "; using fallback baggage");
+                if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
+                    LOGGER.severe("[ParasoftCTPApiClient] [" + testId + "] startTest failed: " + response.statusCode() + " Response - " + summarizeBody(response.body()) + "; using fallback baggage");
                 }
             }
         } catch (SocketException ce) {
-            if (ParasoftSettings.isLogLevelEnabled("WARN")) {
-                LOGGER.warning("[ParasoftCTPApiClient] [" + testId + "] startTest failed: connection error - " + ce.getMessage() + "; using fallback baggage");
+            if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
+                LOGGER.severe("[ParasoftCTPApiClient] [" + testId + "] startTest failed: connection error - " + ce.getMessage() + "; using fallback baggage");
             }
         } catch (IOException ioe) {
-            if (ParasoftSettings.isLogLevelEnabled("WARN")) {
-                LOGGER.warning("[ParasoftCTPApiClient] [" + testId + "] startTest failed: IO error - " + ioe.getMessage() + "; using fallback baggage");
+            if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
+                LOGGER.severe("[ParasoftCTPApiClient] [" + testId + "] startTest failed: IO error - " + ioe.getMessage() + "; using fallback baggage");
             }
         } catch (Exception e) {
-            if (ParasoftSettings.isLogLevelEnabled("WARN")) {
-                LOGGER.warning("[ParasoftCTPApiClient] [" + testId + "] startTest failed: unexpected error - " + e.getMessage() + "; using fallback baggage");
+            if (ParasoftSettings.isLogLevelEnabled("ERROR")) {
+                LOGGER.severe("[ParasoftCTPApiClient] [" + testId + "] startTest failed: unexpected error - " + e.getMessage() + "; using fallback baggage");
             }
         }
         return fallbackBaggage;
@@ -628,7 +628,7 @@ public class ParasoftCTPApiClient {
     private static String resolveDtpSessionTag(String dtpSessionTag) {
         if (dtpSessionTag == null || dtpSessionTag.isBlank()) {
             if (ParasoftSettings.isLogLevelEnabled("WARN")) {
-                LOGGER.warning("[ParasoftCTPApiClient] resolveDtpSessionTag: no tag provided, assuming default");
+                LOGGER.warning("[ParasoftCTPApiClient] resolveDtpSessionTag: no tag provided, using fallback 'NoDTPSessionTagProvided'");
             }
             return "NoDTPSessionTagProvided";
         }
