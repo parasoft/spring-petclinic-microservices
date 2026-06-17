@@ -11,9 +11,10 @@ import java.util.logging.Logger;
  * Responsibilities include:
  * <ul>
  *   <li>Starting and stopping the CTP session (once per suite via the SuiteListener)</li>
- *   <li>Registering per-test-class parallel IDs and Selenium proxy baggage references</li>
- *   <li>Distributing the per-test baggage value from {@code /test/start} responses to Selenium
- *       proxies and Playwright contexts</li>
+ *   <li>Registering per-test-class parallel IDs and vending baggage references for Selenium proxies</li>
+ *   <li>Holding the per-test baggage value from {@code /test/start} responses in a single
+ *       {@link AtomicReference} per test context, read on the Netty proxy hot path and by Playwright
+ *       {@code @BeforeEach}</li>
  *   <li>Publishing coverage data to Parasoft DTP at the end of the test suite</li>
  *   <li>Publishing baseline data to Parasoft CTP at the end of the test suite</li>
  * </ul>
@@ -44,29 +45,22 @@ public class ParasoftSessionManager {
     private static volatile String ctpSessionId = null;
     private static volatile String dtpSessionTag = null;
 
-    // Maps the testContextKey to the AtomicReference held inside the Selenium proxy for that context.
+    // Single canonical baggage store: maps the testContextKey to an AtomicReference holding the
+    // current test's baggage header value. The same reference is handed to the Netty proxy at
+    // construction time via obtainProxyBaggageRef(), so the proxy's hot path is a single lock-free
+    // ref.get() and updateBaggage() / resetBaggage() / getBaggage() all operate on the same ref.
+    // Handles three consumer patterns with one map:
+    //   - Selenium: the proxy is constructed with the ref returned by obtainProxyBaggageRef() and
+    //     reads it directly on every proxied request.
+    //   - Playwright (no proxy): @BeforeEach reads the latest value via getBaggage(testContextKey).
+    //   - Cucumber early-write: the watcher's @Before may fire before the @Given step constructs
+    //     the proxy. updateBaggage() lazily creates the ref so the value is preserved; the proxy
+    //     then adopts the existing ref when it later calls obtainProxyBaggageRef().
+    //
     // testContextKey: test class name (Selenium/TestNG/Playwright) or Cucumber scenario ID.
-    // baggageRef: updated per-test from the /test/start response via updateBaggage(); pre-set at
-    //   registration time with stable sequential baggage when isParallelTestExecution() is false.
-    private static final Map<String, AtomicReference<String>> PROXY_BAGGAGE_REFS = new ConcurrentHashMap<>(); // <String testContextKey, AtomicReference<String> baggageRef>
-
-    // Maps the testContextKey to the current test's baggage header value.
-    // baggage: full header value (e.g. "test-operator-id=admin+uuid") sourced from /test/start response.
-    //
-    // CURRENT_BAGGAGE is the canonical state store ("what is the latest baggage for this test context?");
-    // PROXY_BAGGAGE_REFS above is a separate push channel that delivers updates into the Netty proxy's
-    // lock-free AtomicReference. updateBaggage() writes to both so they stay in sync, but they are not
-    // interchangeable — CURRENT_BAGGAGE is required for two cases that PROXY_BAGGAGE_REFS cannot serve:
-    //   1. Playwright tests construct no proxy and never call registerProxyBaggageRef(). Their @BeforeEach
-    //      reads the baggage via getBaggage(), which reads from this map.
-    //   2. In Cucumber, the watcher's @Before fires (and calls updateBaggage()) before the @Given step
-    //      creates the WebDriver/proxy. CURRENT_BAGGAGE captures that early write so the later
-    //      registerProxyBaggageRef() call can pre-populate the new proxy's AtomicReference with it.
-    //
-    // Read by getBaggage() (sentinel-filtered); written by updateBaggage(); written-to-sentinel by
-    // resetBaggage() via computeIfPresent() (avoids re-introducing a key after unregister()); cleared by
-    // unregister().
-    private static final Map<String, String> CURRENT_BAGGAGE = new ConcurrentHashMap<>(); // <String testContextKey, String baggage>
+    // baggage value: full header value (e.g. "test-operator-id=admin+uuid") sourced from the
+    //   /test/start response, or a sentinel ("__UNINITIALIZED__" / "__RESET__").
+    private static final Map<String, AtomicReference<String>> BAGGAGE_REFS = new ConcurrentHashMap<>(); // <String testContextKey, AtomicReference<String> baggageRef>
 
     // Maps the testContextKey to the parallelId for that concurrent test execution thread.
     // parallelId: WebDriver session ID (Selenium) or UUID (Playwright) registered in @BeforeAll/@BeforeClass;
@@ -144,48 +138,52 @@ public class ParasoftSessionManager {
     }
 
     /**
-     * Registers the Selenium proxy's baggage {@link AtomicReference} for a test context key, and
-     * immediately pre-sets the best available baggage value on the proxy ref.
+     * Returns the baggage {@link AtomicReference} for a test context key, creating it lazily if
+     * none exists yet. The {@link org.springframework.samples.petclinic.testcommon.ParasoftHeaderInjectingProxy}
+     * constructor calls this to obtain the ref it will read on its hot path; subsequent
+     * {@link #updateBaggage(String, String)} and {@link #resetBaggage(String)} calls operate on
+     * the same ref so updates are visible to the proxy without any further wiring.
      * <p>
-     * If a valid baggage string already exists in {@code CURRENT_BAGGAGE} for this key (written by a
-     * preceding watcher {@code updateBaggage()} call — possible in Cucumber where the watcher
-     * {@code @Before} fires before the {@code @Given} step creates the proxy), that value is applied
-     * to the proxy ref. Otherwise, if in sequential multi-user mode, the stable fallback
-     * {@code "test-operator-id=" + userId} is pre-set so the proxy has a sensible default from the
-     * moment it is created.
+     * If a preceding {@link #updateBaggage(String, String)} already created the ref with a real
+     * value (Cucumber: watcher {@code @Before} fires before the {@code @Given} step creates the
+     * proxy), the existing ref is returned unchanged. Otherwise a new ref is created and
+     * pre-populated with a sensible default: in sequential multi-user mode that is the stable
+     * {@code "test-operator-id=" + userId} fallback; in parallel mode the ref starts at the
+     * {@code __UNINITIALIZED__} sentinel and the proxy serves no header until the watcher fires.
      * <p>
-     * Called from the {@link org.springframework.samples.petclinic.testcommon.selenium.ParasoftWebDriverResource}
-     * constructor.
+     * Returns {@code null} if {@code testContextKey} is null or blank.
      */
-    public static void registerProxyBaggageRef(String testContextKey, AtomicReference<String> baggageRef) {
+    public static AtomicReference<String> obtainProxyBaggageRef(String testContextKey) {
         if (testContextKey == null || testContextKey.isBlank()) {
             if (ParasoftSettings.isLogLevelEnabled("WARN")) {
-                LOGGER.warning("[ParasoftSessionManager] registerProxyBaggageRef(): testContextKey must not be null or blank; skipping");
+                LOGGER.warning("[ParasoftSessionManager] obtainProxyBaggageRef(): testContextKey must not be null or blank; returning null");
             }
-            return;
+            return null;
         }
-        if (baggageRef == null) {
-            if (ParasoftSettings.isLogLevelEnabled("WARN")) {
-                LOGGER.warning("[ParasoftSessionManager] registerProxyBaggageRef(): baggageRef is null for " + testContextKey + "; skipping");
+        return BAGGAGE_REFS.compute(testContextKey, (k, existing) -> {
+            if (existing != null) {
+                // Watcher already created the ref (e.g. Cucumber early-write); proxy adopts it.
+                return existing;
             }
-            return;
-        }
-        PROXY_BAGGAGE_REFS.put(testContextKey, baggageRef);
-        // Apply the best available baggage to the new proxy ref immediately
-        String existingBaggage = CURRENT_BAGGAGE.get(testContextKey);
-        if (existingBaggage != null && !existingBaggage.isBlank() && !isBaggageSentinel(existingBaggage)) {
-            // Real API baggage already available (e.g. Cucumber watcher @Before fired before proxy creation)
-            baggageRef.set(existingBaggage);
-        } else if (!ParasoftSettings.isParallelTestExecution() && userId != null) {
-            // Sequential multi-user mode: pre-set stable fallback until the watcher fires
-            baggageRef.set("test-operator-id=" + userId);
-        }
+            AtomicReference<String> ref = new AtomicReference<>(BAGGAGE_UNINITIALIZED);
+            if (!ParasoftSettings.isParallelTestExecution() && userId != null) {
+                // Sequential multi-user mode: pre-set stable fallback until the watcher fires.
+                ref.set("test-operator-id=" + userId);
+            }
+            return ref;
+        });
     }
 
     /**
-     * Updates the current baggage value for a test context key and propagates it to the Selenium
-     * proxy's {@link AtomicReference} if one is registered. Called by watcher classes immediately
-     * after {@link ParasoftCTPApiClient#startTest(String, String, String)} returns.
+     * Updates the baggage value for a test context key. The update is visible atomically to all
+     * readers — the Netty proxy's hot-path read, Playwright {@code @BeforeEach}'s
+     * {@link #getBaggage(String)} call, and any subsequent {@link #obtainProxyBaggageRef(String)}
+     * call. Called by watcher classes immediately after
+     * {@link ParasoftCTPApiClient#startTest(String, String, String)} returns.
+     * <p>
+     * If no ref exists yet for this key, one is created lazily so an early-write (Cucumber
+     * watcher {@code @Before} firing before the {@code @Given} step constructs the proxy) is not
+     * lost.
      */
     public static void updateBaggage(String testContextKey, String baggage) {
         if (testContextKey == null || testContextKey.isBlank()) {
@@ -194,20 +192,14 @@ public class ParasoftSessionManager {
             }
             return;
         }
-        CURRENT_BAGGAGE.put(testContextKey, baggage);
-        AtomicReference<String> ref = PROXY_BAGGAGE_REFS.get(testContextKey);
-        if (ref != null) {
-            ref.set(baggage);
-        }
+        BAGGAGE_REFS.computeIfAbsent(testContextKey, k -> new AtomicReference<>(BAGGAGE_UNINITIALIZED)).set(baggage);
     }
 
     /**
      * Resets the baggage for a test context key to the {@code "__RESET__"} sentinel after a test
-     * completes. Uses {@link Map#compute} with {@code computeIfPresent} semantics to avoid
-     * reintroducing the key if {@link #unregister(String)} has already removed it (prevents a race
-     * with Cucumber {@code @After} hook ordering). Also updates the Selenium proxy's
-     * {@link AtomicReference} to the sentinel if one is registered. Called by watcher classes after
-     * each {@code stopTest()} call.
+     * completes. Uses {@link Map#computeIfPresent} so {@link #unregister(String)} can safely run
+     * before this call (Cucumber {@code @After} hook ordering) without reintroducing the key.
+     * Called by watcher classes after each {@code stopTest()} call.
      */
     public static void resetBaggage(String testContextKey) {
         if (testContextKey == null || testContextKey.isBlank()) {
@@ -216,11 +208,10 @@ public class ParasoftSessionManager {
             }
             return;
         }
-        CURRENT_BAGGAGE.computeIfPresent(testContextKey, (k, v) -> BAGGAGE_RESET);
-        AtomicReference<String> ref = PROXY_BAGGAGE_REFS.get(testContextKey);
-        if (ref != null) {
+        BAGGAGE_REFS.computeIfPresent(testContextKey, (k, ref) -> {
             ref.set(BAGGAGE_RESET);
-        }
+            return ref;
+        });
     }
 
     /**
@@ -235,7 +226,11 @@ public class ParasoftSessionManager {
             }
             return null;
         }
-        String baggage = CURRENT_BAGGAGE.get(testContextKey);
+        AtomicReference<String> ref = BAGGAGE_REFS.get(testContextKey);
+        if (ref == null) {
+            return null;
+        }
+        String baggage = ref.get();
         if (baggage == null || isBaggageSentinel(baggage)) {
             return null;
         }
@@ -256,9 +251,8 @@ public class ParasoftSessionManager {
             }
             return;
         }
-        PROXY_BAGGAGE_REFS.remove(testContextKey);
+        BAGGAGE_REFS.remove(testContextKey);
         PARALLEL_IDS.remove(testContextKey);
-        CURRENT_BAGGAGE.remove(testContextKey);
     }
 
     /** Publishes coverage for the single session at suite end. */

@@ -23,6 +23,11 @@ import org.littleshoot.proxy.impl.DefaultHttpProxyServer;
  * is sourced from the {@code /test/start} API response and updated per-test via
  * {@link org.springframework.samples.petclinic.testcommon.ParasoftSessionManager#updateBaggage}.
  * <p>
+ * The {@link AtomicReference} that holds the baggage value is owned by
+ * {@link ParasoftSessionManager} and passed in at construction time (typically obtained via
+ * {@link ParasoftSessionManager#obtainProxyBaggageRef(String)}), so the same ref is shared by
+ * the watcher, Playwright {@code getBaggage()} readers, and this proxy's hot-path read.
+ * <p>
  * Uses LittleProxy and Netty with dynamic port assignment.
  */
 public class ParasoftHeaderInjectingProxy {
@@ -30,18 +35,16 @@ public class ParasoftHeaderInjectingProxy {
     private final AtomicReference<String> baggageRef;
     private final HttpProxyServer proxy;
 
-    public ParasoftHeaderInjectingProxy() {
-        this.baggageRef = new AtomicReference<String>(ParasoftSessionManager.BAGGAGE_UNINITIALIZED);
+    public ParasoftHeaderInjectingProxy(AtomicReference<String> baggageRef) {
+        if (baggageRef == null) {
+            throw new IllegalArgumentException("baggageRef must not be null");
+        }
+        this.baggageRef = baggageRef;
         this.proxy = startProxy();
     }
 
     public HttpProxyServer startProxy() {
         return startProxy(baggageRef);
-    }
-
-    /** Returns the {@link AtomicReference} holding the current baggage value for this proxy instance. */
-    public AtomicReference<String> getBaggageRef() {
-        return baggageRef;
     }
 
     public HttpProxyServer getProxy() {

@@ -1,7 +1,10 @@
 package org.springframework.samples.petclinic.testcommon.selenium;
 
 import org.springframework.samples.petclinic.testcommon.ParasoftHeaderInjectingProxy;
+import org.springframework.samples.petclinic.testcommon.ParasoftSessionManager;
 import org.springframework.samples.petclinic.testcommon.ParasoftSettings;
+
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.Proxy;
@@ -32,7 +35,10 @@ public class ParasoftWebDriverConfigurator implements WebDriverConfigurator {
         // Start the Parasoft header-injecting proxy if in multi-user mode
         int proxyPort = -1;
         if (ParasoftSettings.isMultiUserMode()) {
-            parasoftProxyHandle = new ParasoftHeaderInjectingProxy();
+            // Obtain the per-test-context baggage ref from the session manager so the proxy and the
+            // watcher's updateBaggage() calls all share one AtomicReference.
+            AtomicReference<String> baggageRef = ParasoftSessionManager.obtainProxyBaggageRef(testContextKey);
+            parasoftProxyHandle = new ParasoftHeaderInjectingProxy(baggageRef);
             proxyPort = parasoftProxyHandle.getProxy().getListenAddress().getPort();
         }
         
