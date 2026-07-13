@@ -27,7 +27,7 @@ import com.parasoft.coverage.integration.playwright.PlaywrightCoverageIntegratio
     @BeforeAll
     static void launchBrowser() {
         playwright = Playwright.create();
-        browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(false).setSlowMo(500));
+        browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setSlowMo(500));
     }
 
     @AfterAll
