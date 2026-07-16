@@ -5,6 +5,7 @@ Feature: PetClinic browser actions
     When I navigate to the home page
     Then I should see the PetClinic welcome message
 
+  @pet-name
   Scenario: Edit pet name
     Given the browser is open
     When I navigate to the owners page
@@ -12,6 +13,7 @@ Feature: PetClinic browser actions
     And I edit the pet name to "Lena"
     Then the pet name should be updated to "Lena"
 
+  @pet-name
   Scenario: Edit pet name again
     Given the browser is open
     When I navigate to the owners page

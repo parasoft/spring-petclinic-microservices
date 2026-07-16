@@ -8,6 +8,9 @@ import static io.cucumber.junit.platform.engine.Constants.GLUE_PROPERTY_NAME;
 
 @Suite
 @SelectClasspathResource("features/petclinic.feature")
-@ConfigurationParameter(key = GLUE_PROPERTY_NAME, value = "org.springframework.samples.petclinic.cucumber,org.springframework.samples.petclinic.testcommon.junit5.cucumber")
+@ConfigurationParameter(key = GLUE_PROPERTY_NAME, value = "org.springframework.samples.petclinic.cucumber,com.parasoft.coverage.integration.cucumber")
+@ConfigurationParameter(
+        key = "cucumber.execution.exclusive-resources.pet-name.read-write",
+        value = "petclinic.pet-name")
 public class RunCucumberIT {
 }

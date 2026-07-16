@@ -17,16 +17,35 @@
     <properties>
         <junit.version>5.14.2</junit.version>
         <selenium.version>4.40.0</selenium.version>
-        <cucumber.version>7.34.2</cucumber.version>
+        <cucumber.version>7.34.4</cucumber.version>
         <opentelemetry.version>1.59.0</opentelemetry.version>
+        <coverage-integration.version>0.0.1</coverage-integration.version>
+        <slf4j.version>2.0.17</slf4j.version>
     </properties>
 
     <dependencies>
         <dependency>
-            <groupId>org.springframework.samples.petclinic.testcommon</groupId>
-            <artifactId>spring-petclinic-testcommon</artifactId>
-            <version>1.0.0</version>
-            <type>test-jar</type>
+            <groupId>com.parasoft</groupId>
+            <artifactId>coverage-integration-api</artifactId>
+            <version>${coverage-integration.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.parasoft</groupId>
+            <artifactId>coverage-integration-cucumber</artifactId>
+            <version>${coverage-integration.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.parasoft</groupId>
+            <artifactId>coverage-integration-proxy</artifactId>
+            <version>${coverage-integration.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.parasoft</groupId>
+            <artifactId>coverage-integration-selenium</artifactId>
+            <version>${coverage-integration.version}</version>
             <scope>test</scope>
         </dependency>
 
@@ -73,7 +92,13 @@
             <artifactId>junit-platform-suite-engine</artifactId>
             <scope>test</scope>
         </dependency>
-        
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>${slf4j.version}</version>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
     <dependencyManagement>

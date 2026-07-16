@@ -1,114 +1,202 @@
 # spring-petclinic-selenium-cucumber-tests
 
-Selenium + Cucumber + JUnit Platform functional tests for the Spring Petclinic application, with Parasoft CTP integration for code coverage collection, test result reporting, and Test Impact Analysis.
+Selenium + Cucumber + JUnit Platform functional tests for the Spring Petclinic application, with Parasoft CTP integration for runtime coverage collection and test-result publishing.
 
-This module only supports sequential test execution. Parallel test execution is not yet implemented for this module, so `CTP_PARALLEL_TEST_EXECUTION` must remain `false`.
+Sequential execution is the default. Parallel scenario execution is also supported when both Cucumber parallel execution and coverage parallel IDs are enabled.
 
 ## Prerequisites
 
 - The Petclinic application must be running and accessible.
-- Parasoft CTP must be running and configured with coverage agents deployed on the Petclinic services.
-- The project must be built before running tests:
+- Parasoft CTP must be running.
+- The selected CTP environment must contain coverage-agent connections for the Petclinic services.
+- The Petclinic services must be started with their coverage agents enabled.
+- The `coverage-integration` artifacts must be available from the configured Maven repository or installed in the local Maven repository.
 
-```
+Build the project before running the tests:
+
+```bash
 mvn -ntp clean install -DskipTests
 ```
 
-If you need to publish static coverage to DTP with Jtest, use (ensure `jtest.settings` exists with correct paths):
+To publish static coverage to DTP with Jtest, ensure `jtest.settings` contains the correct paths and run:
 
-```
-mvn -ntp clean package jtest:monitor -DskipTests=true -Djtest.settings=jtest.settings -Djtest.showSettings=true -Dproperty.report.dtp.publish=true
-```
-
-## Running Tests
-
-**Basic execution:**
-
-```
-mvn -ntp verify -pl spring-petclinic-selenium-cucumber-tests -am -DPETCLINIC_URL=<PETCLINIC URL>
+```bash
+mvn -ntp clean package jtest:monitor \
+  -DskipTests=true \
+  -Djtest.settings=jtest.settings \
+  -Djtest.showSettings=true \
+  -Dproperty.report.dtp.publish=true
 ```
 
-`PETCLINIC_URL` defaults to `http://localhost:8099` if not provided.
+## Running the tests
 
-**With Selenium Grid:**
+### Sequential execution
 
-```
-mvn -ntp verify -pl spring-petclinic-selenium-cucumber-tests -am -DSELENIUM_GRID=true -DPROXY_HOST=<PROXY HOST> -DPETCLINIC_URL=<PETCLINIC URL>
-```
-
-**Headless mode:** Add `-DHEADLESS=true` to run without a visible browser window.
-
-**Non-default CTP credentials:** Add `-DCTP_USERNAME=<USERNAME> -DCTP_PASSWORD=<PASSWORD>`.
-
-### Selenium Grid Notes
-
-- If Selenium Grid is running in a container (e.g., Docker Desktop) and the JUnit test runner is on the host, the `host.docker.internal` convention may not work. Use your host's IP address to set `-DPROXY_HOST`. In some instances, like when Selenium Grid is running in a container on certain Linux hosts, the default value for `-DPROXY_BIND_HOST` (0.0.0.0) is insufficient, and you should override it with the same value used for `-DPROXY_HOST`.
-- If Selenium Grid is not running in a container, you only need to provide `-DPROXY_HOST` to where Selenium Grid is located.
-- If Selenium Grid is running in the cloud, extra considerations (e.g., VPC) may be necessary to ensure connectivity between the test runner + local proxy and the grid service.
-
-## How This Module Uses testcommon
-
-This module depends on `spring-petclinic-testcommon` for all Parasoft CTP integration. See the [testcommon README](../spring-petclinic-testcommon/README.md) for full details.
-
-### Dependency
-
-The testcommon module is consumed as a `test-jar` in `pom.xml`:
-
-```xml
-<dependency>
-    <groupId>org.springframework.samples.petclinic.testcommon</groupId>
-    <artifactId>spring-petclinic-testcommon</artifactId>
-    <version>1.0.0</version>
-    <type>test-jar</type>
-    <scope>test</scope>
-</dependency>
+```bash
+mvn -ntp verify \
+  -pl spring-petclinic-selenium-cucumber-tests \
+  -am
 ```
 
-### SuiteListener and Watcher
+The Petclinic URL defaults to `http://localhost:8099`. Override it with:
 
-Both the `ParasoftSuiteListenerCucumber` and `ParasoftWatcherCucumber` are Cucumber hook classes that are automatically discovered via the Cucumber glue path. The `@Suite` runner class includes the testcommon Cucumber package in its glue configuration:
+```bash
+-DPETCLINIC_URL=<Petclinic URL>
+```
+
+For a developer-specific CTP environment, override the environment ID configured in `coverage-integration.properties`:
+
+```bash
+-Dparasoft.coverage.integration.ctp.envId=<environment ID>
+```
+
+Example:
+
+```bash
+mvn -ntp verify \
+  -pl spring-petclinic-selenium-cucumber-tests \
+  -am \
+  -DPETCLINIC_URL=http://localhost:8099 \
+  -Dparasoft.coverage.integration.ctp.envId=1
+```
+
+### Parallel execution
+
+Enable both Cucumber parallel execution and coverage parallel IDs:
+
+```bash
+mvn -ntp verify \
+  -pl spring-petclinic-selenium-cucumber-tests \
+  -am \
+  -Dparasoft.coverage.integration.parallel.test.enabled=true \
+  -Dcucumber.execution.parallel.enabled=true \
+  -Dcucumber.execution.parallel.config.strategy=fixed \
+  -Dcucumber.execution.parallel.config.fixed.parallelism=4 \
+  -Dcucumber.execution.parallel.config.fixed.max-pool-size=4
+```
+
+The two scenarios that edit the same pet are tagged with `@pet-name`. `RunCucumberIT` maps that tag to a Cucumber exclusive read/write resource, so those two scenarios do not modify the same record concurrently. Other scenarios may execute at the same time.
+
+Keep these settings aligned:
+
+| Setting | Responsibility |
+|---|---|
+| `cucumber.execution.parallel.enabled` | Allows Cucumber to schedule scenarios concurrently |
+| `parasoft.coverage.integration.parallel.test.enabled` | Enables distinct parallel IDs for concurrent coverage tests |
+
+Sequential execution remains the default because both settings default to `false`.
+
+### Headless mode
+
+Add:
+
+```bash
+-DHEADLESS=true
+```
+
+### Selenium Grid
+
+Run with:
+
+```bash
+mvn -ntp verify \
+  -pl spring-petclinic-selenium-cucumber-tests \
+  -am \
+  -DSELENIUM_GRID=true \
+  -DSELENIUM_GRID_URL=http://<grid-host>:4444/wd/hub \
+  -DPROXY_HOST=<test-runner host visible to the Grid browser>
+```
+
+The coverage proxy runs on the test-runner machine. `PROXY_BIND_HOST` controls where the proxy listens; `PROXY_HOST` controls the address supplied to the browser.
+
+Defaults:
+
+| Property | Default |
+|---|---|
+| `PETCLINIC_URL` | `http://localhost:8099` |
+| `PROXY_BIND_HOST` | `0.0.0.0` |
+| `PROXY_HOST` | `127.0.0.1` |
+| `SELENIUM_GRID` | `false` |
+| `SELENIUM_GRID_URL` | `http://localhost:4444/wd/hub` |
+| `HEADLESS` | `false` |
+
+For a browser running in Docker or on another machine, set `PROXY_HOST` to an address through which that browser can reach the test runner. Override `PROXY_BIND_HOST` when the proxy must listen on a specific interface.
+
+## Coverage integration
+
+The module uses these `coverage-integration` artifacts:
+
+- `coverage-integration-api`
+- `coverage-integration-cucumber`
+- `coverage-integration-proxy`
+- `coverage-integration-selenium`
+
+The Cucumber runner includes the shared coverage hooks in its glue path:
 
 ```java
-@Suite
-@SelectClasspathResource("features/petclinic.feature")
 @ConfigurationParameter(
-    key = GLUE_PROPERTY_NAME,
-    value = "org.springframework.samples.petclinic.cucumber,org.springframework.samples.petclinic.testcommon.junit5.cucumber")
-public class RunCucumberIT { }
+        key = GLUE_PROPERTY_NAME,
+        value = "org.springframework.samples.petclinic.cucumber,"
+                + "com.parasoft.coverage.integration.cucumber")
 ```
 
-This causes Cucumber to discover:
-- `ParasoftSuiteListenerCucumber` — uses `@BeforeAll`/`@AfterAll` hooks to start/stop the CTP session and publish coverage and baseline data at suite end.
-- `ParasoftWatcherCucumber` — uses `@Before`/`@After` hooks to report individual scenario start/stop events (with PASS/FAIL results) to CTP.
+The shared hooks perform this lifecycle:
 
-### WebDriverFactory
+1. Start one CTP coverage session before the Cucumber run.
+2. Start one CTP coverage test before each scenario.
+3. Store the baggage returned by CTP in the current execution context.
+4. Stop the CTP coverage test after each scenario with `PASS`, `FAIL`, or `INCOMPLETE`.
+5. Stop the CTP session after the run.
+6. Request publication of the completed coverage session and test results to DTP.
 
-Step definition classes create a `ParasoftWebDriverResource` and close it per scenario:
+Scenario identifiers use this format:
 
-```java
-@Given("the browser is open")
-public void the_browser_is_open() {
-    driverResource = WebDriverFactory.create(
-            BrowserType.CHROME,
-            new BasicWebDriverConfigurator(),
-            new ParasoftWebDriverConfigurator(ParasoftCucumberUtil.getTestId(scenario)));
-    driver = driverResource.getDriver();
-}
-
-@After
-public void cleanup() {
-    if (driverResource != null) {
-        driverResource.close();
-    }
-}
+```text
+test     = <feature-file-name>#<scenario-name>
+testCase = <scenario-name>
 ```
 
-The `ParasoftWebDriverConfigurator` takes the Cucumber test ID (derived from `ParasoftCucumberUtil.getTestId(scenario)`) as the `testContextKey`, which associates the WebDriver session and its proxy's baggage `AtomicReference` with `ParasoftSessionManager`. It also starts the header-injecting proxy when multi-user mode is enabled.
+`PetClinicSteps` reads the current baggage from `CoverageIntegration`. When baggage is present, it starts a `ParasoftHeaderInjectingProxy` and configures Chrome through `SeleniumCoverageIntegration`. The browser and proxy are closed after each scenario.
 
-## Configuring Settings
+## Coverage settings
 
-Settings are resolved in order: **system property** (`-D`) → **`parasoft-settings.properties`** → **hardcoded default**.
+The shared library loads:
 
-Edit [`src/test/resources/parasoft-settings.properties`](src/test/resources/parasoft-settings.properties) to configure your CTP environment. Any setting can be overridden on the Maven command line, e.g. `-DCTP_BASE_URL=http://ctp-server:8080`.
+```text
+src/test/resources/coverage-integration.properties
+```
 
-For the full list of available settings and their defaults, see the [testcommon README](../spring-petclinic-testcommon/README.md#available-settings) and [ParasoftSettings.java](../spring-petclinic-testcommon/src/test/java/org/springframework/samples/petclinic/testcommon/ParasoftSettings.java).
+A Java system property supplied with `-D` overrides the corresponding value in that file.
+
+Required settings:
+
+| Property | Purpose |
+|---|---|
+| `parasoft.coverage.integration.ctp.url` | CTP URL including the context path |
+| `parasoft.coverage.integration.ctp.envId` | CTP environment ID |
+
+Common optional settings:
+
+| Property | Purpose |
+|---|---|
+| `parasoft.coverage.integration.ctp.auth.username` | Basic-auth username |
+| `parasoft.coverage.integration.ctp.auth.password` | Basic-auth password |
+| `parasoft.coverage.integration.ctp.auth.token` | Bearer-token alternative |
+| `parasoft.coverage.integration.ctp.userId` | Multi-user coverage identifier |
+| `parasoft.coverage.integration.parallel.test.enabled` | Enables unique parallel IDs for concurrent coverage tests |
+| `parasoft.coverage.integration.dtp.sessionTag` | DTP session tag |
+
+Example command-line overrides:
+
+```bash
+-Dparasoft.coverage.integration.ctp.url=http://ctp-host:8070/em
+-Dparasoft.coverage.integration.ctp.envId=1
+-Dparasoft.coverage.integration.ctp.auth.username=<username>
+-Dparasoft.coverage.integration.ctp.auth.password=<password>
+-Dparasoft.coverage.integration.ctp.userId=<coverage user ID>
+-Dparasoft.coverage.integration.dtp.sessionTag=<session tag>
+```
+
+The CTP user ID and DTP session tag are explicit values. Changing the authentication username does not automatically change either value.
+
+The shared Cucumber lifecycle requests publication after a successfully started session. It does not expose the legacy `CTP_PUBLISH_COVERAGE`, `CTP_PUBLISH_BASELINE`, or `CTP_BASELINE_BUILD_ID` settings.
