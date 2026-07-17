@@ -19,6 +19,7 @@ public class VetsIT {
     static Browser browser;
 
     private static final String PETCLINIC_URL = System.getProperty("PETCLINIC_URL", "http://localhost:8099");
+    private static final boolean HEADLESS = Boolean.parseBoolean(System.getProperty("org.springframework.samples.petclinic.headless", "false"));
 
     BrowserContext context;
     Page page;
@@ -26,7 +27,7 @@ public class VetsIT {
     @BeforeAll
     static void launchBrowser() {
         playwright = Playwright.create();
-        browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setSlowMo(500));
+        browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setSlowMo(500).setHeadless(HEADLESS));
     }
 
     @AfterAll

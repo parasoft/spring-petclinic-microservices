@@ -27,7 +27,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 
 public class PetClinicSteps {
     private static String PETCLINIC_URL = System.getProperty("PETCLINIC_URL", "http://localhost:8099");
-    private static final boolean HEADLESS = Boolean.parseBoolean(System.getProperty("HEADLESS", "false"));
+    private static final boolean HEADLESS = Boolean.parseBoolean(System.getProperty("org.springframework.samples.petclinic.headless", "false"));
     private static final boolean SELENIUM_GRID = Boolean.parseBoolean(System.getProperty("SELENIUM_GRID", "false"));
     private static final String SELENIUM_GRID_URL = System.getProperty("SELENIUM_GRID_URL", "http://localhost:4444/wd/hub");
     private static final String PROXY_BIND_HOST = System.getProperty("PROXY_BIND_HOST", "0.0.0.0");

@@ -15,6 +15,7 @@ import com.parasoft.coverage.integration.selenium.SeleniumCoverageIntegration;
 
 public class NavigateIT {
     private static String PETCLINIC_URL = System.getProperty("PETCLINIC_URL", "http://localhost:8099");
+    private static final boolean HEADLESS = Boolean.parseBoolean(System.getProperty("org.springframework.samples.petclinic.headless", "false"));
 
     private static ChromeDriver driver;
 
@@ -37,6 +38,9 @@ public class NavigateIT {
                 "--safebrowsing-disable-auto-update",
                 "--disable-features=OptimizationHints,InterestFeedContentSuggestions,Translate"
             );
+        if (HEADLESS) {
+            chromeOptions.addArguments("--headless=new");
+        }
         driver = new ChromeDriver(chromeOptions);
     }
 
