@@ -1,8 +1,12 @@
 package org.springframework.samples.petclinic.selenium.testng;
 
+import java.time.Duration;
+
 import org.openqa.selenium.By;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -51,21 +55,35 @@ public class NavigateIT {
     }
 
     @Test
-    public void testPetClinicNavigation() throws Exception {
+    public void testPetClinicNavigation() {
         SeleniumCoverageIntegration.configureCdpBaggageHeader(driver);
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
         driver.get(PETCLINIC_URL);
-        Thread.sleep(1000);
-        driver.findElement(By.xpath("//a[@title=\"veterinarians\"]")).click();
-        Thread.sleep(1000);
-        driver.findElement(By.xpath("//a[@class=\"dropdown-toggle\"]")).click();
-        Thread.sleep(1000);
-        driver.findElement(By.xpath("//a[@ui-sref=\"owners\"]")).click();
-        Thread.sleep(1000);
-        driver.findElement(By.xpath("//owner-list/table/tbody/tr[1]/td[1]/a")).click();
-        Thread.sleep(1000);
-        driver.findElement(By.xpath("//dd/a")).click();
-        Thread.sleep(1000);
-        driver.findElement(By.xpath("//a[@title=\"home page\"]")).click();
+
+        wait.until(ExpectedConditions.elementToBeClickable(
+            By.xpath("//a[@title='veterinarians']")))
+        .click();
+
+        wait.until(ExpectedConditions.elementToBeClickable(
+            By.xpath("//a[@class='dropdown-toggle']")))
+        .click();
+
+        wait.until(ExpectedConditions.elementToBeClickable(
+            By.xpath("//a[@ui-sref='owners']")))
+        .click();
+
+        wait.until(ExpectedConditions.elementToBeClickable(
+            By.xpath("//owner-list/table/tbody/tr[1]/td[1]/a")))
+        .click();
+
+        wait.until(ExpectedConditions.elementToBeClickable(
+            By.xpath("//dd/a")))
+        .click();
+
+        wait.until(ExpectedConditions.elementToBeClickable(
+            By.xpath("//a[@title='home page']")))
+        .click();
+
         Assert.assertTrue(true, "Navigation test completed");
     }
 }
