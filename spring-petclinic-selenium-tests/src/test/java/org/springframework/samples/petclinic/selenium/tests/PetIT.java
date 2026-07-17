@@ -25,6 +25,8 @@ public class PetIT {
         chromeOptions.addArguments(
             "--no-sandbox",
                 "--disable-dev-shm-usage",
+                "--window-size=1200,800",
+                "--window-position=0,0",
                 "--no-first-run",
                 "--no-default-browser-check",
                 "--disable-background-networking",
