@@ -9,6 +9,7 @@ import java.time.Duration;
 import org.openqa.selenium.By;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
+import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
@@ -93,6 +94,16 @@ public class NavigateIT {
             outputDir.resolve("owners-page.png"),
             StandardCopyOption.REPLACE_EXISTING);
 
+        try {
+            wait.until(ExpectedConditions.presenceOfElementLocated(
+                By.xpath("//owner-list/table/tbody/tr[1]/td[1]/a")));
+        } catch (TimeoutException e) {
+            System.out.println("Page did not render, refreshing...");
+            driver.navigate().refresh();
+            wait.until(ExpectedConditions.presenceOfElementLocated(
+                By.xpath("//owner-list/table/tbody/tr[1]/td[1]/a")));
+        }
+        
         wait.until(ExpectedConditions.elementToBeClickable(
             By.xpath("//owner-list/table/tbody/tr[1]/td[1]/a")))
         .click();
