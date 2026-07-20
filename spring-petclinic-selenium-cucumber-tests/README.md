@@ -88,10 +88,10 @@ Sequential execution remains the default because both settings default to `false
 
 ### Headless mode
 
-Add:
+Use the same Spring Petclinic headless property as the other browser test suites:
 
 ```bash
--DHEADLESS=true
+-Dorg.springframework.samples.petclinic.headless=true
 ```
 
 ### Selenium Grid
@@ -118,7 +118,7 @@ Defaults:
 | `PROXY_HOST` | `127.0.0.1` |
 | `SELENIUM_GRID` | `false` |
 | `SELENIUM_GRID_URL` | `http://localhost:4444/wd/hub` |
-| `HEADLESS` | `false` |
+| `org.springframework.samples.petclinic.headless` | `false` |
 
 For a browser running in Docker or on another machine, set `PROXY_HOST` to an address through which that browser can reach the test runner. Override `PROXY_BIND_HOST` when the proxy must listen on a specific interface.
 
@@ -189,7 +189,7 @@ Common optional settings:
 Example command-line overrides:
 
 ```bash
--Dparasoft.coverage.integration.ctp.url=http://ctp-host:8070/em
+-Dparasoft.coverage.integration.ctp.url=http://ctp-host:8080/em/
 -Dparasoft.coverage.integration.ctp.envId=1
 -Dparasoft.coverage.integration.ctp.auth.username=<username>
 -Dparasoft.coverage.integration.ctp.auth.password=<password>
