@@ -1,14 +1,8 @@
 package org.springframework.samples.petclinic.selenium.testng;
 
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.Path;
-import java.io.File;
 import java.time.Duration;
 
 import org.openqa.selenium.By;
-import org.openqa.selenium.OutputType;
-import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
@@ -78,21 +72,6 @@ public class NavigateIT {
         wait.until(ExpectedConditions.elementToBeClickable(
             By.xpath("//a[@ui-sref='owners']")))
         .click();
-
-        Path outputDir = Path.of("target");
-        Files.createDirectories(outputDir);
-
-        Files.writeString(
-            outputDir.resolve("owners-page.html"),
-            driver.getPageSource());
-
-        File screenshot =
-            ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
-
-        Files.copy(
-            screenshot.toPath(),
-            outputDir.resolve("owners-page.png"),
-            StandardCopyOption.REPLACE_EXISTING);
 
         try {
             wait.until(ExpectedConditions.presenceOfElementLocated(
