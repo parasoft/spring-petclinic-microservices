@@ -16,7 +16,7 @@
 
     <properties>
         <testng.version>7.12.0</testng.version>
-        <selenium.version>4.40.0</selenium.version>
+        <selenium.version>4.46.0</selenium.version>
         <opentelemetry.version>1.59.0</opentelemetry.version>
     </properties>
 
