@@ -19,7 +19,7 @@
         <selenium.version>4.40.0</selenium.version>
         <cucumber.version>7.34.4</cucumber.version>
         <opentelemetry.version>1.59.0</opentelemetry.version>
-        <coverage-integration.version>0.0.1</coverage-integration.version>
+        <coverage-integration.version>1.0.0-SNAPSHOT</coverage-integration.version>
         <slf4j.version>2.0.17</slf4j.version>
     </properties>
 
