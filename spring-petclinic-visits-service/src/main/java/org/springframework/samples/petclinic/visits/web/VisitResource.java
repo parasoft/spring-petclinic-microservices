@@ -63,6 +63,7 @@ class VisitResource {
 
     @GetMapping("owners/*/pets/{petId}/visits")
     public List<Visit> read(@PathVariable("petId") @Min(1) int petId) {
+        log.info("Finding visits for pet {}", petId);
         return visitRepository.findByPetId(petId);
     }
 
