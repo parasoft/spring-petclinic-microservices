@@ -30,7 +30,7 @@ mvn -ntp verify -pl spring-petclinic-selenium-tests -am -DPETCLINIC_URL=<PETCLIN
 
 `PETCLINIC_URL` defaults to `http://localhost:8099` if not provided.
 
-**Headless mode:** Add `-DHEADLESS=true` to run without a visible browser window.
+**Headless mode:** Add `-Dorg.springframework.samples.petclinic.headless=true` to run without a visible browser window.
 
 **Non-default CTP credentials:** Add `-Dparasoft.coverage.integration.ctp.auth.username=<USERNAME> -Dparasoft.coverage.integration.ctp.auth.password=<PASSWORD>`.
 

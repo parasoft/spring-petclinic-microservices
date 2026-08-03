@@ -348,6 +348,7 @@ EOF
                         -pl spring-petclinic-selenium-tests \
                         -am \
                         -s './jtest/.m2/settings.xml' \
+                        -Dorg.springframework.samples.petclinic.headless=true \
                         -DPETCLINIC_URL="http://${PUBLIC_IP}:8099" \
                         -Dparasoft.coverage.integration.ctp.url="${CTP_URL}/em" \
                         -Dparasoft.coverage.integration.ctp.envId=${CTP_ENV_ID} \
@@ -363,6 +364,7 @@ EOF
                         -pl spring-petclinic-selenium-cucumber-tests \
                         -am \
                         -s './jtest/.m2/settings.xml' \
+                        -Dorg.springframework.samples.petclinic.headless=true \
                         -DPETCLINIC_URL="http://${PUBLIC_IP}:8099" \
                         -Dparasoft.coverage.integration.ctp.url="${CTP_URL}/em" \
                         -Dparasoft.coverage.integration.ctp.envId=${CTP_ENV_ID} \
@@ -380,6 +382,7 @@ EOF
                         -pl spring-petclinic-selenium-testng-tests \
                         -am \
                         -s './jtest/.m2/settings.xml' \
+                        -Dorg.springframework.samples.petclinic.headless=true \
                         -DPETCLINIC_URL="http://${PUBLIC_IP}:8099" \
                         -Dparasoft.coverage.integration.ctp.url="${CTP_URL}/em" \
                         -Dparasoft.coverage.integration.ctp.envId=${CTP_ENV_ID} \
@@ -395,7 +398,7 @@ EOF
                         -pl spring-petclinic-playwright-tests \
                         -am \
                         -s './jtest/.m2/settings.xml' \
-                        -DHEADLESS=true \
+                        -Dorg.springframework.samples.petclinic.headless=true \
                         -DPETCLINIC_URL="http://${PUBLIC_IP}:8099" \
                         -Dparasoft.coverage.integration.ctp.url="${CTP_URL}/em" \
                         -Dparasoft.coverage.integration.ctp.envId=${CTP_ENV_ID} \
