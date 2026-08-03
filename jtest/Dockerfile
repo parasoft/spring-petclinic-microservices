@@ -48,8 +48,10 @@ COPY .m2 /home/parasoft/.m2
 
 # RUN java -jar /opt/parasoft/jtest/integration/lombok/jtest-integration-lombok.jar
 
-## Fix permissions
-# RUN chown -h -R ${HOST_UID}:${HOST_GID} ${USER_HOME_DIR}
+## Fix permissions — COPY above runs as root, so the copied .m2 tree is owned by root:root.
+## Without this chown, mvn running as HOST_UID:HOST_GID at container runtime cannot write
+## to /home/parasoft/.m2/repository/ (fatal AccessDeniedException on artifact resolution).
+RUN chown -h -R ${HOST_UID}:${HOST_GID} ${USER_HOME_DIR}
 
 ## Switch user back and configure MVN
 USER parasoft
