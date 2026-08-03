@@ -17,11 +17,11 @@ pipeline {
     parameters {
         string(name: 'CTP_URL', description: 'Parasoft CTP URL')
         string(name: 'DTP_URL', description: 'Parasoft DTP URL')
-        string(name: 'DTP_USER', description: 'Parasoft DTP Username')
-        password(name: 'DTP_PASS', description: 'Parasoft DTP Password')
-        string(name: 'BUILD_TIMESTAMP', description: 'DTP Build Id')
+        string(name: 'BUILD_ID', description: 'DTP/CTP Build Id')
         string(name: 'CTP_ENV_ID', description: 'Parasoft CTP Environment ID')
-        string(name: 'CTP_DEBUG', defaultValue: 'false', description: 'Enable debug logging for Jenkins pipeline')
+        booleanParam(name: 'CI_DEBUG', defaultValue: false, description: 'Enable verbose CI debug logging (shell trace + properties-file echo)')
+
+        // Parasoft user/password is sourced from the Jenkins credential 'parasoft-demo-user'.
     }
     environment {
         // App Settings
@@ -37,27 +37,25 @@ pipeline {
                 // Checkout project
                 checkout scm
 
-                // Normalize URLs and resolve agent GID
+                // Normalize URLs, export toggles, and resolve agent GID
                 script {
-                    env.CTP_URL = params.CTP_URL.replaceAll('/+$', '')
-                    env.DTP_URL = params.DTP_URL.replaceAll('/+$', '')
-                    env.GID     = sh(script: 'id -g jenkins', returnStdout: true).trim()
+                    env.CTP_URL     = (params.CTP_URL ?: '').replaceAll('/+$', '')
+                    env.DTP_URL     = (params.DTP_URL ?: '').replaceAll('/+$', '')
+                    env.CI_DEBUG    = params.CI_DEBUG.toString()
+                    env.GID         = sh(script: 'id -g jenkins', returnStdout: true).trim()
                 }
 
                 // Download coverage agent archive from CTP
-                withEnv(["CTP_URL=${env.CTP_URL}"]) {
+                withCredentials([
+                    usernamePassword(credentialsId: 'parasoft-demo-user', usernameVariable: 'PARASOFT_USER', passwordVariable: 'PARASOFT_PASS')
+                ]) {
                     sh '''
-                        if [ "${CTP_DEBUG}" != "true" ]; then
-                            set +x
-                        fi
-                        curl -kLO -u ${DTP_USER}:${DTP_PASS} ${CTP_URL}/em/coverageagent/java_agent_coverage.zip
-                        if [ "${CTP_DEBUG}" != "true" ]; then
-                            set -x
-                        fi
+                        if [ "${CI_DEBUG}" != "true" ]; then set +x; else set -x; fi
+                        curl -kLO -u ${PARASOFT_USER}:${PARASOFT_PASS} ${CTP_URL}/em/coverageagent/java_agent_coverage.zip
                         unzip java_agent_coverage.zip
                     '''
                 }
-                
+
                 // Copy coverage agent JARs into each microservice
                 sh '''
                     for service in spring-petclinic-api-gateway spring-petclinic-vets-service spring-petclinic-visits-service spring-petclinic-customers-service; do
@@ -70,28 +68,23 @@ pipeline {
 
                 // Patch agent.properties with CTP and DTP configuration
                 script {
-                    def ctpUrl         = env.CTP_URL
-                    def dtpUrl         = env.DTP_URL
                     def appName        = env.app_name
-                    def buildTimestamp = params.BUILD_TIMESTAMP
+                    def buildId        = params.BUILD_ID
 
-                    withEnv(["CTP_URL=${ctpUrl}", "DTP_URL=${dtpUrl}"]) {
+                    withCredentials([
+                        usernamePassword(credentialsId: 'parasoft-demo-user', usernameVariable: 'PARASOFT_USER', passwordVariable: 'PARASOFT_PASS')
+                    ]) {
                         // Fetch all components for this CTP environment
                         def componentsResponse = sh(
                             script: '''
-                                if [ "${CTP_DEBUG}" != "true" ]; then
-                                    set +x
-                                fi
-                                curl -sk -u "${DTP_USER}:${DTP_PASS}" \
+                                if [ "${CI_DEBUG}" != "true" ]; then set +x; fi
+                                curl -sk -u "${PARASOFT_USER}:${PARASOFT_PASS}" \
                                     -H 'accept: application/json' \
                                     "${CTP_URL}/em/api/v3/environments/${CTP_ENV_ID}/components"
-                                if [ "${CTP_DEBUG}" != "true" ]; then
-                                    set -x
-                                fi
                             ''',
                             returnStdout: true
                         ).trim()
-                        if (params.CTP_DEBUG == 'true') {
+                        if (params.CI_DEBUG) {
                             echo "CTP components response:\n${componentsResponse}"
                         }
                         def componentsJson = new groovy.json.JsonSlurperClassic().parseText(componentsResponse)
@@ -99,19 +92,14 @@ pipeline {
                         // Resolve DTP filter ID by app name
                         def filterResponse = sh(
                             script: '''
-                                if [ "${CTP_DEBUG}" != "true" ]; then
-                                    set +x
-                                fi
-                                curl -sk -u "${DTP_USER}:${DTP_PASS}" \
+                                if [ "${CI_DEBUG}" != "true" ]; then set +x; fi
+                                curl -sk -u "${PARASOFT_USER}:${PARASOFT_PASS}" \
                                     -H 'accept: application/json' \
                                     "${DTP_URL}/grs/api/v1.12/filters?managedOnly=false&name=${app_name}"
-                                if [ "${CTP_DEBUG}" != "true" ]; then
-                                    set -x
-                                fi
                             ''',
                             returnStdout: true
                         ).trim()
-                        if (params.CTP_DEBUG == 'true') {
+                        if (params.CI_DEBUG) {
                             echo "DTP filter response:\n${filterResponse}"
                         }
                         def filterJson = new groovy.json.JsonSlurperClassic().parseText(filterResponse)
@@ -140,17 +128,17 @@ pipeline {
                             def subQueue  = component.ctpSubscriptionQueue
                             def propsFile = "${serviceDir}/src/test/resources/coverage/agent.properties"
 
-                            withEnv(["PROPS_FILE=${propsFile}", "WS_URL=${wsUrl}", "SUB_QUEUE=${subQueue}", "FILTER_ID=${filterId}", "BUILD_TIMESTAMP=${buildTimestamp}"]) {
+                            withEnv(["PROPS_FILE=${propsFile}", "WS_URL=${wsUrl}", "SUB_QUEUE=${subQueue}", "FILTER_ID=${filterId}", "BUILD_ID=${buildId}"]) {
                                 sh '''
                                     sed -i "s|^ctp.websocket.url=.*|ctp.websocket.url=${WS_URL}|" "${PROPS_FILE}"
                                     sed -i "s|^ctp.subscription.queue=.*|ctp.subscription.queue=${SUB_QUEUE}|" "${PROPS_FILE}"
-                                    sed -i "s|^dtp.buildID=.*|dtp.buildID=${app_name}-${BUILD_TIMESTAMP}|" "${PROPS_FILE}"
+                                    sed -i "s|^dtp.buildID=.*|dtp.buildID=${app_name}-${BUILD_ID}|" "${PROPS_FILE}"
                                     sed -i "s|^dtp.project=.*|dtp.project=${app_name}|" "${PROPS_FILE}"
                                     sed -i "s|^dtp.coverageImages=.*|dtp.coverageImages=${app_name};${app_name}-FT|" "${PROPS_FILE}"
                                     sed -i "s|^dtp.filterID=.*|dtp.filterID=${FILTER_ID}|" "${PROPS_FILE}"
                                 '''
                                 echo "Patched ${propsFile}"
-                                if (params.CTP_DEBUG == 'true') {
+                                if (params.CI_DEBUG) {
                                     sh 'cat "${PROPS_FILE}"'
                                 }
                             }

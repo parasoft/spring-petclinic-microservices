@@ -44,7 +44,7 @@ ENV PATH="${MAVEN_HOME}/bin:${PATH}"
 
 ## Copy Deps
 # COPY jtestcli.properties /home/parasoft/jtestcli.properties
-# COPY .m2 /home/parasoft/.m2
+COPY .m2 /home/parasoft/.m2
 
 # RUN java -jar /opt/parasoft/jtest/integration/lombok/jtest-integration-lombok.jar
 

@@ -15,16 +15,25 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: '5', artifactNumToKeepStr: '2'))
     }
     parameters {
-        string(name: 'LS_URL', defaultValue: '', description: 'Parasoft LS URL')
+        // Parasoft CTP / DTP endpoints (per-run configurable)
         string(name: 'CTP_URL', defaultValue: '', description: 'Parasoft CTP URL')
         string(name: 'DTP_URL', defaultValue: '', description: 'Parasoft DTP URL')
-        string(name: 'DTP_USER', defaultValue: 'demo', description: 'Parasoft DTP Username')
-        password(name: 'DTP_PASS', defaultValue: '', description: 'Parasoft DTP Password')
-        string(name: 'BUILD_ID', defaultValue: 'baseline-tia', description: 'The build Id of the project in DTP and CTP')
+
+        // Publish Parasoft analysis + coverage results to DTP
+        booleanParam(name: 'DTP_PUBLISH', defaultValue: false, description: 'Publish Parasoft analysis + coverage results to DTP')
+
+        // Optional buildId override; leave blank to use the default value 'baseline-tia'
+        string(name: 'BUILD_ID_OVERRIDE', defaultValue: '', description: 'Optional buildId override (leave blank to use the default value \'baseline-tia\')')
+
+        // CTP System / Environment
         string(name: 'CTP_SYSTEM_NAME', defaultValue: 'Spring PetClinic', description: 'CTP system name')
         string(name: 'CTP_ENV_NAME', defaultValue: 'QA', description: 'CTP environment name')
-        string(name: 'CTP_DEBUG', defaultValue: 'false', description: 'Enable debug logging for Jenkins pipeline')
 
+        // CI debug toggle: enables shell trace (set -x) + echoes generated .properties files to the console
+        booleanParam(name: 'CI_DEBUG', defaultValue: false, description: 'Enable verbose CI debug logging (shell trace + properties-file echo)')
+
+        // Parasoft License Server URL is sourced from the Jenkins global env var DEFAULT_LSS_URL.
+        // Parasoft user/password is sourced from the Jenkins credential 'parasoft-demo-user'.
     }
     environment {
         // App Details
@@ -34,8 +43,8 @@ pipeline {
         jtestUTConfig = 'jtest.builtin://Unit Tests'
         jtestSAConfig = 'jtest.builtin://Recommended Rules'
 
-        // Dynamic configs
-        BUILD_TIMESTAMP = "${BUILD_ID}"
+        // Parasoft License Server URL (sourced from Jenkins global env var DEFAULT_LSS_URL)
+        LS_URL = "${env.DEFAULT_LSS_URL ?: ''}"
     }
 
     stages {
@@ -50,15 +59,40 @@ pipeline {
                     env.GIT_URL    = scmVars.GIT_URL ?: ''
                 }
 
-                // Resolve BASELINE_ID dynamically from the last successful Petclinic-baseline run
+                // Normalize URL values (strip trailing slashes) and export toggles for shell steps
+                script {
+                    env.LS_URL      = (env.LS_URL     ?: '').replaceAll('/+$', '')
+                    env.CTP_URL     = (params.CTP_URL ?: '').replaceAll('/+$', '')
+                    env.DTP_URL     = (params.DTP_URL ?: '').replaceAll('/+$', '')
+                    env.DTP_PUBLISH = params.DTP_PUBLISH.toString()
+                    env.CI_DEBUG    = params.CI_DEBUG.toString()
+                    // Selenic/Playwright tests: coverage-integration library uses SLF4J; slf4j-simple
+                    // backend is on the test classpath. Raise its log level to `debug` under CI_DEBUG.
+                    env.CI_LIB_LOG_LEVEL = params.CI_DEBUG ? 'debug' : 'info'
+
+                    // Resolve buildId: BUILD_ID_OVERRIDE param wins, otherwise fall back to 'baseline-tia'.
+                    if (params.BUILD_ID_OVERRIDE?.trim()) {
+                        env.buildId = params.BUILD_ID_OVERRIDE.trim()
+                        echo "Using BUILD_ID_OVERRIDE parameter: ${env.buildId}"
+                    } else {
+                        env.buildId = 'baseline-tia'
+                        echo "Using default buildId: ${env.buildId}"
+                    }
+                }
+
+                // Resolve BASELINE_ID from the last successful Petclinic-baseline run's BUILD_ID_OVERRIDE param.
+                // This must match the baselineId the Petclinic-baseline pipeline POSTs to CTP in its
+                // "Publish: CTP Baseline for TIA" stage:
+                //   POST /em/api/v3/environments/{envId}/coverage/baselines/${app_name}-${buildId}
                 // NOTE: requires one-time In-process Script Approval in Manage Jenkins → Script Approval
                 script {
                     def baselineJob  = Jenkins.instance.getItemByFullName('Petclinic-baseline')
                     def lastBuild    = baselineJob?.getLastSuccessfulBuild()
-                    def buildId      = lastBuild?.getAction(hudson.model.ParametersAction.class)
-                                           ?.getParameter('BUILD_ID')
-                                           ?.getValue() ?: 'baseline'
-                    env.BASELINE_ID  = "${app_name}-${buildId}"
+                    def overrideVal  = lastBuild?.getAction(hudson.model.ParametersAction.class)
+                                           ?.getParameter('BUILD_ID_OVERRIDE')
+                                           ?.getValue()
+                    def baselineBuildId = (overrideVal?.trim()) ? overrideVal.trim() : 'baseline'
+                    env.BASELINE_ID  = "${app_name}-${baselineBuildId}"
                     echo "Resolved BASELINE_ID: ${env.BASELINE_ID}"
                 }
 
@@ -80,66 +114,57 @@ pipeline {
                     }
                 }
 
-                // Normalize URLs and resolve CTP environment ID
+                // Resolve CTP environment ID
                 script {
                     def systemName        = params.CTP_SYSTEM_NAME
                     def envName           = params.CTP_ENV_NAME
                     def encodedSystemName = java.net.URLEncoder.encode(systemName, 'UTF-8')
                     def encodedEnvName    = java.net.URLEncoder.encode(envName, 'UTF-8')
-                    def ctpUrl = params.CTP_URL.replaceAll('/+$', '')
-                    def dtpUrl = params.DTP_URL.replaceAll('/+$', '')
-                    env.CTP_URL = ctpUrl
-                    env.DTP_URL = dtpUrl
 
-                    withEnv(["CTP_URL=${ctpUrl}", "ENCODED_SYSTEM=${encodedSystemName}", "ENCODED_ENV=${encodedEnvName}"]) {
-                        // Retrieve systemId from CTP based on system name
-                        def systemResponse = sh(
-                            script: '''
-                                if [ "${CTP_DEBUG}" != "true" ]; then
-                                    set +x
-                                fi
-                                curl -sk -u "${DTP_USER}:${DTP_PASS}" \
-                                    "${CTP_URL}/em/api/v3/systems?name=${ENCODED_SYSTEM}&limit=50&offset=0"
-                                if [ "${CTP_DEBUG}" != "true" ]; then
-                                    set -x
-                                fi
-                            ''',
-                            returnStdout: true
-                        ).trim()
-                        if (params.CTP_DEBUG == 'true') {
-                            echo "CTP systems response:\n${systemResponse}"
-                        }
-                        def systemJson = new groovy.json.JsonSlurperClassic().parseText(systemResponse)
-                        def systemId = systemJson.systems?.find { it.name == systemName }?.id
-                        if (!systemId) {
-                            error("Failed to resolve systemId for system '${systemName}'.")
-                        }
+                    withCredentials([
+                        usernamePassword(credentialsId: 'parasoft-demo-user', usernameVariable: 'PARASOFT_USER', passwordVariable: 'PARASOFT_PASS')
+                    ]) {
+                        withEnv(["ENCODED_SYSTEM=${encodedSystemName}", "ENCODED_ENV=${encodedEnvName}"]) {
+                            // Retrieve systemId from CTP based on system name
+                            def systemResponse = sh(
+                                script: '''
+                                    if [ "${CI_DEBUG}" != "true" ]; then set +x; fi
+                                    curl -sk -u "${PARASOFT_USER}:${PARASOFT_PASS}" \
+                                        "${CTP_URL}/em/api/v3/systems?name=${ENCODED_SYSTEM}&limit=50&offset=0"
+                                ''',
+                                returnStdout: true
+                            ).trim()
+                            if (params.CI_DEBUG) {
+                                echo "CTP systems response:\n${systemResponse}"
+                            }
+                            def systemJson = new groovy.json.JsonSlurperClassic().parseText(systemResponse)
+                            def systemId = systemJson.systems?.find { it.name == systemName }?.id
+                            if (!systemId) {
+                                error("Failed to resolve systemId for system '${systemName}'.")
+                            }
 
-                        // Retrieve envId from CTP based on environment name and systemId
-                        def envResponse = sh(
-                            script: '''
-                                if [ "${CTP_DEBUG}" != "true" ]; then
-                                    set +x
-                                fi
-                                curl -sk -u "${DTP_USER}:${DTP_PASS}" \
-                                    "${CTP_URL}/em/api/v3/environments?name=${ENCODED_ENV}&limit=50&offset=0"
-                                if [ "${CTP_DEBUG}" != "true" ]; then
-                                    set -x
-                                fi
-                            ''',
-                            returnStdout: true
-                        ).trim()
-                        if (params.CTP_DEBUG == 'true') {
-                            echo "CTP environments response:\n${envResponse}"
+                            // Retrieve envId from CTP based on environment name and systemId
+                            def envResponse = sh(
+                                script: '''
+                                    if [ "${CI_DEBUG}" != "true" ]; then set +x; fi
+                                    curl -sk -u "${PARASOFT_USER}:${PARASOFT_PASS}" \
+                                        "${CTP_URL}/em/api/v3/environments?name=${ENCODED_ENV}&limit=50&offset=0"
+                                ''',
+                                returnStdout: true
+                            ).trim()
+                            if (params.CI_DEBUG) {
+                                echo "CTP environments response:\n${envResponse}"
+                            }
+                            def envJson = new groovy.json.JsonSlurperClassic().parseText(envResponse)
+                            def resolvedEnvId = envJson.environments?.find { it.name == envName && it.systemId == systemId }?.id
+                            if (!resolvedEnvId) {
+                                error("Failed to resolve envId for environment '${envName}' and systemId '${systemId}'.")
+                            }
+                            env.CTP_ENV_ID = resolvedEnvId.toString()
                         }
-                        def envJson = new groovy.json.JsonSlurperClassic().parseText(envResponse)
-                        def resolvedEnvId = envJson.environments?.find { it.name == envName && it.systemId == systemId }?.id
-                        if (!resolvedEnvId) {
-                            error("Failed to resolve envId for environment '${envName}' and systemId '${systemId}'.")
-                        }
-                        env.CTP_ENV_ID = resolvedEnvId.toString()
                     }
                 }
+
                 // startup Selenium Grid
                 sh '''
                     # Start Selenium Grid for Selenium test execution
@@ -153,12 +178,14 @@ pipeline {
                     --name selenium-grid \
                     selenium/standalone-chrome:latest
                     '''
-                // Set up Parasoft License
-                sh '''
-                    if [ "${CTP_DEBUG}" != "true" ]; then
-                        set +x
-                    fi
-                    cat > ./jtest/jtestcli.properties << EOF
+
+                // Emit jtestcli.properties (secrets injected via withCredentials; content echoed only when CI_DEBUG=true)
+                withCredentials([
+                    usernamePassword(credentialsId: 'parasoft-demo-user', usernameVariable: 'PARASOFT_USER', passwordVariable: 'PARASOFT_PASS')
+                ]) {
+                    sh '''
+                        if [ "${CI_DEBUG}" != "true" ]; then set +x; else set -x; fi
+                        cat > ./jtest/jtestcli.properties << EOF
 parasoft.eula.accepted=true
 
 jtest.license.use_network=true
@@ -167,12 +194,12 @@ jtest.license.network.edition=server_edition
 license.network.use.specified.server=true
 license.network.auth.enabled=true
 license.network.url=${LS_URL}
-license.network.user=${DTP_USER}
-license.network.password=${DTP_PASS}
+license.network.user=${PARASOFT_USER}
+license.network.password=${PARASOFT_PASS}
 
 dtp.url=${DTP_URL}
-dtp.user=${DTP_USER}
-dtp.password=${DTP_PASS}
+dtp.user=${PARASOFT_USER}
+dtp.password=${PARASOFT_PASS}
 
 scontrol.git.exec=git
 scontrol.rep1.git.branch=${GIT_BRANCH}
@@ -181,18 +208,17 @@ scontrol.rep1.type=git
 
 report.scontrol=min
 report.coverage.line.hashes=true
-report.dtp.publish=false
+report.dtp.publish=${DTP_PUBLISH}
 
 console.verbosity.level=high
 EOF
-                    if [ "${CTP_DEBUG}" = "true" ]; then
-                        echo "--- jtestcli.properties ---"
-                        cat ./jtest/jtestcli.properties
-                    fi
-                    if [ "${CTP_DEBUG}" != "true" ]; then
-                        set -x
-                    fi
+                        if [ "${CI_DEBUG}" = "true" ]; then
+                            echo "--- jtestcli.properties ---"
+                            cat ./jtest/jtestcli.properties
+                        fi
                     '''
+                }
+
                 // copy artifacts from latest successful baseline
                 copyArtifacts projectName: 'Petclinic-baseline', selector: lastSuccessful(), target: './baseline-artifacts'
             }
@@ -205,7 +231,8 @@ EOF
                 sh  '''
 
                     # Build the Maven package
-                    ./mvnw clean install -P buildDocker -DskipTests=true
+                    ./mvnw clean install -P buildDocker -DskipTests=true \
+                    -s './jtest/.m2/settings.xml'
                     '''
             }
         }
@@ -216,54 +243,39 @@ EOF
                 script {
                         // Setup stage-specific additional settings
                         sh '''
-                            if [ "${CTP_DEBUG}" != "true" ]; then
-                                set +x
-                            fi
+                            if [ "${CI_DEBUG}" != "true" ]; then set +x; else set -x; fi
                             cat > ./jtest/jtestcli-sa.properties << EOF
 dtp.project=${app_name}
-build.id=${app_name}-${BUILD_TIMESTAMP}
+build.id=${app_name}-${buildId}
 EOF
-                            if [ "${CTP_DEBUG}" = "true" ]; then
+                            if [ "${CI_DEBUG}" = "true" ]; then
                                 echo "--- jtestcli-sa.properties ---"
                                 cat ./jtest/jtestcli-sa.properties
                             fi
-                            if [ "${CTP_DEBUG}" != "true" ]; then
-                                set -x
-                            fi
                         '''
                         sh '''
-                            if [ "${CTP_DEBUG}" != "true" ]; then
-                                set +x
-                            fi
+                            if [ "${CI_DEBUG}" != "true" ]; then set +x; else set -x; fi
                             cat > ./jtest/jtestcli-ut.properties << EOF
 dtp.project=${app_name}
-build.id=${app_name}-${BUILD_TIMESTAMP}
+build.id=${app_name}-${buildId}
 report.coverage.images=${app_name};${app_name}-UT
 report.coverage.static.images=${app_name};${app_name}-UT;${app_name}-FT
 EOF
-                            if [ "${CTP_DEBUG}" = "true" ]; then
+                            if [ "${CI_DEBUG}" = "true" ]; then
                                 echo "--- jtestcli-ut.properties ---"
                                 cat ./jtest/jtestcli-ut.properties
                             fi
-                            if [ "${CTP_DEBUG}" != "true" ]; then
-                                set -x
-                            fi
                         '''
                         sh '''
-                            if [ "${CTP_DEBUG}" != "true" ]; then
-                                set +x
-                            fi
+                            if [ "${CI_DEBUG}" != "true" ]; then set +x; else set -x; fi
                             cat > ./jtest/jtestcli-ft.properties << EOF
 dtp.project=${app_name}
-build.id=${app_name}-${BUILD_TIMESTAMP}
+build.id=${app_name}-${buildId}
 report.coverage.images=${app_name};${app_name}-FT
 EOF
-                            if [ "${CTP_DEBUG}" = "true" ]; then
+                            if [ "${CI_DEBUG}" = "true" ]; then
                                 echo "--- jtestcli-ft.properties ---"
                                 cat ./jtest/jtestcli-ft.properties
-                            fi
-                            if [ "${CTP_DEBUG}" != "true" ]; then
-                                set -x
                             fi
                         '''
                         // Execute the build with Jtest Maven plugin in docker
@@ -336,11 +348,9 @@ EOF
                 build job: 'Petclinic-deploy', parameters: [
                     string(name: 'CTP_URL', value: env.CTP_URL),
                     string(name: 'DTP_URL', value: env.DTP_URL),
-                    string(name: 'DTP_USER', value: params.DTP_USER),
-                    password(name: 'DTP_PASS', value: params.DTP_PASS),
-                    string(name: 'BUILD_TIMESTAMP', value: env.BUILD_TIMESTAMP),
+                    string(name: 'BUILD_ID', value: env.buildId),
                     string(name: 'CTP_ENV_ID', value: env.CTP_ENV_ID),
-                    string(name: 'CTP_DEBUG', value: params.CTP_DEBUG),
+                    booleanParam(name: 'CI_DEBUG', value: params.CI_DEBUG),
                 ]
             }
         }
@@ -349,16 +359,13 @@ EOF
             steps {
                 script {
                     // Fetch impacted tests for this deployment from CTP
-                    withEnv(["CTP_URL=${env.CTP_URL}"]) {
+                    withCredentials([
+                        usernamePassword(credentialsId: 'parasoft-demo-user', usernameVariable: 'PARASOFT_USER', passwordVariable: 'PARASOFT_PASS')
+                    ]) {
                         sh '''
-                            if [ "${CTP_DEBUG}" != "true" ]; then
-                                set +x
-                            fi
-                            response=$(curl -sk -X 'GET' -u ${DTP_USER}:${DTP_PASS} -H 'accept: application/json' \
+                            if [ "${CI_DEBUG}" != "true" ]; then set +x; else set -x; fi
+                            response=$(curl -sk -X 'GET' -u ${PARASOFT_USER}:${PARASOFT_PASS} -H 'accept: application/json' \
                                 ${CTP_URL}/em/api/v3/environments/${CTP_ENV_ID}/coverage/impactedTests?baselineBuildId=${BASELINE_ID})
-                            if [ "${CTP_DEBUG}" != "true" ]; then
-                                set -x
-                            fi
                             echo "$response"
                             echo "$response" > impactedTests.json
                         '''
@@ -368,96 +375,90 @@ EOF
                     echo "${testNames}"
 
                     // Run each test module parameterized with impacted tests from CTP
-                    // NOTE: JUnit 5 parallel execution is currently disabled (CTP_PARALLEL_TEST_EXECUTION=false).
+                    // NOTE: JUnit 5 parallel execution is currently disabled.
                     // To re-enable parallel mode for selenium-tests and playwright-tests, add these flags back
-                    // to their respective mvn commands AND set CTP_PARALLEL_TEST_EXECUTION=true in each
-                    // module's parasoft-settings.properties. CTP_PARALLEL_TEST_EXECUTION=true requires
-                    // CTP_MULTI_USER_MODE=true. Running parallel tests in single-user mode is an invalid
-                    // configuration because concurrent tests cannot be distinguished by the coverage agents
-                    // when they are in single-user mode:
+                    // to their respective mvn commands AND set parasoft.coverage.integration.parallel.test.enabled=true
+                    // in each module's coverage-integration.properties (or pass it as -D on the command line).
+                    // Parallel execution requires the CTP coverage agents to be running in multi-user mode,
+                    // otherwise concurrent tests cannot be distinguished by the agents:
                     //   -Djunit.jupiter.execution.parallel.enabled=true \
                     //   -Djunit.jupiter.execution.parallel.mode.classes.default=concurrent \
-                    withEnv(["CTP_URL=${env.CTP_URL}", "TEST_NAMES=${testNames}", "CTP_LOG_LEVEL=${params.CTP_DEBUG == 'true' ? 'DEBUG' : 'INFO'}"]) {
-                        sh '''
-                            echo "Running Selenium JUnit 5 module parameterized with impacted tests from CTP..."
-                            if [ "${CTP_DEBUG}" != "true" ]; then
-                                set +x
-                            fi
-                            mvn -ntp verify \
-                            -pl spring-petclinic-selenium-tests \
-                            -am \
-                            -DPETCLINIC_URL="http://${PUBLIC_IP}:8099" \
-                            -DCTP_BASE_URL="${CTP_URL}" \
-                            -DCTP_ENV_ID=${CTP_ENV_ID} \
-                            -DCTP_USERNAME=${DTP_USER} \
-                            -DCTP_PASSWORD=${DTP_PASS} \
-                            -DCTP_DEBUG=${CTP_DEBUG} \
-                            -DPROXY_HOST=${PRIVATE_IP} \
-                            -DPROXY_BIND_HOST=${PRIVATE_IP} \
-                            -DCTP_LOG_LEVEL=${CTP_LOG_LEVEL} \
-                            -Dit.test="${TEST_NAMES}" \
-                            -Dfailsafe.failIfNoSpecifiedTests=false
-                        '''
-                        sh '''
-                            echo "Running Selenium JUnit5 + Cucumber module parameterized with impacted tests from CTP..."
-                            if [ "${CTP_DEBUG}" != "true" ]; then
-                                set +x
-                            fi
-                            mvn -ntp verify \
-                            -pl spring-petclinic-selenium-cucumber-tests \
-                            -am \
-                            -DPETCLINIC_URL="http://${PUBLIC_IP}:8099" \
-                            -DCTP_BASE_URL="${CTP_URL}" \
-                            -DCTP_ENV_ID=${CTP_ENV_ID} \
-                            -DCTP_USERNAME=${DTP_USER} \
-                            -DCTP_PASSWORD=${DTP_PASS} \
-                            -DCTP_DEBUG=${CTP_DEBUG} \
-                            -DPROXY_HOST=${PRIVATE_IP} \
-                            -DPROXY_BIND_HOST=${PRIVATE_IP} \
-                            -DCTP_LOG_LEVEL=${CTP_LOG_LEVEL} \
-                            -Dit.test="${TEST_NAMES}" \
-                            -Dfailsafe.failIfNoSpecifiedTests=false
-                        '''
-                        sh '''
-                            echo "Running Selenium TestNG module parameterized with impacted tests from CTP..."
-                            if [ "${CTP_DEBUG}" != "true" ]; then
-                                set +x
-                            fi
-                            mvn -ntp verify \
-                            -pl spring-petclinic-selenium-testng-tests \
-                            -am \
-                            -DPETCLINIC_URL="http://${PUBLIC_IP}:8099" \
-                            -DCTP_BASE_URL="${CTP_URL}" \
-                            -DCTP_ENV_ID=${CTP_ENV_ID} \
-                            -DCTP_USERNAME=${DTP_USER} \
-                            -DCTP_PASSWORD=${DTP_PASS} \
-                            -DCTP_DEBUG=${CTP_DEBUG} \
-                            -DPROXY_HOST=${PRIVATE_IP} \
-                            -DPROXY_BIND_HOST=${PRIVATE_IP} \
-                            -DCTP_LOG_LEVEL=${CTP_LOG_LEVEL} \
-                            -Dit.test="${TEST_NAMES}" \
-                            -Dfailsafe.failIfNoSpecifiedTests=false
-                        '''
-                        sh '''
-                            echo "Running Playwright JUnit 5 module parameterized with impacted tests from CTP..."
-                            if [ "${CTP_DEBUG}" != "true" ]; then
-                                set +x
-                            fi
-                            mvn -ntp verify \
-                            -pl spring-petclinic-playwright-tests \
-                            -am \
-                            -DHEADLESS=true \
-                            -DPETCLINIC_URL="http://${PUBLIC_IP}:8099" \
-                            -DCTP_BASE_URL="${CTP_URL}" \
-                            -DCTP_ENV_ID=${CTP_ENV_ID} \
-                            -DCTP_USERNAME=${DTP_USER} \
-                            -DCTP_PASSWORD=${DTP_PASS} \
-                            -DPROXY_HOST=${PRIVATE_IP} \
-                            -DPROXY_BIND_HOST=${PRIVATE_IP} \
-                            -DCTP_LOG_LEVEL=${CTP_LOG_LEVEL} \
-                            -Dit.test="${TEST_NAMES}" \
-                            -Dfailsafe.failIfNoSpecifiedTests=false
-                        '''
+                    withCredentials([
+                        usernamePassword(credentialsId: 'parasoft-demo-user', usernameVariable: 'PARASOFT_USER', passwordVariable: 'PARASOFT_PASS')
+                    ]) {
+                        withEnv(["TEST_NAMES=${testNames}"]) {
+                            sh '''
+                                echo "Running Selenium JUnit 5 module parameterized with impacted tests from CTP..."
+                                if [ "${CI_DEBUG}" != "true" ]; then set +x; else set -x; fi
+                                mvn -ntp verify \
+                                -pl spring-petclinic-selenium-tests \
+                                -am \
+                                -s './jtest/.m2/settings.xml' \
+                                -DPETCLINIC_URL="http://${PUBLIC_IP}:8099" \
+                                -Dparasoft.coverage.integration.ctp.url="${CTP_URL}/em" \
+                                -Dparasoft.coverage.integration.ctp.envId=${CTP_ENV_ID} \
+                                -Dparasoft.coverage.integration.ctp.auth.username=${PARASOFT_USER} \
+                                -Dparasoft.coverage.integration.ctp.auth.password=${PARASOFT_PASS} \
+                                -Dparasoft.coverage.integration.dtp.sessionTag=${app_name}-${buildId} \
+                                -Dorg.slf4j.simpleLogger.log.com.parasoft.coverage.integration=${CI_LIB_LOG_LEVEL} \
+                                -Dit.test="${TEST_NAMES}" \
+                                -Dfailsafe.failIfNoSpecifiedTests=false
+                            '''
+                            sh '''
+                                echo "Running Selenium JUnit5 + Cucumber module parameterized with impacted tests from CTP..."
+                                if [ "${CI_DEBUG}" != "true" ]; then set +x; else set -x; fi
+                                mvn -ntp verify \
+                                -pl spring-petclinic-selenium-cucumber-tests \
+                                -am \
+                                -s './jtest/.m2/settings.xml' \
+                                -DPETCLINIC_URL="http://${PUBLIC_IP}:8099" \
+                                -Dparasoft.coverage.integration.ctp.url="${CTP_URL}/em" \
+                                -Dparasoft.coverage.integration.ctp.envId=${CTP_ENV_ID} \
+                                -Dparasoft.coverage.integration.ctp.auth.username=${PARASOFT_USER} \
+                                -Dparasoft.coverage.integration.ctp.auth.password=${PARASOFT_PASS} \
+                                -Dparasoft.coverage.integration.dtp.sessionTag=${app_name}-${buildId} \
+                                -DPROXY_HOST=${PRIVATE_IP} \
+                                -DPROXY_BIND_HOST=${PRIVATE_IP} \
+                                -Dorg.slf4j.simpleLogger.log.com.parasoft.coverage.integration=${CI_LIB_LOG_LEVEL} \
+                                -Dit.test="${TEST_NAMES}" \
+                                -Dfailsafe.failIfNoSpecifiedTests=false
+                            '''
+                            sh '''
+                                echo "Running Selenium TestNG module parameterized with impacted tests from CTP..."
+                                if [ "${CI_DEBUG}" != "true" ]; then set +x; else set -x; fi
+                                mvn -ntp verify \
+                                -pl spring-petclinic-selenium-testng-tests \
+                                -am \
+                                -s './jtest/.m2/settings.xml' \
+                                -DPETCLINIC_URL="http://${PUBLIC_IP}:8099" \
+                                -Dparasoft.coverage.integration.ctp.url="${CTP_URL}/em" \
+                                -Dparasoft.coverage.integration.ctp.envId=${CTP_ENV_ID} \
+                                -Dparasoft.coverage.integration.ctp.auth.username=${PARASOFT_USER} \
+                                -Dparasoft.coverage.integration.ctp.auth.password=${PARASOFT_PASS} \
+                                -Dparasoft.coverage.integration.dtp.sessionTag=${app_name}-${buildId} \
+                                -Dorg.slf4j.simpleLogger.log.com.parasoft.coverage.integration=${CI_LIB_LOG_LEVEL} \
+                                -Dit.test="${TEST_NAMES}" \
+                                -Dfailsafe.failIfNoSpecifiedTests=false
+                            '''
+                            sh '''
+                                echo "Running Playwright JUnit 5 module parameterized with impacted tests from CTP..."
+                                if [ "${CI_DEBUG}" != "true" ]; then set +x; else set -x; fi
+                                mvn -ntp verify \
+                                -pl spring-petclinic-playwright-tests \
+                                -am \
+                                -s './jtest/.m2/settings.xml' \
+                                -DHEADLESS=true \
+                                -DPETCLINIC_URL="http://${PUBLIC_IP}:8099" \
+                                -Dparasoft.coverage.integration.ctp.url="${CTP_URL}/em" \
+                                -Dparasoft.coverage.integration.ctp.envId=${CTP_ENV_ID} \
+                                -Dparasoft.coverage.integration.ctp.auth.username=${PARASOFT_USER} \
+                                -Dparasoft.coverage.integration.ctp.auth.password=${PARASOFT_PASS} \
+                                -Dparasoft.coverage.integration.dtp.sessionTag=${app_name}-${buildId} \
+                                -Dorg.slf4j.simpleLogger.log.com.parasoft.coverage.integration=${CI_LIB_LOG_LEVEL} \
+                                -Dit.test="${TEST_NAMES}" \
+                                -Dfailsafe.failIfNoSpecifiedTests=false
+                            '''
+                        }
                     }
                 }
             }

@@ -1,0 +1,6 @@
+#NOTE: This is a Maven Resolver internal implementation file, its format can be changed without prior notice.
+#Mon Aug 03 14:21:40 PDT 2026
+coverage-integration-junit4-1.0.0-SNAPSHOT.jar>=
+coverage-integration-junit4-1.0.0-SNAPSHOT-javadoc.jar>=
+coverage-integration-junit4-1.0.0-SNAPSHOT.pom>=
+coverage-integration-junit4-1.0.0-SNAPSHOT-sources.jar>=

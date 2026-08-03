@@ -98,7 +98,7 @@ Several test modules are included for running web functional tests that report t
 * [`spring-petclinic-selenium-testng-tests`](spring-petclinic-selenium-testng-tests/) — Selenium with TestNG
 * [`spring-petclinic-playwright-tests`](spring-petclinic-playwright-tests/) — Playwright with JUnit 5
 
-These modules share common Parasoft integration logic from [`spring-petclinic-testcommon`](spring-petclinic-testcommon/). See the [testcommon README](spring-petclinic-testcommon/README.md) for configuration details.
+Each module uses the `coverage-integration` library (`com.parasoft:coverage-integration-*`) for Parasoft CTP session management, baggage header injection, and test result reporting. See each module's README for configuration details.
 
 
 ## In case you find a bug/suggested improvement for Spring Petclinic Microservices

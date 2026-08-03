@@ -30,15 +30,9 @@ mvn -ntp verify -pl spring-petclinic-selenium-testng-tests -am -DPETCLINIC_URL=<
 
 `PETCLINIC_URL` defaults to `http://localhost:8099` if not provided.
 
-**With Selenium Grid:**
-
-```
-mvn -ntp verify -pl spring-petclinic-selenium-testng-tests -am -DSELENIUM_GRID=true -DPROXY_HOST=<PROXY HOST> -DPETCLINIC_URL=<PETCLINIC URL>
-```
-
 **Headless mode:** Add `-DHEADLESS=true` to run without a visible browser window.
 
-**Non-default CTP credentials:** Add `-DCTP_USERNAME=<USERNAME> -DCTP_PASSWORD=<PASSWORD>`.
+**Non-default CTP credentials:** Add `-Dparasoft.coverage.integration.ctp.auth.username=<USERNAME> -Dparasoft.coverage.integration.ctp.auth.password=<PASSWORD>`.
 
 ### Parallel Test Execution
 
@@ -54,94 +48,24 @@ To run tests in parallel, two changes are required:
 <suite name="PetClinic Selenium TestNG Suite" parallel="tests" thread-count="2">
 ```
 
-2. **Set `CTP_PARALLEL_TEST_EXECUTION=true`** — either in `parasoft-settings.properties` or on the command line:
+2. **Set `parasoft.coverage.integration.parallel.test.enabled=true`** — either in `coverage-integration.properties` or on the command line:
 
 ```
-mvn -ntp verify -pl spring-petclinic-selenium-testng-tests -am -DCTP_PARALLEL_TEST_EXECUTION=true -DPETCLINIC_URL=<PETCLINIC URL>
+mvn -ntp verify -pl spring-petclinic-selenium-testng-tests -am -Dparasoft.coverage.integration.parallel.test.enabled=true -DPETCLINIC_URL=<PETCLINIC URL>
 ```
 
-When parallel execution is enabled, `CTP_MULTI_USER_MODE` must also be `true` (the default) — running parallel tests in single-user mode is an invalid configuration because concurrent tests cannot be distinguished by the coverage agents when they are in single-user mode. All concurrent test classes share a single CTP session and are distinguished on the server by a per-class `parallelId` (the WebDriver session ID).
+When parallel execution is enabled, the CTP coverage agents must be running in **multi-user mode** — running parallel tests against single-user agents is an invalid configuration because concurrent tests cannot be distinguished by the agents. All concurrent test classes share a single CTP session and are distinguished on the server by a per-class `parallelId` (managed by the `coverage-integration-selenium` module).
 
-**Parallelism scope:** This project supports **class-level parallelism only** — test classes run concurrently, but methods within a class run sequentially and share the class's WebDriver/proxy instance. Method-level parallelism is intentionally not supported because it would require per-method WebDriver and `ParasoftHeaderInjectingProxy` lifecycle management, which is uncommon in production SDET frameworks for UI tests. The `parallel="tests"` value above runs each `<test>` (and therefore each class via the implicit test grouping) on its own thread; do **not** change it to `parallel="methods"` — multiple methods of the same class would then share one `testContextKey` and race on baggage and `parallelId` registration, making coverage attribution unreliable.
+**Parallelism scope:** This project supports **class-level parallelism only** — test classes run concurrently, but methods within a class run sequentially and share the class's WebDriver instance. Method-level parallelism is intentionally not supported because it would require per-method WebDriver lifecycle management, which is uncommon in production SDET frameworks for UI tests. The `parallel="tests"` value above runs each `<test>` (and therefore each class via the implicit test grouping) on its own thread; do **not** change it to `parallel="methods"` — multiple methods of the same class would then share one `testContextKey` and race on `parallelId` registration, making coverage attribution unreliable.
 
-### Selenium Grid Notes
+## Coverage Integration
 
-- If Selenium Grid is running in a container (e.g., Docker Desktop) and the JUnit test runner is on the host, the `host.docker.internal` convention may not work. Use your host's IP address to set `-DPROXY_HOST`. In some instances, like when Selenium Grid is running in a container on certain Linux hosts, the default value for `-DPROXY_BIND_HOST` (0.0.0.0) is insufficient, and you should override it with the same value used for `-DPROXY_HOST`.
-- If Selenium Grid is not running in a container, you only need to provide `-DPROXY_HOST` to where Selenium Grid is located.
-- If Selenium Grid is running in the cloud, extra considerations (e.g., VPC) may be necessary to ensure connectivity between the test runner + local proxy and the grid service.
+This module uses the `coverage-integration` library (`com.parasoft:coverage-integration-testng` and `com.parasoft:coverage-integration-selenium`) for Parasoft CTP session management, baggage header injection via `SeleniumCoverageIntegration.configureCdpBaggageHeader()`, and test lifecycle reporting.
 
-## How This Module Uses testcommon
-
-This module depends on `spring-petclinic-testcommon` for all Parasoft CTP integration. See the [testcommon README](../spring-petclinic-testcommon/README.md) for full details.
-
-### Dependency
-
-The testcommon module is consumed as a `test-jar` in `pom.xml`:
-
-```xml
-<dependency>
-    <groupId>org.springframework.samples.petclinic.testcommon</groupId>
-    <artifactId>spring-petclinic-testcommon</artifactId>
-    <version>1.0.0</version>
-    <type>test-jar</type>
-    <scope>test</scope>
-</dependency>
-```
-
-### SuiteListener
-
-Registered in `testng.xml` via the `<listeners>` element:
-
-```xml
-<suite name="PetClinic Selenium TestNG Suite">
-    <listeners>
-        <listener class-name="org.springframework.samples.petclinic.testcommon.testng.ParasoftSuiteListenerTestNG"/>
-    </listeners>
-    <!-- ... -->
-</suite>
-```
-
-This starts/stops the CTP session at the suite level and publishes coverage and baseline data at suite end.
-
-### Watcher
-
-Each test class uses `@Listeners` to register the per-test watcher:
-
-```java
-@Listeners(org.springframework.samples.petclinic.testcommon.testng.ParasoftWatcherTestNG.class)
-public class NavigateIT { ... }
-```
-
-This reports individual test start/stop events (with PASS/FAIL results) to CTP.
-
-### WebDriverFactory
-
-Test classes create a `ParasoftWebDriverResource` in `@BeforeClass` and close it in `@AfterClass`:
-
-```java
-@BeforeClass
-public void openBrowser() {
-    driverResource = WebDriverFactory.create(
-            BrowserType.CHROME,
-            new BasicWebDriverConfigurator("960,1080", "0,0"),
-            new ParasoftWebDriverConfigurator(NavigateIT.class.getName()));
-    driver = driverResource.getDriver();
-}
-
-@AfterClass
-public void closeBrowser() {
-    if (driverResource != null) {
-        driverResource.close();
-    }
-}
-```
-
-The `ParasoftWebDriverConfigurator` takes the test class name as the `testContextKey`, which associates the WebDriver session and its proxy's baggage `AtomicReference` with `ParasoftSessionManager`. It also starts the header-injecting proxy when multi-user mode is enabled.
+The `coverage-integration` artifacts are vendored in `jtest/.m2/repository` and are resolved via the `jtest/.m2/settings.xml` file repository.
 
 ## Configuring Settings
 
-Settings are resolved in order: **system property** (`-D`) → **`parasoft-settings.properties`** → **hardcoded default**.
+Settings are resolved in order: **system property** (`-D`) → **`coverage-integration.properties`** → **hardcoded default**.
 
-Edit [`src/test/resources/parasoft-settings.properties`](src/test/resources/parasoft-settings.properties) to configure your CTP environment. Any setting can be overridden on the Maven command line, e.g. `-DCTP_BASE_URL=http://ctp-server:8080`.
-
-For the full list of available settings and their defaults, see the [testcommon README](../spring-petclinic-testcommon/README.md#available-settings) and [ParasoftSettings.java](../spring-petclinic-testcommon/src/test/java/org/springframework/samples/petclinic/testcommon/ParasoftSettings.java).
+Edit [`src/test/resources/coverage-integration.properties`](src/test/resources/coverage-integration.properties) to configure your CTP environment. Any setting can be overridden on the Maven command line, e.g. `-Dparasoft.coverage.integration.ctp.url=http://ctp-server:8080/em`.
