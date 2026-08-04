@@ -134,7 +134,11 @@ pipeline {
                                     sed -i "s|^ctp.subscription.queue=.*|ctp.subscription.queue=${SUB_QUEUE}|" "${PROPS_FILE}"
                                     sed -i "s|^dtp.buildID=.*|dtp.buildID=${app_name}-${BUILD_ID}|" "${PROPS_FILE}"
                                     sed -i "s|^dtp.project=.*|dtp.project=${app_name}|" "${PROPS_FILE}"
-                                    sed -i "s|^dtp.coverageImages=.*|dtp.coverageImages=${app_name};${app_name}-FT|" "${PROPS_FILE}"
+                                    # dtp.coverageImages is shipped commented-out in agent.properties as an
+                                    # example placeholder — the leading "#\\?" makes this sed match both the
+                                    # commented and uncommented forms so it activates on first deploy and
+                                    # remains idempotent thereafter.
+                                    sed -i "s|^#\\?dtp\\.coverageImages=.*|dtp.coverageImages=${app_name};${app_name}-FT|" "${PROPS_FILE}"
                                     sed -i "s|^dtp.filterID=.*|dtp.filterID=${FILTER_ID}|" "${PROPS_FILE}"
                                 '''
                                 echo "Patched ${propsFile}"
