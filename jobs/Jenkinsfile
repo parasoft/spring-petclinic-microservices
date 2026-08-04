@@ -441,10 +441,14 @@ EOF
                             cat baseline_response.json || true
                             echo
                         fi
-                        # CTP returns 200 on success. Accept 2xx.
+                        # CTP returns 200 on successful baseline creation, 409 when a baseline with
+                        # this baselineId already exists in the environment. Treat 409 as a warning
+                        # (idempotent no-op on re-runs, e.g. when the pipeline is rerun with the same
+                        # BUILD_ID_OVERRIDE); any other non-2xx status is a real failure.
                         case "${http_code}" in
-                            2*) echo "CTP baseline '${BASELINE_ID}' published successfully." ;;
-                            *)  echo "CTP baseline publish failed with HTTP ${http_code}:"; cat baseline_response.json || true; exit 1 ;;
+                            2*)  echo "CTP baseline '${BASELINE_ID}' published successfully." ;;
+                            409) echo "CTP baseline '${BASELINE_ID}' already exists (HTTP 409) — continuing:"; cat baseline_response.json || true; echo ;;
+                            *)   echo "CTP baseline publish failed with HTTP ${http_code}:"; cat baseline_response.json || true; exit 1 ;;
                         esac
                     '''
                 }
