@@ -24,6 +24,7 @@
         <module>spring-petclinic-discovery-server</module>
         <module>spring-petclinic-api-gateway</module>
         <module>spring-petclinic-selenium-tests</module>
+        <module>spring-petclinic-selenium-junit4-tests</module>
         <module>spring-petclinic-selenium-testng-tests</module>
         <module>spring-petclinic-selenium-cucumber-tests</module>
         <module>spring-petclinic-playwright-tests</module>

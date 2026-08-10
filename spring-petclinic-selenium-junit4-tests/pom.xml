@@ -4,9 +4,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.springframework.samples.petclinic.selenium</groupId>
-    <artifactId>spring-petclinic-selenium-tests</artifactId>
+    <artifactId>spring-petclinic-selenium-junit4-tests</artifactId>
     <packaging>jar</packaging>
-    <description>Spring PetClinic Selenium Tests</description>
+    <description>Spring PetClinic Selenium JUnit 4 Tests</description>
 
     <parent>
         <groupId>org.springframework.samples</groupId>
@@ -15,7 +15,7 @@
     </parent>
 
     <properties>
-        <junit.version>5.14.2</junit.version>
+        <junit4.version>4.13.2</junit4.version>
         <selenium.version>4.40.0</selenium.version>
         <opentelemetry.version>1.59.0</opentelemetry.version>
     </properties>
@@ -36,31 +36,17 @@
             <version>${opentelemetry.version}</version>
             <scope>test</scope>
         </dependency>
-        
+
         <!-- Test Framework -->
         <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-api</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-engine</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-params</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.platform</groupId>
-            <artifactId>junit-platform-launcher</artifactId>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit4.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.parasoft</groupId>
-            <artifactId>coverage-integration-junit5</artifactId>
+            <artifactId>coverage-integration-junit4</artifactId>
             <version>1.0.0-SNAPSHOT</version>
             <scope>test</scope>
         </dependency>
@@ -78,18 +64,6 @@
         </dependency>
     </dependencies>
 
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>org.junit</groupId>
-                <artifactId>junit-bom</artifactId>
-                <version>${junit.version}</version>
-                <scope>import</scope>
-                <type>pom</type>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
-
     <build>
         <plugins>
             <!-- Use Failsafe for functional/integration tests -->
@@ -106,9 +80,12 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <systemPropertyVariables>
-                        <junit.jupiter.extensions.autodetection.enabled>true</junit.jupiter.extensions.autodetection.enabled>
-                    </systemPropertyVariables>
+                    <properties>
+                        <property>
+                            <name>listener</name>
+                            <value>com.parasoft.coverage.integration.junit4.ParasoftJUnit4RunListener</value>
+                        </property>
+                    </properties>
                     <includes>
                         <include>**/*IT.java</include>
                         <include>**/*ITCase.java</include>

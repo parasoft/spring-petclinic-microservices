@@ -17,4 +17,9 @@
             <class name="org.springframework.samples.petclinic.selenium.testng.PetIT"/>
         </classes>
     </test>
+    <test name="ParameterizedPetIT">
+        <classes>
+            <class name="org.springframework.samples.petclinic.selenium.testng.ParameterizedPetIT"/>
+        </classes>
+    </test>
 </suite>
