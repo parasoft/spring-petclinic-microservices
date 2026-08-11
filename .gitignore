@@ -21,7 +21,6 @@ settings.json
 # Branch switching
 generated/
 
-jtest.settings
 .jtest
 
 /*/*/*/resources/coverage

@@ -6,26 +6,11 @@ Sequential execution is the default. Parallel scenario execution is also support
 
 ## Prerequisites
 
-- The Petclinic application must be running and accessible.
-- Parasoft CTP must be running.
-- The selected CTP environment must contain coverage-agent connections for the Petclinic services.
-- The Petclinic services must be started with their coverage agents enabled.
-- The `coverage-integration` artifacts must be available from the configured Maven repository or installed in the local Maven repository.
-
-Build the project before running the tests:
+- Complete the [local deployment setup](../README.md#local-deployment-with-coverage) in the root README before running tests (configures coverage agents, builds images, publishes static coverage to DTP, and starts the services).
+- Build the project before running the tests:
 
 ```bash
 mvn -ntp clean install -DskipTests
-```
-
-To publish static coverage to DTP with Jtest, ensure `jtest.settings` contains the correct paths and run:
-
-```bash
-mvn -ntp clean package jtest:monitor \
-  -DskipTests=true \
-  -Djtest.settings=jtest.settings \
-  -Djtest.showSettings=true \
-  -Dproperty.report.dtp.publish=true
 ```
 
 ## Running the tests
@@ -33,9 +18,7 @@ mvn -ntp clean package jtest:monitor \
 ### Sequential execution
 
 ```bash
-mvn -ntp verify \
-  -pl spring-petclinic-selenium-cucumber-tests \
-  -am
+mvn -ntp verify -pl spring-petclinic-selenium-cucumber-tests -am
 ```
 
 The Petclinic URL defaults to `http://localhost:8099`. Override it with:

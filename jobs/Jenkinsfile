@@ -407,6 +407,24 @@ EOF
                         -Dparasoft.coverage.integration.dtp.sessionTag=${app_name}-${buildId} \
                         -Dorg.slf4j.simpleLogger.log.com.parasoft.coverage.integration=${CI_LIB_LOG_LEVEL} \
                         '''
+                    sh '''
+                        echo "Running Selenium JUnit 4 module, sequential execution, and publishing to DTP/CTP..."
+                        if [ "${CI_DEBUG}" != "true" ]; then set +x; else set -x; fi
+                        mvn -ntp verify \
+                        -pl spring-petclinic-selenium-junit4-tests \
+                        -am \
+                        -s './jtest/.m2/settings.xml' \
+                        -Dorg.springframework.samples.petclinic.headless=true \
+                        -DPETCLINIC_URL="http://${PUBLIC_IP}:8099" \
+                        -Dparasoft.coverage.integration.ctp.url="${CTP_URL}/em" \
+                        -Dparasoft.coverage.integration.ctp.envId=${CTP_ENV_ID} \
+                        -Dparasoft.coverage.integration.ctp.auth.username=${PARASOFT_USER} \
+                        -Dparasoft.coverage.integration.ctp.auth.password=${PARASOFT_PASS} \
+                        -Dparasoft.coverage.integration.dtp.sessionTag=${app_name}-${buildId} \
+                        -DPROXY_HOST=${PRIVATE_IP} \
+                        -DPROXY_BIND_HOST=${PRIVATE_IP} \
+                        -Dorg.slf4j.simpleLogger.log.com.parasoft.coverage.integration=${CI_LIB_LOG_LEVEL} \
+                        '''
                 }
             }
         }

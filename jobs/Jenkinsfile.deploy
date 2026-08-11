@@ -45,135 +45,46 @@ pipeline {
                     env.GID         = sh(script: 'id -g jenkins', returnStdout: true).trim()
                 }
 
-                // Download coverage agent archive from CTP
+                // Extract coverage agent jars from CTP image and generate per-service agent.properties
                 withCredentials([
                     usernamePassword(credentialsId: 'parasoft-demo-user', usernameVariable: 'PARASOFT_USER', passwordVariable: 'PARASOFT_PASS')
                 ]) {
                     sh '''
-                        if [ "${CI_DEBUG}" != "true" ]; then set +x; else set -x; fi
-                        curl -kLO -u ${PARASOFT_USER}:${PARASOFT_PASS} ${CTP_URL}/em/coverageagent/java_agent_coverage.zip
-                        unzip java_agent_coverage.zip
+                        DEBUG_FLAG=""
+                        [ "${CI_DEBUG}" = "true" ] && DEBUG_FLAG="--ci-debug"
+                        ./scripts/setup-coverage.sh \
+                            --ctp-url  "${CTP_URL}" \
+                            --env-id   "${CTP_ENV_ID}" \
+                            --dtp-url  "${DTP_URL}" \
+                            --build-id "${BUILD_ID}" \
+                            --app-name "${app_name}" \
+                            ${DEBUG_FLAG}
                     '''
-                }
-
-                // Copy coverage agent JARs into each microservice
-                sh '''
-                    for service in spring-petclinic-api-gateway spring-petclinic-vets-service spring-petclinic-visits-service spring-petclinic-customers-service; do
-                        cp jtest_agent/agent.jar                   ${service}/src/test/resources/coverage/agent.jar
-                        cp jtest_agent/jtest-otel-ext.jar          ${service}/src/test/resources/coverage/jtest-otel-ext.jar
-                        cp jtest_agent/opentelemetry-javaagent.jar ${service}/src/test/resources/coverage/opentelemetry-javaagent.jar
-                        echo "${service} - JARs successfully copied."
-                    done
-                '''
-
-                // Patch agent.properties with CTP and DTP configuration
-                script {
-                    def appName        = env.app_name
-                    def buildId        = params.BUILD_ID
-
-                    withCredentials([
-                        usernamePassword(credentialsId: 'parasoft-demo-user', usernameVariable: 'PARASOFT_USER', passwordVariable: 'PARASOFT_PASS')
-                    ]) {
-                        // Fetch all components for this CTP environment
-                        def componentsResponse = sh(
-                            script: '''
-                                if [ "${CI_DEBUG}" != "true" ]; then set +x; fi
-                                curl -sk -u "${PARASOFT_USER}:${PARASOFT_PASS}" \
-                                    -H 'accept: application/json' \
-                                    "${CTP_URL}/em/api/v3/environments/${CTP_ENV_ID}/components"
-                            ''',
-                            returnStdout: true
-                        ).trim()
-                        if (params.CI_DEBUG) {
-                            echo "CTP components response:\n${componentsResponse}"
-                        }
-                        def componentsJson = new groovy.json.JsonSlurperClassic().parseText(componentsResponse)
-
-                        // Resolve DTP filter ID by app name
-                        def filterResponse = sh(
-                            script: '''
-                                if [ "${CI_DEBUG}" != "true" ]; then set +x; fi
-                                curl -sk -u "${PARASOFT_USER}:${PARASOFT_PASS}" \
-                                    -H 'accept: application/json' \
-                                    "${DTP_URL}/grs/api/v1.12/filters?managedOnly=false&name=${app_name}"
-                            ''',
-                            returnStdout: true
-                        ).trim()
-                        if (params.CI_DEBUG) {
-                            echo "DTP filter response:\n${filterResponse}"
-                        }
-                        def filterJson = new groovy.json.JsonSlurperClassic().parseText(filterResponse)
-                        def filterId = filterJson[0]?.id
-                        if (!filterId) {
-                            error("Could not resolve DTP filter ID for '${appName}'")
-                        }
-                        echo "Resolved DTP filter ID: ${filterId}"
-
-                        // Map service directory -> CTP component name
-                        def serviceConfigs = [
-                            [dir: 'spring-petclinic-api-gateway',       ctpName: 'UI + API Gateway'],
-                            [dir: 'spring-petclinic-customers-service',  ctpName: 'customers-service REST API'],
-                            [dir: 'spring-petclinic-vets-service',       ctpName: 'vets-service REST API'],
-                            [dir: 'spring-petclinic-visits-service',     ctpName: 'visits-service REST API']
-                        ]
-
-                        for (serviceConfig in serviceConfigs) {
-                            def serviceDir = serviceConfig.dir
-                            def ctpName    = serviceConfig.ctpName
-                            def component  = componentsJson.components.find { it.name == ctpName }
-                            if (!component) {
-                                error("Could not find CTP component named '${ctpName}'")
-                            }
-                            def wsUrl     = component.ctpWebsocketUrl
-                            def subQueue  = component.ctpSubscriptionQueue
-                            def propsFile = "${serviceDir}/src/test/resources/coverage/agent.properties"
-
-                            withEnv(["PROPS_FILE=${propsFile}", "WS_URL=${wsUrl}", "SUB_QUEUE=${subQueue}", "FILTER_ID=${filterId}", "BUILD_ID=${buildId}"]) {
-                                sh '''
-                                    sed -i "s|^ctp.websocket.url=.*|ctp.websocket.url=${WS_URL}|" "${PROPS_FILE}"
-                                    sed -i "s|^ctp.subscription.queue=.*|ctp.subscription.queue=${SUB_QUEUE}|" "${PROPS_FILE}"
-                                    sed -i "s|^dtp.buildID=.*|dtp.buildID=${app_name}-${BUILD_ID}|" "${PROPS_FILE}"
-                                    sed -i "s|^dtp.project=.*|dtp.project=${app_name}|" "${PROPS_FILE}"
-                                    # dtp.coverageImages is shipped commented-out in agent.properties as an
-                                    # example placeholder — the leading "#\\?" makes this sed match both the
-                                    # commented and uncommented forms so it activates on first deploy and
-                                    # remains idempotent thereafter.
-                                    sed -i "s|^#\\?dtp\\.coverageImages=.*|dtp.coverageImages=${app_name};${app_name}-FT|" "${PROPS_FILE}"
-                                    sed -i "s|^dtp.filterID=.*|dtp.filterID=${FILTER_ID}|" "${PROPS_FILE}"
-                                '''
-                                echo "Patched ${propsFile}"
-                                if (params.CI_DEBUG) {
-                                    sh 'cat "${PROPS_FILE}"'
-                                }
-                            }
-                        }
-                    }
                 }
             }
         }
         stage('Deploy: Launch Services') {
             when { equals expected: true, actual: true }
             steps {
-                // Select deployment topology: single instance or load balanced multi-instance
-                // Switch composeFile to 'docker-compose-cc-lb.yml' for 2-instance load balanced setup
+                // Select deployment topology via --profile (single or lb)
                 script {
-                    def composeFile = 'docker-compose-cc.yml' //change this line to switch topology
-                    def agentPorts  = composeFile.contains('-lb')
+                    def profile    = 'single' //change to 'lb' for 2-instance load balanced setup
+                    def agentPorts = profile == 'lb'
                         ? '8051 8052 8053 8054 8055 8056 8057 8058'  // 2 instances x 4 services
                         : '8051 8052 8053 8054'                        // 1 instance  x 4 services
-                    env.COMPOSE_FILE = composeFile
-                    env.AGENT_PORTS  = agentPorts
+                    env.COMPOSE_PROFILE = profile
+                    env.AGENT_PORTS     = agentPorts
                 }
-                withEnv(["COMPOSE_FILE=${env.COMPOSE_FILE}", "AGENT_PORTS=${env.AGENT_PORTS}"]) {
-                    // Tear down any running stack (both topologies, safe if not running)
+                withEnv(["COMPOSE_PROFILE=${env.COMPOSE_PROFILE}", "AGENT_PORTS=${env.AGENT_PORTS}"]) {
+                    // Tear down any running stack (both profiles, safe if not running)
                     sh '''
-                        docker-compose -f docker-compose-cc.yml down || true
-                        docker-compose -f docker-compose-cc-lb.yml down || true
+                        docker-compose -f docker-compose-cc.yml --profile single down || true
+                        docker-compose -f docker-compose-cc.yml --profile lb down || true
                         sleep 10s
                         '''
                     // Deploy and wait for readiness
                     sh '''
-                        docker-compose -f ${COMPOSE_FILE} up -d --force-recreate
+                        docker-compose -f docker-compose-cc.yml --profile ${COMPOSE_PROFILE} up -d --force-recreate
 
                         # Allow containers to settle before polling
                         sleep 180s
@@ -213,9 +124,7 @@ pipeline {
         always {
             sh  '''
                 echo "cleaning up..."
-                rm -rf "jtest_agent"
                 rm -rf "jtestcov"
-
                 '''
         }
     }

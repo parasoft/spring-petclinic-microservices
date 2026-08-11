@@ -6,18 +6,11 @@ By default this module runs tests sequentially. It also supports parallel test e
 
 ## Prerequisites
 
-- The Petclinic application must be running and accessible.
-- Parasoft CTP must be running and configured with coverage agents deployed on the Petclinic services.
+- Complete the [local deployment setup](../README.md#local-deployment-with-coverage) in the root README before running tests (configures coverage agents, builds images, publishes static coverage to DTP, and starts the services).
 - The project must be built before running tests:
 
 ```
 mvn -ntp clean install -DskipTests
-```
-
-If you need to publish static coverage to DTP with Jtest, use (ensure `jtest.settings` exists with correct paths):
-
-```
-mvn -ntp clean package jtest:monitor -DskipTests=true -Djtest.settings=jtest.settings -Djtest.showSettings=true -Dproperty.report.dtp.publish=true
 ```
 
 ## Running Tests

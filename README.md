@@ -7,29 +7,123 @@ This microservices branch was initially derived from [AngularJS version](https:/
 To achieve that goal, we use Spring Cloud Gateway, Spring Cloud Circuit Breaker, Spring Cloud Config, Micrometer Tracing, Resilience4j, Open Telemetry 
 and the Eureka Service Discovery from the [Spring Cloud Netflix](https://github.com/spring-cloud/spring-cloud-netflix) technology stack.
 
-## Starting services with Parasoft coverage agent for Java
+## Prerequisites
 
-Four microservice projects have been configured with Parasoft coverage agent properties:
+To use this repo with Parasoft CTP and DTP integration you need:
 
-* `spring-petclinic-api-gateway`
-* `spring-petclinic-customers-service`
-* `spring-petclinic-vets-service`
-* `spring-petclinic-visits-service`
+- **Docker Desktop** — for building images and running the application stack
+- **Java 17** and **Maven** — for building and running tests
+- **Parasoft CTP** — running and accessible; must have a Spring PetClinic environment configured with coverage-agent connections for the four instrumented services. Import `ctp-system.zip` from this repo to set up the environment quickly.
+- **Parasoft DTP** — running and accessible; must have a project named `spring-petclinic-microservices` (or update `dtp.project` in [`jtest.settings`](jtest.settings) and [`jtest/coverage/agent.properties`](jtest/coverage/agent.properties))
+- **Parasoft Jtest license** — accessible via your Parasoft License Server
 
-To run locally with coverage agents:
+## Key Configuration Files
 
-1. Copy `agent.jar`, `opentelemetry-javaagent.jar`, and `jtest-otel-ext.jar` into each project's `src/test/resources/coverage/` folder alongside the existing `agent.properties`.
-2. Maven will automatically pick up the Java agent and inject it into the Spring Boot runtime.
-3. Coverage agent port numbers are configured in each project's `src/test/resources/coverage/agent.properties`.
-4. Start each microservice using `../mvnw spring-boot:run` in a separate terminal. Start the Config Server and Discovery Server first, then the remaining services (see [Starting services locally without Docker](#starting-services-locally-without-docker)).
+| File | Purpose | Edit before running? |
+|---|---|---|
+| [`jtest.settings`](jtest.settings) | Jtest license and DTP connection | **Yes** — fill in the six blank credential fields |
+| [`jtest/coverage/agent.properties`](jtest/coverage/agent.properties) | Coverage agent template for all four services | **Yes** — set `ctp.websocket.url` to the address the agents inside containers use to reach CTP (e.g. `ws://ctp:8080/em/coverage/websocket` if CTP runs in a container named `ctp` on the same Docker network). The setup script patches `ctp.subscription.queue` and `dtp.*` values automatically. |
+| [`scripts/setup-coverage.sh`](scripts/setup-coverage.sh) / [`setup-coverage.ps1`](scripts/setup-coverage.ps1) | Extracts coverage agent jars from the CTP image and generates per-service `agent.properties` | Run once after cloning (see Step 2 below) |
+| [`docker-compose-cc.yml`](docker-compose-cc.yml) | Docker Compose for coverage-enabled deployments; supports `single` and `lb` profiles | No editing needed |
 
-Alternatively, you can run with coverage agents using Docker Compose. First build the images:
+## Local Deployment with Coverage
 
-`./mvnw clean install -P buildDocker -DskipTests=true`
+The following steps assume CTP and DTP are already running. The four instrumented services are:
+`spring-petclinic-api-gateway`, `spring-petclinic-customers-service`, `spring-petclinic-vets-service`, `spring-petclinic-visits-service`.
 
-Then start the containers:
+### Step 1 — Configure `jtest.settings`
 
-`docker-compose -f docker-compose-cc.yml up -d`
+Edit [`jtest.settings`](jtest.settings) and fill in the six blank fields:
+
+```properties
+license.network.url=https://your-license-server
+license.network.user=your-username
+license.network.password=your-password
+
+dtp.url=https://your-dtp-server
+dtp.user=your-username
+dtp.password=your-password
+```
+
+The remaining values (`dtp.project`, `build.id`, `report.coverage.images`) already match the project defaults.
+
+### Step 2 — Publish static coverage to DTP
+
+Before running functional tests, publish a static coverage baseline to DTP. This also creates the DTP project and filter that the setup script (Step 3) needs to look up — so this step must run first on a fresh DTP deployment.
+
+```bash
+./mvnw clean install jtest:monitor \
+    -DskipTests=true \
+    -Djtest.settings=jtest.settings \
+    -Djtest.showSettings=true \
+    -Dproperty.report.dtp.publish=true
+```
+
+This uses [`jtest.settings`](jtest.settings) and must be run after Step 1. It only needs to be re-run when the application source code changes between test runs.
+
+### Step 3 — Run the coverage setup script
+
+The setup script extracts Parasoft coverage agent jars from `parasoft/ctp:latest`, copies them into each service's `src/test/resources/coverage/` directory, and generates a per-service `agent.properties` by resolving CTP subscription queues and DTP filter IDs from the CTP/DTP APIs.
+
+**Linux / macOS:**
+```bash
+export PARASOFT_USER=your-ctp-user
+export PARASOFT_PASS=your-ctp-password
+./scripts/setup-coverage.sh \
+    --ctp-url http://your-ctp:8080 \
+    --env-id <CTP environment ID> \
+    --dtp-url http://your-dtp:8083
+```
+
+**Windows (PowerShell):**
+```powershell
+$env:PARASOFT_USER = "your-ctp-user"
+$env:PARASOFT_PASS = "your-ctp-password"
+.\scripts\setup-coverage.ps1 `
+    -CtpUrl http://your-ctp:8080 `
+    -EnvId <CTP environment ID> `
+    -DtpUrl http://your-dtp:8083
+```
+
+The CTP environment ID appears in the CTP UI under the environment's settings. Run `--help` / `-Help` for all options.
+
+> Running the script without arguments extracts jars only, leaving `agent.properties` at its template defaults. This is enough to activate the Maven `coverage` profile for `mvnw spring-boot:run`; you can then fill in `ctp.subscription.queue` manually using the pattern hint in `jtest/coverage/agent.properties`.
+
+### Step 4 — Build Docker images
+
+```bash
+./mvnw clean install -P buildDocker -DskipTests=true
+```
+
+Agent jars are pulled from `parasoft/ctp:latest` during the image build automatically — no separate download needed. Step 3's jar extraction is only needed for the `mvnw spring-boot:run` path.
+
+### Step 5 — Start the services
+
+**Single-instance** (one container per service — default for most local use):
+```bash
+docker-compose -f docker-compose-cc.yml --profile single up -d
+```
+
+**Load-balanced** (two containers per service behind nginx):
+```bash
+docker-compose -f docker-compose-cc.yml --profile lb up -d
+```
+
+The application is available at `http://localhost:8099` once the API gateway is ready (allow ~3 minutes for all services to register with Eureka).
+
+### Step 6 — Run the functional tests
+
+See [Web functional tests integrated with CTP](#web-functional-tests-integrated-with-ctp) for links to each test module's README.
+
+## Jenkins Pipeline
+
+The `jobs/` directory contains three pipelines that automate all of the above for CI environments. No manual file editing is needed when running via Jenkins — CTP/DTP URLs and credentials are Jenkins parameters and credentials.
+
+| File | Purpose |
+|---|---|
+| [`Jenkinsfile`](jobs/Jenkinsfile) | Main CI pipeline: build, static analysis, unit tests, deploy, functional tests, publish CTP baseline |
+| [`Jenkinsfile.deploy`](jobs/Jenkinsfile.deploy) | Deployment pipeline: runs `setup-coverage.sh`, builds Docker images, launches the service stack |
+| [`Jenkinsfile.tia`](jobs/Jenkinsfile.tia) | TIA pipeline: builds, deploys, and runs only tests impacted by recent code changes |
 
 ## Starting services locally without Docker
 
@@ -94,6 +188,7 @@ Import `ctp-system.zip` from this Git repo into your CTP to quickly set up the a
 Several test modules are included for running web functional tests that report test results and coverage data to Parasoft CTP. Each module has its own README with detailed usage instructions:
 
 * [`spring-petclinic-selenium-tests`](spring-petclinic-selenium-tests/) — Selenium with JUnit 5
+* [`spring-petclinic-selenium-junit4-tests`](spring-petclinic-selenium-junit4-tests/) — Selenium with JUnit 4
 * [`spring-petclinic-selenium-cucumber-tests`](spring-petclinic-selenium-cucumber-tests/) — Selenium with Cucumber and JUnit 5
 * [`spring-petclinic-selenium-testng-tests`](spring-petclinic-selenium-testng-tests/) — Selenium with TestNG
 * [`spring-petclinic-playwright-tests`](spring-petclinic-playwright-tests/) — Playwright with JUnit 5
