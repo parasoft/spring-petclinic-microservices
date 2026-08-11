@@ -13,6 +13,7 @@ To use this repo with Parasoft CTP and DTP integration you need:
 
 - **Docker Desktop** — for building images and running the application stack
 - **Java 17** and **Maven** — for building and running tests
+- **Parasoft Jtest Maven plugin** — installed in your local Maven installation. See [Integrating with Maven](https://docs.parasoft.com/display/JTEST20261/Integrating+with+Maven) for setup instructions.
 - **Parasoft CTP** — running and accessible; must have a Spring PetClinic environment configured with coverage-agent connections for the four instrumented services. Import `ctp-system.zip` from this repo to set up the environment quickly.
 - **Parasoft DTP** — running and accessible; must have a project named `spring-petclinic-microservices` (or update `dtp.project` in [`jtest.settings`](jtest.settings) and [`jtest/coverage/agent.properties`](jtest/coverage/agent.properties))
 - **Parasoft Jtest license** — accessible via your Parasoft License Server
@@ -52,7 +53,7 @@ The remaining values (`dtp.project`, `build.id`, `report.coverage.images`) alrea
 Before running functional tests, publish a static coverage baseline to DTP. This also creates the DTP project and filter that the setup script (Step 3) needs to look up — so this step must run first on a fresh DTP deployment.
 
 ```bash
-./mvnw clean install jtest:monitor \
+mvn -ntp clean install jtest:monitor \
     -DskipTests=true \
     -Djtest.settings=jtest.settings \
     -Djtest.showSettings=true \
