@@ -453,7 +453,7 @@ EOF
             }
         }
         stage('Publish: CTP Baseline for TIA') {
-            when { equals expected: true, actual: true }
+            when { expression { return params.DTP_PUBLISH } }
             steps {
                 // Snapshot this build's coverage in CTP as a named baseline that the
                 // downstream Petclinic-tia pipeline can query via
