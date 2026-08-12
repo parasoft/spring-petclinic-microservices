@@ -396,6 +396,9 @@ EOF
                                 -s './jtest/.m2/settings.xml' \
                                 -Dorg.springframework.samples.petclinic.headless=true \
                                 -DPETCLINIC_URL="http://${PUBLIC_IP}:8099" \
+                                -DSELENIUM_GRID_URL="http://localhost:4444/wd/hub" \
+                                -DPROXY_HOST=${PRIVATE_IP} \
+                                -DPROXY_BIND_HOST=${PRIVATE_IP} \
                                 -Dparasoft.coverage.integration.ctp.url="${CTP_URL}/em" \
                                 -Dparasoft.coverage.integration.ctp.envId=${CTP_ENV_ID} \
                                 -Dparasoft.coverage.integration.ctp.auth.username=${PARASOFT_USER} \

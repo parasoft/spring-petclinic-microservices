@@ -163,7 +163,7 @@ pipeline {
                     -e SE_NODE_MAX_SESSIONS=2 \
                     -e SE_NODE_OVERRIDE_MAX_SESSIONS=true \
                     --name selenium-grid \
-                    selenium/standalone-chrome:latest
+                    selenium/standalone-all:4.47.0-20260808
                     '''
 
                 // Emit jtestcli.properties (secrets injected via withCredentials; content echoed only when CI_DEBUG=true)
@@ -350,12 +350,16 @@ EOF
                         -s './jtest/.m2/settings.xml' \
                         -Dorg.springframework.samples.petclinic.headless=true \
                         -DPETCLINIC_URL="http://${PUBLIC_IP}:8099" \
+                        -DSELENIUM_GRID_URL="http://localhost:4444/wd/hub" \
+                        -DPROXY_HOST=${PRIVATE_IP} \
+                        -DPROXY_BIND_HOST=${PRIVATE_IP} \
                         -Dparasoft.coverage.integration.ctp.url="${CTP_URL}/em" \
                         -Dparasoft.coverage.integration.ctp.envId=${CTP_ENV_ID} \
                         -Dparasoft.coverage.integration.ctp.auth.username=${PARASOFT_USER} \
                         -Dparasoft.coverage.integration.ctp.auth.password=${PARASOFT_PASS} \
                         -Dparasoft.coverage.integration.dtp.sessionTag=${app_name}-${buildId} \
                         -Dorg.slf4j.simpleLogger.log.com.parasoft.coverage.integration=${CI_LIB_LOG_LEVEL} \
+                        -Dit.test="!ParameterizedPetIT"
                         '''
                     sh '''
                         echo "Running Selenium JUnit5 + Cucumber module with Selenium Grid, sequential execution, and publishing to DTP/CTP..."

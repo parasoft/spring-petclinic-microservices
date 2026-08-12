@@ -1,5 +1,6 @@
 package org.springframework.samples.petclinic.selenium.tests;
 
+import java.net.URL;
 import java.time.Duration;
 
 import org.junit.jupiter.api.AfterEach;
@@ -13,6 +14,7 @@ import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.edge.EdgeOptions;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxOptions;
+import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
@@ -64,20 +66,38 @@ public class ParameterizedPetIT {
         wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//a[@title=\"home page\"]"))).click();
     }
 
-    private void createDriver(String browser) {
-        if ("firefox".equalsIgnoreCase(browser)) {
-            FirefoxOptions firefoxOptions = new FirefoxOptions();
-            proxy = SeleniumCoverageIntegration.configureFirefoxOptions(firefoxOptions);
-            driver = new FirefoxDriver(firefoxOptions);
-        } else if ("edge".equalsIgnoreCase(browser)) {
-            EdgeOptions edgeOptions = new EdgeOptions();
-            proxy = SeleniumCoverageIntegration.configureEdgeOptions(edgeOptions);
-            driver = new EdgeDriver(edgeOptions);
+    private void createDriver(String browser) throws Exception {
+        String gridUrl = System.getProperty("SELENIUM_GRID_URL", "");
+        if (!gridUrl.isEmpty()) {
+            // CI: use RemoteWebDriver so Grid dispatches to the correct browser node
+            if ("firefox".equalsIgnoreCase(browser)) {
+                FirefoxOptions opts = new FirefoxOptions();
+                proxy = SeleniumCoverageIntegration.configureFirefoxOptions(opts);
+                driver = new RemoteWebDriver(new URL(gridUrl), opts);
+            } else if ("edge".equalsIgnoreCase(browser)) {
+                EdgeOptions opts = new EdgeOptions();
+                proxy = SeleniumCoverageIntegration.configureEdgeOptions(opts);
+                driver = new RemoteWebDriver(new URL(gridUrl), opts);
+            } else {
+                ChromeOptions opts = new ChromeOptions();
+                proxy = SeleniumCoverageIntegration.configureChromeOptions(opts);
+                driver = new RemoteWebDriver(new URL(gridUrl), opts);
+            }
         } else {
-            // Default: Chrome
-            ChromeOptions chromeOptions = new ChromeOptions();
-            proxy = SeleniumCoverageIntegration.configureChromeOptions(chromeOptions);
-            driver = new ChromeDriver(chromeOptions);
+            // Local: use local drivers directly
+            if ("firefox".equalsIgnoreCase(browser)) {
+                FirefoxOptions opts = new FirefoxOptions();
+                proxy = SeleniumCoverageIntegration.configureFirefoxOptions(opts);
+                driver = new FirefoxDriver(opts);
+            } else if ("edge".equalsIgnoreCase(browser)) {
+                EdgeOptions opts = new EdgeOptions();
+                proxy = SeleniumCoverageIntegration.configureEdgeOptions(opts);
+                driver = new EdgeDriver(opts);
+            } else {
+                ChromeOptions opts = new ChromeOptions();
+                proxy = SeleniumCoverageIntegration.configureChromeOptions(opts);
+                driver = new ChromeDriver(opts);
+            }
         }
     }
 }
