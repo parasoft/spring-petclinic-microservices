@@ -32,6 +32,7 @@ DTP_URL=""
 BUILD_ID="baseline"
 APP_NAME="spring-petclinic-microservices"
 SKIP_JARS=false
+USE_CTP_WS_URL=false
 CI_DEBUG=false
 
 # ─── Usage ────────────────────────────────────────────────────────────────────
@@ -46,8 +47,11 @@ Options:
   --dtp-url URL     DTP base URL (e.g. http://dtp:8083).
   --build-id ID     Build identifier written to dtp.buildID (default: baseline).
   --app-name NAME   DTP project name (default: spring-petclinic-microservices).
-  --skip-jars       Skip jar extraction from the CTP Docker image.
-  --ci-debug        Enable verbose output including patched properties files.
+  --skip-jars          Skip jar extraction from the CTP Docker image.
+  --use-ctp-ws-url     Patch ctp.websocket.url from the CTP API response.
+                       Use when CTP is on a remote host (e.g. Jenkins). Omit
+                       for local Docker deployments where the template value is correct.
+  --ci-debug           Enable verbose output including patched properties files.
   -h, --help        Show this help.
 
 Environment variables (required when --ctp-url or --dtp-url are supplied):
@@ -81,8 +85,9 @@ while [[ $# -gt 0 ]]; do
         --dtp-url)   DTP_URL="${2%/}";  shift 2 ;;
         --build-id)  BUILD_ID="$2";     shift 2 ;;
         --app-name)  APP_NAME="$2";     shift 2 ;;
-        --skip-jars) SKIP_JARS=true;    shift ;;
-        --ci-debug)  CI_DEBUG=true;     shift ;;
+        --skip-jars)       SKIP_JARS=true;        shift ;;
+        --use-ctp-ws-url)  USE_CTP_WS_URL=true;   shift ;;
+        --ci-debug)        CI_DEBUG=true;          shift ;;
         -h|--help)   usage ;;
         *) echo "ERROR: Unknown option: $1" >&2; usage ;;
     esac
@@ -197,10 +202,9 @@ for entry in "${SERVICES[@]}"; do
     mkdir -p "${coverage_dir}"
     cp "${TEMPLATE}" "${props}"
 
-    # Patch ctp.subscription.queue from CTP API response
-    # ctp.websocket.url is intentionally left as-is from the template — the URL
-    # returned by the CTP API is host-facing and differs from the Docker network
-    # address the agents need inside containers. Set it once in jtest/coverage/agent.properties.
+    # Patch ctp.subscription.queue from CTP API response.
+    # ctp.websocket.url is only patched when --use-ctp-ws-url is set (e.g. Jenkins, where CTP
+    # is on a remote host). For local Docker deployments the template value is correct as-is.
     if [[ -n "${COMPONENTS_JSON}" ]]; then
         ws_url=$(echo "${COMPONENTS_JSON}" | jq -r --arg n "${ctp_name}" \
             '.components[] | select(.name == $n) | .ctpWebsocketUrl // empty')
@@ -210,6 +214,8 @@ for entry in "${SERVICES[@]}"; do
             echo "ERROR: CTP component '${ctp_name}' not found in environment ${CTP_ENV_ID}." >&2
             exit 1
         fi
+        [[ "${USE_CTP_WS_URL}" == "true" ]] && \
+            sed_inplace "s|^ctp.websocket.url=.*|ctp.websocket.url=${ws_url}|" "${props}"
         sed_inplace "s|^ctp.subscription.queue=.*|ctp.subscription.queue=${sub_queue}|" "${props}"
     fi
 

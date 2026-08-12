@@ -89,6 +89,8 @@ $env:PARASOFT_PASS = "your-ctp-password"
 The CTP environment ID appears in the CTP UI under the environment's settings. Run `--help` / `-Help` for all options.
 
 > Running the script without arguments extracts jars only, leaving `agent.properties` at its template defaults. This is enough to activate the Maven `coverage` profile for `mvnw spring-boot:run`; you can then fill in `ctp.subscription.queue` manually using the pattern hint in `jtest/coverage/agent.properties`.
+>
+> If CTP is on a remote host rather than a Docker container on the same network, add `--use-ctp-ws-url` and the script will set `ctp.websocket.url` from the CTP API response instead of the template value.
 
 ### Step 4 — Build Docker images
 

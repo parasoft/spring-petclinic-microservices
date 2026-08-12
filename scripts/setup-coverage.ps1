@@ -25,6 +25,7 @@ param(
     [string] $BuildId  = "baseline",
     [string] $AppName  = "spring-petclinic-microservices",
     [switch] $SkipJars,
+    [switch] $UseCTPWsUrl,
     [switch] $CiDebug
 )
 
@@ -158,13 +159,15 @@ try {
         Copy-Item -Path $Template -Destination $propsFile -Force
 
         # Patch ctp.subscription.queue from CTP API.
-        # ctp.websocket.url is intentionally left as-is from the template — the URL
-        # returned by the CTP API is host-facing and differs from the Docker network
-        # address the agents need inside containers. Set it once in jtest/coverage/agent.properties.
+        # ctp.websocket.url is only patched when -UseCTPWsUrl is set (e.g. Jenkins, where CTP
+        # is on a remote host). For local Docker deployments the template value is correct as-is.
         if ($ComponentsData) {
             $component = $ComponentsData.components | Where-Object { $_.name -eq $ctpName }
             if (-not $component) {
                 Write-Error "ERROR: CTP component '${ctpName}' not found in environment ${EnvId}."
+            }
+            if ($UseCTPWsUrl) {
+                Set-Property $propsFile "ctp.websocket.url" $component.ctpWebsocketUrl
             }
             Set-Property $propsFile "ctp.subscription.queue" $component.ctpSubscriptionQueue
         }

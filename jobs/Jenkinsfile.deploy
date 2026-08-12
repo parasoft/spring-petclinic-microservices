@@ -53,11 +53,12 @@ pipeline {
                         DEBUG_FLAG=""
                         [ "${CI_DEBUG}" = "true" ] && DEBUG_FLAG="--ci-debug"
                         ./scripts/setup-coverage.sh \
-                            --ctp-url  "${CTP_URL}" \
-                            --env-id   "${CTP_ENV_ID}" \
-                            --dtp-url  "${DTP_URL}" \
-                            --build-id "${BUILD_ID}" \
-                            --app-name "${app_name}" \
+                            --ctp-url         "${CTP_URL}" \
+                            --env-id          "${CTP_ENV_ID}" \
+                            --dtp-url         "${DTP_URL}" \
+                            --build-id        "${BUILD_ID}" \
+                            --app-name        "${app_name}" \
+                            --use-ctp-ws-url \
                             ${DEBUG_FLAG}
                     '''
                 }
