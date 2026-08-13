@@ -36,8 +36,12 @@
             <version>${opentelemetry.version}</version>
             <scope>test</scope>
         </dependency>
-        
-        <!-- Test Framework -->
+        <dependency>
+            <groupId>com.parasoft</groupId>
+            <artifactId>coverage-integration-api</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>

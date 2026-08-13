@@ -167,16 +167,36 @@ pipeline {
 
                 // startup Selenium Grid
                 sh '''
-                    # Start Selenium Grid for Selenium test execution
+                    # Start Selenium Grid Hub
                     docker run -d --rm \
-                    -p 4444:4444 \
-                    -p 7900:7900 \
+                    -p 4444:4444 -p 4442:4442 -p 4443:4443 \
+                    --network=demo-net \
+                    --name selenium-hub \
+                    selenium/hub:4.47.0-20260808
+
+                    # Start browser nodes — they self-register to the hub via demo-net
+                    docker run -d --rm \
                     --network=demo-net \
                     --shm-size "2g" \
+                    -e SE_EVENT_BUS_HOST=selenium-hub \
                     -e SE_NODE_MAX_SESSIONS=2 \
                     -e SE_NODE_OVERRIDE_MAX_SESSIONS=true \
-                    --name selenium-grid \
-                    selenium/standalone-chrome:latest
+                    --name selenium-node-chrome \
+                    selenium/node-chrome:4.47.0-20260808
+
+                    docker run -d --rm \
+                    --network=demo-net \
+                    --shm-size "2g" \
+                    -e SE_EVENT_BUS_HOST=selenium-hub \
+                    --name selenium-node-firefox \
+                    selenium/node-firefox:4.47.0-20260808
+
+                    docker run -d --rm \
+                    --network=demo-net \
+                    --shm-size "2g" \
+                    -e SE_EVENT_BUS_HOST=selenium-hub \
+                    --name selenium-node-edge \
+                    selenium/node-edge:4.47.0-20260808
                     '''
 
                 // Emit jtestcli.properties (secrets injected via withCredentials; content echoed only when CI_DEBUG=true)
@@ -397,7 +417,7 @@ EOF
                                 -Dorg.springframework.samples.petclinic.headless=true \
                                 -DPETCLINIC_URL="http://${PUBLIC_IP}:8099" \
                                 -DSELENIUM_GRID_URL="http://localhost:4444/wd/hub" \
-                                -DPROXY_HOST=${PRIVATE_IP} \
+
                                 -DPROXY_BIND_HOST=${PRIVATE_IP} \
                                 -Dparasoft.coverage.integration.ctp.url="${CTP_URL}/em" \
                                 -Dparasoft.coverage.integration.ctp.envId=${CTP_ENV_ID} \
@@ -417,12 +437,13 @@ EOF
                                 -s './jtest/.m2/settings.xml' \
                                 -Dorg.springframework.samples.petclinic.headless=true \
                                 -DPETCLINIC_URL="http://${PUBLIC_IP}:8099" \
+                                -DSELENIUM_GRID_URL="http://localhost:4444/wd/hub" \
                                 -Dparasoft.coverage.integration.ctp.url="${CTP_URL}/em" \
                                 -Dparasoft.coverage.integration.ctp.envId=${CTP_ENV_ID} \
                                 -Dparasoft.coverage.integration.ctp.auth.username=${PARASOFT_USER} \
                                 -Dparasoft.coverage.integration.ctp.auth.password=${PARASOFT_PASS} \
                                 -Dparasoft.coverage.integration.dtp.sessionTag=${app_name}-${buildId} \
-                                -DPROXY_HOST=${PRIVATE_IP} \
+
                                 -DPROXY_BIND_HOST=${PRIVATE_IP} \
                                 -Dorg.slf4j.simpleLogger.log.com.parasoft.coverage.integration=${CI_LIB_LOG_LEVEL} \
                                 -Dit.test="${TEST_NAMES}" \
@@ -437,6 +458,9 @@ EOF
                                 -s './jtest/.m2/settings.xml' \
                                 -Dorg.springframework.samples.petclinic.headless=true \
                                 -DPETCLINIC_URL="http://${PUBLIC_IP}:8099" \
+                                -DSELENIUM_GRID_URL="http://localhost:4444/wd/hub" \
+
+                                -DPROXY_BIND_HOST=${PRIVATE_IP} \
                                 -Dparasoft.coverage.integration.ctp.url="${CTP_URL}/em" \
                                 -Dparasoft.coverage.integration.ctp.envId=${CTP_ENV_ID} \
                                 -Dparasoft.coverage.integration.ctp.auth.username=${PARASOFT_USER} \
@@ -473,12 +497,13 @@ EOF
                                 -s './jtest/.m2/settings.xml' \
                                 -Dorg.springframework.samples.petclinic.headless=true \
                                 -DPETCLINIC_URL="http://${PUBLIC_IP}:8099" \
+                                -DSELENIUM_GRID_URL="http://localhost:4444/wd/hub" \
                                 -Dparasoft.coverage.integration.ctp.url="${CTP_URL}/em" \
                                 -Dparasoft.coverage.integration.ctp.envId=${CTP_ENV_ID} \
                                 -Dparasoft.coverage.integration.ctp.auth.username=${PARASOFT_USER} \
                                 -Dparasoft.coverage.integration.ctp.auth.password=${PARASOFT_PASS} \
                                 -Dparasoft.coverage.integration.dtp.sessionTag=${app_name}-${buildId} \
-                                -DPROXY_HOST=${PRIVATE_IP} \
+
                                 -DPROXY_BIND_HOST=${PRIVATE_IP} \
                                 -Dorg.slf4j.simpleLogger.log.com.parasoft.coverage.integration=${CI_LIB_LOG_LEVEL} \
                                 -Dit.test="${TEST_NAMES}" \
@@ -502,7 +527,11 @@ EOF
         // Clean after build
         always {
             sh '''
-                docker container stop selenium-grid || true
+                if [ "${CI_DEBUG}" = "true" ]; then
+                    echo "--- selenium-grid logs (CI_DEBUG=true) ---"
+                    docker logs selenium-hub || true
+                fi
+                docker container stop selenium-hub selenium-node-chrome selenium-node-firefox selenium-node-edge || true
                 docker container prune -f
                 docker image prune -f
                 echo "cleaning up..."

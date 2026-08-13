@@ -18,12 +18,15 @@ import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
+import com.parasoft.coverage.integration.api.CoverageIntegration;
 import com.parasoft.coverage.integration.proxy.ParasoftHeaderInjectingProxy;
 import com.parasoft.coverage.integration.selenium.SeleniumCoverageIntegration;
 
 public class ParameterizedPetIT {
 
     private static final String PETCLINIC_URL = System.getProperty("PETCLINIC_URL", "http://localhost:8099/");
+    private static final boolean HEADLESS = Boolean.parseBoolean(System.getProperty("org.springframework.samples.petclinic.headless", "false"));
+    private static final String PROXY_BIND_HOST = System.getProperty("PROXY_BIND_HOST", "127.0.0.1");
 
     private WebDriver driver;
     private ParasoftHeaderInjectingProxy proxy;
@@ -69,32 +72,61 @@ public class ParameterizedPetIT {
     private void createDriver(String browser) throws Exception {
         String gridUrl = System.getProperty("SELENIUM_GRID_URL", "");
         if (!gridUrl.isEmpty()) {
-            // CI: use RemoteWebDriver so Grid dispatches to the correct browser node
+            String baggage = CoverageIntegration.getBaggageHeader();
             if ("firefox".equalsIgnoreCase(browser)) {
                 FirefoxOptions opts = new FirefoxOptions();
-                proxy = SeleniumCoverageIntegration.configureFirefoxOptions(opts);
+                if (HEADLESS) {
+                    opts.addArguments("--headless");
+                }
+                if (baggage != null && !baggage.isBlank()) {
+                    // proxy must bind to a routable address when the browser runs in a separate container
+                    proxy = new ParasoftHeaderInjectingProxy(PROXY_BIND_HOST, 0, baggage);
+                    SeleniumCoverageIntegration.configureFirefoxOptions(opts, proxy);
+                }
                 driver = new RemoteWebDriver(new URL(gridUrl), opts);
             } else if ("edge".equalsIgnoreCase(browser)) {
                 EdgeOptions opts = new EdgeOptions();
-                proxy = SeleniumCoverageIntegration.configureEdgeOptions(opts);
+                if (HEADLESS) {
+                    opts.addArguments("--headless=new");
+                }
+                if (baggage != null && !baggage.isBlank()) {
+                    proxy = new ParasoftHeaderInjectingProxy(PROXY_BIND_HOST, 0, baggage);
+                    SeleniumCoverageIntegration.configureEdgeOptions(opts, proxy);
+                }
                 driver = new RemoteWebDriver(new URL(gridUrl), opts);
             } else {
                 ChromeOptions opts = new ChromeOptions();
-                proxy = SeleniumCoverageIntegration.configureChromeOptions(opts);
+                if (HEADLESS) {
+                    opts.addArguments("--headless=new");
+                }
+                if (baggage != null && !baggage.isBlank()) {
+                    proxy = new ParasoftHeaderInjectingProxy(PROXY_BIND_HOST, 0, baggage);
+                    SeleniumCoverageIntegration.configureChromeOptions(opts, proxy);
+                }
                 driver = new RemoteWebDriver(new URL(gridUrl), opts);
             }
         } else {
-            // Local: use local drivers directly
             if ("firefox".equalsIgnoreCase(browser)) {
                 FirefoxOptions opts = new FirefoxOptions();
+                if (HEADLESS) {
+                    opts.addArguments("--headless");
+                }
                 proxy = SeleniumCoverageIntegration.configureFirefoxOptions(opts);
                 driver = new FirefoxDriver(opts);
             } else if ("edge".equalsIgnoreCase(browser)) {
                 EdgeOptions opts = new EdgeOptions();
+                opts.addArguments("--no-sandbox", "--disable-dev-shm-usage");
+                if (HEADLESS) {
+                    opts.addArguments("--headless=new");
+                }
                 proxy = SeleniumCoverageIntegration.configureEdgeOptions(opts);
                 driver = new EdgeDriver(opts);
             } else {
                 ChromeOptions opts = new ChromeOptions();
+                opts.addArguments("--no-sandbox", "--disable-dev-shm-usage");
+                if (HEADLESS) {
+                    opts.addArguments("--headless=new");
+                }
                 proxy = SeleniumCoverageIntegration.configureChromeOptions(opts);
                 driver = new ChromeDriver(opts);
             }

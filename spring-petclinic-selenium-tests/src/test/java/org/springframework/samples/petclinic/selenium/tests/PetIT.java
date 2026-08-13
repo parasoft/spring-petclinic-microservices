@@ -1,13 +1,19 @@
 package org.springframework.samples.petclinic.selenium.tests;
 
+import java.net.URL;
 import java.time.Duration;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.chromium.HasCdp;
+import org.openqa.selenium.remote.Augmenter;
+import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
@@ -17,33 +23,21 @@ public class PetIT {
     private static String PETCLINIC_URL = System.getProperty("PETCLINIC_URL", "http://localhost:8099/");
     private static final boolean HEADLESS = Boolean.parseBoolean(System.getProperty("org.springframework.samples.petclinic.headless", "false"));
 
-    private static ChromeDriver driver;
+    private static WebDriver driver;
 
     @BeforeAll
-    static void openBrowser() {
-        ChromeOptions chromeOptions = new ChromeOptions();
-        chromeOptions.addArguments(
-            "--no-sandbox",
-                "--disable-dev-shm-usage",
-                "--window-size=1200,800",
-                "--window-position=0,0",
-                "--no-first-run",
-                "--no-default-browser-check",
-                "--disable-background-networking",
-                "--disable-component-update",
-                "--disable-default-apps",
-                "--disable-sync",
-                "--disable-translate",
-                "--disable-domain-reliability",
-                "--disable-client-side-phishing-detection",
-                "--metrics-recording-only",
-                "--safebrowsing-disable-auto-update",
-                "--disable-features=OptimizationHints,InterestFeedContentSuggestions,Translate"
-            );
+    static void openBrowser() throws Exception {
+        ChromeOptions opts = new ChromeOptions();
         if (HEADLESS) {
-            chromeOptions.addArguments("--headless=new");
+            opts.addArguments("--headless=new");
         }
-        driver = new ChromeDriver(chromeOptions);
+        String gridUrl = System.getProperty("SELENIUM_GRID_URL", "");
+        if (!gridUrl.isEmpty()) {
+            driver = new Augmenter().augment(new RemoteWebDriver(new URL(gridUrl), opts));
+        } else {
+            opts.addArguments("--no-sandbox", "--disable-dev-shm-usage");
+            driver = new ChromeDriver(opts);
+        }
     }
 
     @AfterAll
@@ -53,9 +47,13 @@ public class PetIT {
         }
     }
 
+    @BeforeEach
+    void configureCoverage() {
+        SeleniumCoverageIntegration.configureCdpBaggageHeader((HasCdp) driver);
+    }
+
     @Test
     public void testRenamePet() throws Exception {
-        SeleniumCoverageIntegration.configureCdpBaggageHeader(driver);
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
         driver.get(PETCLINIC_URL);
         wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//a[@class=\"dropdown-toggle\"]"))).click();
