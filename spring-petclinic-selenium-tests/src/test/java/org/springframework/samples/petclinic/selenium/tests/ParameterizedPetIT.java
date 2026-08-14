@@ -48,7 +48,7 @@ public class ParameterizedPetIT {
     public void testRenamePet(String browser) throws Exception {
         createDriver(browser);
 
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
         driver.get(PETCLINIC_URL);
         wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//a[@class=\"dropdown-toggle\"]"))).click();
         wait.until(ExpectedConditions.elementToBeClickable(By.cssSelector("a[ui-sref='owners']"))).click();
