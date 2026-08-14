@@ -376,7 +376,7 @@ EOF
                         -Dparasoft.coverage.integration.ctp.envId=${CTP_ENV_ID} \
                         -Dparasoft.coverage.integration.ctp.auth.username=${PARASOFT_USER} \
                         -Dparasoft.coverage.integration.ctp.auth.password=${PARASOFT_PASS} \
-                        -Dparasoft.coverage.integration.dtp.sessionTag=${app_name}-${buildId} \
+                        -Dparasoft.coverage.integration.dtp.sessionTag=${app_name}-${buildId}-junit5 \
                         -Dorg.slf4j.simpleLogger.log.com.parasoft.coverage.integration=${CI_LIB_LOG_LEVEL} \
                         '''
                     sh '''
@@ -394,7 +394,7 @@ EOF
                         -Dparasoft.coverage.integration.ctp.envId=${CTP_ENV_ID} \
                         -Dparasoft.coverage.integration.ctp.auth.username=${PARASOFT_USER} \
                         -Dparasoft.coverage.integration.ctp.auth.password=${PARASOFT_PASS} \
-                        -Dparasoft.coverage.integration.dtp.sessionTag=${app_name}-${buildId} \
+                        -Dparasoft.coverage.integration.dtp.sessionTag=${app_name}-${buildId}-cucumber \
                         -Dorg.slf4j.simpleLogger.log.com.parasoft.coverage.integration=${CI_LIB_LOG_LEVEL} \
                         '''
                     sh '''
@@ -412,7 +412,7 @@ EOF
                         -Dparasoft.coverage.integration.ctp.envId=${CTP_ENV_ID} \
                         -Dparasoft.coverage.integration.ctp.auth.username=${PARASOFT_USER} \
                         -Dparasoft.coverage.integration.ctp.auth.password=${PARASOFT_PASS} \
-                        -Dparasoft.coverage.integration.dtp.sessionTag=${app_name}-${buildId} \
+                        -Dparasoft.coverage.integration.dtp.sessionTag=${app_name}-${buildId}-testng \
                         -Dorg.slf4j.simpleLogger.log.com.parasoft.coverage.integration=${CI_LIB_LOG_LEVEL} \
                         '''
                     sh '''
@@ -428,7 +428,7 @@ EOF
                         -Dparasoft.coverage.integration.ctp.envId=${CTP_ENV_ID} \
                         -Dparasoft.coverage.integration.ctp.auth.username=${PARASOFT_USER} \
                         -Dparasoft.coverage.integration.ctp.auth.password=${PARASOFT_PASS} \
-                        -Dparasoft.coverage.integration.dtp.sessionTag=${app_name}-${buildId} \
+                        -Dparasoft.coverage.integration.dtp.sessionTag=${app_name}-${buildId}-playwright \
                         -Dorg.slf4j.simpleLogger.log.com.parasoft.coverage.integration=${CI_LIB_LOG_LEVEL} \
                         '''
                     sh '''
@@ -446,7 +446,7 @@ EOF
                         -Dparasoft.coverage.integration.ctp.envId=${CTP_ENV_ID} \
                         -Dparasoft.coverage.integration.ctp.auth.username=${PARASOFT_USER} \
                         -Dparasoft.coverage.integration.ctp.auth.password=${PARASOFT_PASS} \
-                        -Dparasoft.coverage.integration.dtp.sessionTag=${app_name}-${buildId} \
+                        -Dparasoft.coverage.integration.dtp.sessionTag=${app_name}-${buildId}-junit4 \
                         -Dorg.slf4j.simpleLogger.log.com.parasoft.coverage.integration=${CI_LIB_LOG_LEVEL} \
                         '''
                 }
