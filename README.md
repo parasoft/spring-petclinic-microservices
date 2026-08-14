@@ -128,6 +128,61 @@ The `jobs/` directory contains three pipelines that automate all of the above fo
 | [`Jenkinsfile.deploy`](jobs/Jenkinsfile.deploy) | Deployment pipeline: runs `setup-coverage.sh`, builds Docker images, launches the service stack |
 | [`Jenkinsfile.tia`](jobs/Jenkinsfile.tia) | TIA pipeline: builds, deploys, and runs only tests impacted by recent code changes |
 
+### Jenkins Server Prerequisites
+
+#### Credentials
+
+One credential entry is required in **Manage Jenkins → Credentials**:
+
+| ID | Type | Description |
+|---|---|---|
+| `parasoft-demo-user` | Username with password | Parasoft username and password used for CTP API calls, DTP publishing, and the Jtest license server |
+
+#### Global Environment Variables
+
+One global environment variable is required in **Manage Jenkins → Configure System → Global properties → Environment variables**:
+
+| Variable | Description |
+|---|---|
+| `DEFAULT_LSS_URL` | Parasoft License Server URL (e.g. `https://your-license-server`) |
+
+#### Tool Configurations
+
+The following tools must be configured in **Manage Jenkins → Tools**:
+
+| Tool | Name used in pipeline |
+|---|---|
+| Maven | `maven` |
+| JDK 17 | `JDK 17` |
+
+#### Agent Requirements
+
+The Jenkins agent that executes the pipelines must have:
+
+- **Docker** — installed and accessible to the `jenkins` user; the `demo-net` Docker network must exist (`docker network create demo-net`)
+- **AWS EC2** — the agent must run on an EC2 instance; the pipelines resolve the instance's private IP from the EC2 metadata service
+- **`jq`** — installed on the agent (`sudo yum install jq` or equivalent)
+
+#### Pipeline Job Names
+
+The pipelines reference each other by job name. The three jobs must be named exactly:
+
+| Job name | Pipeline file |
+|---|---|
+| `Petclinic-baseline` | `Jenkinsfile` |
+| `Petclinic-deploy` | `Jenkinsfile.deploy` |
+| `Petclinic-tia` | `Jenkinsfile.tia` |
+
+`Petclinic-baseline` triggers `Petclinic-deploy` and is referenced by `Petclinic-tia` to look up the last successful baseline build ID.
+
+#### Script Approval (TIA pipeline only)
+
+`Jenkinsfile.tia` uses `Jenkins.instance.getItemByFullName(...)` to look up the last successful `Petclinic-baseline` build. This requires a one-time approval in **Manage Jenkins → In-process Script Approval** after the first run.
+
+#### Pipeline Parameters
+
+Each pipeline exposes its required inputs (CTP URL, DTP URL, environment name, build ID) as run-time parameters visible in the Jenkins UI. Default values are pre-configured in each `Jenkinsfile`; no pre-configuration on the server is needed for parameters.
+
 ## Starting services locally without Docker
 
 Every microservice is a Spring Boot application and can be started locally using IDE ([Lombok](https://projectlombok.org/) plugin has to be set up) or `../mvnw spring-boot:run` command. Please note that supporting services (Config and Discovery Server) must be started before any other application (Customers, Vets, Visits and API).
