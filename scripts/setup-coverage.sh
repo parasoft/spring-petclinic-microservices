@@ -31,7 +31,7 @@ CTP_ENV_ID=""
 DTP_URL=""
 BUILD_ID="baseline"
 APP_NAME="spring-petclinic-microservices"
-SKIP_JARS=false
+EXTRACT_JARS=false
 USE_CTP_WS_URL=false
 CI_DEBUG=false
 
@@ -47,7 +47,9 @@ Options:
   --dtp-url URL     DTP base URL (e.g. http://dtp:8083).
   --build-id ID     Build identifier written to dtp.buildID (default: baseline).
   --app-name NAME   DTP project name (default: spring-petclinic-microservices).
-  --skip-jars          Skip jar extraction from the CTP Docker image.
+  --extract-jars       Extract agent jars from the CTP Docker image into each service's
+                       src/test/resources/coverage/ directory. Omit for Docker Compose
+                       deployments — jars are baked into the image. Use for spring-boot:run.
   --use-ctp-ws-url     Patch ctp.websocket.url from the CTP API response.
                        Use when CTP is on a remote host (e.g. Jenkins). Omit
                        for local Docker deployments where the template value is correct.
@@ -59,19 +61,21 @@ Environment variables (required when --ctp-url or --dtp-url are supplied):
   PARASOFT_PASS     CTP/DTP password
 
 Examples:
-  # Jars only — no CTP/DTP API calls (useful for initial local setup)
-  ./scripts/setup-coverage.sh
-
-  # Full setup with CTP subscription queues and DTP filter ID resolved automatically
+  # Docker Compose path (default — jars baked into image, no extraction needed)
   ./scripts/setup-coverage.sh \\
       --ctp-url http://ctp:8080 --env-id 4 \\
-      --dtp-url http://dtp:8083 --build-id baseline
+      --dtp-url http://dtp:8083
+
+  # spring-boot:run path (extract jars into local workspace)
+  ./scripts/setup-coverage.sh --extract-jars \\
+      --ctp-url http://ctp:8080 --env-id 4 \\
+      --dtp-url http://dtp:8083
 
   # Jenkins usage (credentials injected via withCredentials)
   ./scripts/setup-coverage.sh \\
       --ctp-url "\${CTP_URL}" --env-id "\${CTP_ENV_ID}" \\
       --dtp-url "\${DTP_URL}" --build-id "\${BUILD_ID}" \\
-      --app-name "\${app_name}"
+      --app-name "\${app_name}" --use-ctp-ws-url
 EOF
     exit 0
 }
@@ -85,7 +89,7 @@ while [[ $# -gt 0 ]]; do
         --dtp-url)   DTP_URL="${2%/}";  shift 2 ;;
         --build-id)  BUILD_ID="$2";     shift 2 ;;
         --app-name)  APP_NAME="$2";     shift 2 ;;
-        --skip-jars)       SKIP_JARS=true;        shift ;;
+        --extract-jars)    EXTRACT_JARS=true;     shift ;;
         --use-ctp-ws-url)  USE_CTP_WS_URL=true;   shift ;;
         --ci-debug)        CI_DEBUG=true;          shift ;;
         -h|--help)   usage ;;
@@ -107,8 +111,8 @@ if [[ -n "${CTP_URL}" || -n "${DTP_URL}" ]]; then
     fi
 fi
 
-if [[ "${SKIP_JARS}" == "false" ]] && ! command -v docker &>/dev/null; then
-    echo "ERROR: docker is required for jar extraction. Use --skip-jars to skip." >&2
+if [[ "${EXTRACT_JARS}" == "true" ]] && ! command -v docker &>/dev/null; then
+    echo "ERROR: docker is required for jar extraction." >&2
     exit 1
 fi
 
@@ -152,7 +156,7 @@ CONTAINER=""
 cleanup() { [[ -n "${CONTAINER}" ]] && docker rm "${CONTAINER}" >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 
-if [[ "${SKIP_JARS}" == "false" ]]; then
+if [[ "${EXTRACT_JARS}" == "true" ]]; then
     log "Pulling coverage agent jars from ${CTP_IMAGE}..."
     CONTAINER=$(docker create "${CTP_IMAGE}")
     for entry in "${SERVICES[@]}"; do

@@ -5,16 +5,17 @@
     Used by both Jenkinsfile.deploy and local developers on Windows.
 
 .EXAMPLE
-    # Jars only - no CTP/DTP API calls
-    .\scripts\setup-coverage.ps1
+    # Docker Compose path (default — jars baked into image, no extraction needed)
+    $env:PARASOFT_USER = "user"; $env:PARASOFT_PASS = "pass"
+    .\scripts\setup-coverage.ps1 -CtpUrl http://ctp:8080 -EnvId 4 -DtpUrl http://dtp:8083
 
 .EXAMPLE
-    # Full setup with CTP subscription queues and DTP filter ID resolved automatically
+    # spring-boot:run path (extract jars into local workspace)
     $env:PARASOFT_USER = "user"; $env:PARASOFT_PASS = "pass"
-    .\scripts\setup-coverage.ps1 -CtpUrl http://ctp:8080 -EnvId 4 -DtpUrl http://dtp:8083 -BuildId baseline
+    .\scripts\setup-coverage.ps1 -ExtractJars -CtpUrl http://ctp:8080 -EnvId 4 -DtpUrl http://dtp:8083
 
 .NOTES
-    Requires: Docker (unless -SkipJars), PowerShell 5.1+
+    Requires: Docker (with -ExtractJars), PowerShell 5.1+
     Credentials: set PARASOFT_USER and PARASOFT_PASS environment variables before running.
 #>
 [CmdletBinding()]
@@ -24,7 +25,7 @@ param(
     [string] $DtpUrl   = "",
     [string] $BuildId  = "baseline",
     [string] $AppName  = "spring-petclinic-microservices",
-    [switch] $SkipJars,
+    [switch] $ExtractJars,
     [switch] $UseCTPWsUrl,
     [switch] $CiDebug
 )
@@ -62,8 +63,8 @@ if ($CtpUrl -or $DtpUrl) {
     }
 }
 
-if (-not $SkipJars -and -not (Get-Command docker -ErrorAction SilentlyContinue)) {
-    Write-Error "ERROR: docker is required for jar extraction. Use -SkipJars to skip."
+if ($ExtractJars -and -not (Get-Command docker -ErrorAction SilentlyContinue)) {
+    Write-Error "ERROR: docker is required for jar extraction."
 }
 
 if (-not (Test-Path $Template)) {
@@ -110,7 +111,7 @@ Set-Location $RepoRoot
 
 $Container = ""
 try {
-    if (-not $SkipJars) {
+    if ($ExtractJars) {
         Log "Pulling coverage agent jars from ${CtpImage}..."
         $Container = (docker create $CtpImage).Trim()
         foreach ($service in $Services.Keys) {
