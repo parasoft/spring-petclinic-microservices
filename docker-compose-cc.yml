@@ -79,8 +79,12 @@ services:
       - 8052:8050
     volumes:
       - type: bind
-        source: ./spring-petclinic-customers-service/src/test/resources/coverage
-        target: /tmp/coverage
+        source: ./spring-petclinic-customers-service/src/test/resources/coverage/agent.properties
+        target: /tmp/coverage/agent.properties
+        read_only: true
+      - type: bind
+        source: ./spring-petclinic-customers-service/src/test/resources/coverage/runtime_coverage
+        target: /tmp/coverage/runtime_coverage
 
   visits-service:
     profiles: [single]
@@ -99,8 +103,12 @@ services:
       - 8054:8050 # cov agent
     volumes:
       - type: bind
-        source: ./spring-petclinic-visits-service/src/test/resources/coverage
-        target: /tmp/coverage
+        source: ./spring-petclinic-visits-service/src/test/resources/coverage/agent.properties
+        target: /tmp/coverage/agent.properties
+        read_only: true
+      - type: bind
+        source: ./spring-petclinic-visits-service/src/test/resources/coverage/runtime_coverage
+        target: /tmp/coverage/runtime_coverage
 
   vets-service:
     profiles: [single]
@@ -119,8 +127,12 @@ services:
       - 8053:8050 # cov agent
     volumes:
       - type: bind
-        source: ./spring-petclinic-vets-service/src/test/resources/coverage
-        target: /tmp/coverage
+        source: ./spring-petclinic-vets-service/src/test/resources/coverage/agent.properties
+        target: /tmp/coverage/agent.properties
+        read_only: true
+      - type: bind
+        source: ./spring-petclinic-vets-service/src/test/resources/coverage/runtime_coverage
+        target: /tmp/coverage/runtime_coverage
 
   api-gateway:
     profiles: [single]
@@ -138,8 +150,12 @@ services:
       - 8051:8050 # cov agent
     volumes:
       - type: bind
-        source: ./spring-petclinic-api-gateway/src/test/resources/coverage
-        target: /tmp/coverage
+        source: ./spring-petclinic-api-gateway/src/test/resources/coverage/agent.properties
+        target: /tmp/coverage/agent.properties
+        read_only: true
+      - type: bind
+        source: ./spring-petclinic-api-gateway/src/test/resources/coverage/runtime_coverage
+        target: /tmp/coverage/runtime_coverage
 
   # ---------------------------------------------------------------------------
   # Profile: lb
@@ -161,8 +177,12 @@ services:
       - 8052:8050 # cov agent
     volumes:
       - type: bind
-        source: ./spring-petclinic-customers-service/src/test/resources/coverage
-        target: /tmp/coverage
+        source: ./spring-petclinic-customers-service/src/test/resources/coverage/agent.properties
+        target: /tmp/coverage/agent.properties
+        read_only: true
+      - type: bind
+        source: ./spring-petclinic-customers-service/src/test/resources/coverage/runtime_coverage_customer1
+        target: /tmp/coverage/runtime_coverage_customer1
 
   customers-service-2:
     profiles: [lb]
@@ -180,8 +200,12 @@ services:
       - 8056:8050 # cov agent
     volumes:
       - type: bind
-        source: ./spring-petclinic-customers-service/src/test/resources/coverage
-        target: /tmp/coverage
+        source: ./spring-petclinic-customers-service/src/test/resources/coverage/agent.properties
+        target: /tmp/coverage/agent.properties
+        read_only: true
+      - type: bind
+        source: ./spring-petclinic-customers-service/src/test/resources/coverage/runtime_coverage_customer2
+        target: /tmp/coverage/runtime_coverage_customer2
 
   visits-service-1:
     profiles: [lb]
@@ -200,8 +224,12 @@ services:
       - 8054:8050 # cov agent
     volumes:
       - type: bind
-        source: ./spring-petclinic-visits-service/src/test/resources/coverage
-        target: /tmp/coverage
+        source: ./spring-petclinic-visits-service/src/test/resources/coverage/agent.properties
+        target: /tmp/coverage/agent.properties
+        read_only: true
+      - type: bind
+        source: ./spring-petclinic-visits-service/src/test/resources/coverage/runtime_coverage_visit1
+        target: /tmp/coverage/runtime_coverage_visit1
 
   visits-service-2:
     profiles: [lb]
@@ -220,8 +248,12 @@ services:
       - 8058:8050 # cov agent
     volumes:
       - type: bind
-        source: ./spring-petclinic-visits-service/src/test/resources/coverage
-        target: /tmp/coverage
+        source: ./spring-petclinic-visits-service/src/test/resources/coverage/agent.properties
+        target: /tmp/coverage/agent.properties
+        read_only: true
+      - type: bind
+        source: ./spring-petclinic-visits-service/src/test/resources/coverage/runtime_coverage_visit2
+        target: /tmp/coverage/runtime_coverage_visit2
 
   vets-service-1:
     profiles: [lb]
@@ -240,8 +272,12 @@ services:
       - 8053:8050 # cov agent
     volumes:
       - type: bind
-        source: ./spring-petclinic-vets-service/src/test/resources/coverage
-        target: /tmp/coverage
+        source: ./spring-petclinic-vets-service/src/test/resources/coverage/agent.properties
+        target: /tmp/coverage/agent.properties
+        read_only: true
+      - type: bind
+        source: ./spring-petclinic-vets-service/src/test/resources/coverage/runtime_coverage_vets1
+        target: /tmp/coverage/runtime_coverage_vets1
 
   vets-service-2:
     profiles: [lb]
@@ -260,8 +296,12 @@ services:
       - 8057:8050 # cov agent
     volumes:
       - type: bind
-        source: ./spring-petclinic-vets-service/src/test/resources/coverage
-        target: /tmp/coverage
+        source: ./spring-petclinic-vets-service/src/test/resources/coverage/agent.properties
+        target: /tmp/coverage/agent.properties
+        read_only: true
+      - type: bind
+        source: ./spring-petclinic-vets-service/src/test/resources/coverage/runtime_coverage_vets2
+        target: /tmp/coverage/runtime_coverage_vets2
 
   api-gateway-1:
     profiles: [lb]
@@ -278,8 +318,12 @@ services:
       - 8051:8050 # cov agent
     volumes:
       - type: bind
-        source: ./spring-petclinic-api-gateway/src/test/resources/coverage
-        target: /tmp/coverage
+        source: ./spring-petclinic-api-gateway/src/test/resources/coverage/agent.properties
+        target: /tmp/coverage/agent.properties
+        read_only: true
+      - type: bind
+        source: ./spring-petclinic-api-gateway/src/test/resources/coverage/runtime_coverage_api_gateway1
+        target: /tmp/coverage/runtime_coverage_api_gateway1
 
   api-gateway-2:
     profiles: [lb]
@@ -296,8 +340,12 @@ services:
       - 8055:8050 # cov agent
     volumes:
       - type: bind
-        source: ./spring-petclinic-api-gateway/src/test/resources/coverage
-        target: /tmp/coverage
+        source: ./spring-petclinic-api-gateway/src/test/resources/coverage/agent.properties
+        target: /tmp/coverage/agent.properties
+        read_only: true
+      - type: bind
+        source: ./spring-petclinic-api-gateway/src/test/resources/coverage/runtime_coverage_api_gateway2
+        target: /tmp/coverage/runtime_coverage_api_gateway2
 
   petclinic-lb:
     profiles: [lb]

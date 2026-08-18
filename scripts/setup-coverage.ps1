@@ -192,6 +192,10 @@ try {
 
     Log "Creating runtime data directories..."
     $runtimeDirs = @(
+        "spring-petclinic-api-gateway\src\test\resources\coverage\runtime_coverage",
+        "spring-petclinic-customers-service\src\test\resources\coverage\runtime_coverage",
+        "spring-petclinic-vets-service\src\test\resources\coverage\runtime_coverage",
+        "spring-petclinic-visits-service\src\test\resources\coverage\runtime_coverage",
         "spring-petclinic-api-gateway\src\test\resources\coverage\runtime_coverage_api_gateway1",
         "spring-petclinic-api-gateway\src\test\resources\coverage\runtime_coverage_api_gateway2",
         "spring-petclinic-customers-service\src\test\resources\coverage\runtime_coverage_customer1",

@@ -64,7 +64,7 @@ This uses [`jtest.settings`](jtest.settings) and must be run after Step 1. It on
 
 ### Step 3 — Run the coverage setup script
 
-The setup script extracts Parasoft coverage agent jars from `parasoft/ctp:latest`, copies them into each service's `src/test/resources/coverage/` directory, and generates a per-service `agent.properties` by resolving CTP subscription queues and DTP filter IDs from the CTP/DTP APIs.
+The setup script extracts Parasoft coverage agent jars from `parasoft/ctp:latest`, copies them into each service's `src/test/resources/coverage/` directory, and generates a per-service `agent.properties` by resolving CTP subscription queues and DTP filter IDs from the CTP/DTP APIs. It also creates the runtime data directories that Docker Compose bind-mounts into the containers.
 
 **Linux / macOS:**
 ```bash
@@ -86,11 +86,27 @@ $env:PARASOFT_PASS = "your-ctp-password"
     -DtpUrl http://your-dtp:8083
 ```
 
-The CTP environment ID appears in the CTP UI under the environment's settings. Run `--help` / `-Help` for all options.
+**All options:**
 
-> Running the script without arguments extracts jars only, leaving `agent.properties` at its template defaults. This is enough to activate the Maven `coverage` profile for `mvnw spring-boot:run`; you can then fill in `ctp.subscription.queue` manually using the pattern hint in `jtest/coverage/agent.properties`.
+| Bash flag | PowerShell flag | Default | Description |
+|---|---|---|---|
+| `--ctp-url` | `-CtpUrl` | _(required)_ | CTP base URL, e.g. `http://ctp:8080` |
+| `--env-id` | `-EnvId` | _(required)_ | CTP environment ID (visible in environment settings) |
+| `--dtp-url` | `-DtpUrl` | _(required)_ | DTP base URL, e.g. `https://dtp:8443` |
+| `--build-id` | `-BuildId` | `baseline` | Appended to app name to form `dtp.buildID` |
+| `--app-name` | `-AppName` | `spring-petclinic-microservices` | DTP project / image prefix |
+| `--skip-jars` | `-SkipJars` | off | Skip jar extraction — use for Docker Compose deployments where the Dockerfile bakes jars into the image or if the jars are already present in the local workspace's locations for each service  |
+| `--use-ctp-ws-url` | `-UseCTPWsUrl` | off | Set `ctp.websocket.url` from the CTP API response instead of the template value; use when CTP is on a remote host (not reachable as `ctp` on the Docker network) |
+| `--ci-debug` | `-CiDebug` | off | Print extra debug output |
+
+> **Docker Compose path** — The Dockerfile bakes agent jars into the image from `parasoft/ctp:latest`, so jar extraction is unnecessary. Pass `--skip-jars` / `-SkipJars` to skip that step:
+> ```bash
+> ./scripts/setup-coverage.sh --skip-jars --ctp-url ... --env-id ... --dtp-url ...
+> ```
 >
-> If CTP is on a remote host rather than a Docker container on the same network, add `--use-ctp-ws-url` and the script will set `ctp.websocket.url` from the CTP API response instead of the template value.
+> **`spring-boot:run` path** — Run the script without `--skip-jars` so jars are extracted into each service's `src/test/resources/coverage/` directory, then referenced directly by the Maven `coverage` profile. You can fill in `ctp.subscription.queue` manually using the pattern hint in `jtest/coverage/agent.properties` if you prefer not to call the script at all.
+>
+> **Remote CTP** — If CTP is on a remote host rather than a container on the same Docker network, add `--use-ctp-ws-url` so the script sets `ctp.websocket.url` from the CTP API response instead of using the default `ws://ctp:8080/...` template value.
 
 ### Step 4 — Build Docker images
 
